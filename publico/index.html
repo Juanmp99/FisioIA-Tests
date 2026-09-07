@@ -1,0 +1,765 @@
+<title>Asistente de tests · FisioIA</title>
+
+<style>
+  :root {
+    --papel: #ffffff;
+    --lienzo: #f5f7fb;
+    --superficie: #ffffff;
+    --tinta: #0a0a0a;
+    --tinta-suave: #333b4a;
+    --apagado: #5b6478;
+    --linea: #dfe3ec;
+    --linea-tenue: #edf0f6;
+    --azul: #004aad;
+    --azul-hondo: #003278;
+    --azul-lavado: #eaf0fa;
+    --oro: #d4af37;
+    --verde: #1a7f4b;
+    --ambar: #b5730a;
+    --rojo: #b3261e;
+    --sombra: 0 1px 2px rgba(10, 20, 45, .06), 0 12px 32px -18px rgba(10, 20, 45, .3);
+    --radio: 10px;
+    --ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --papel: #0b0e14; --lienzo: #0f131b; --superficie: #141926;
+      --tinta: #eef1f6; --tinta-suave: #c3cad8; --apagado: #8c96aa;
+      --linea: #262d3c; --linea-tenue: #1c2231;
+      --azul: #5b9bf0; --azul-hondo: #7db1f7; --azul-lavado: #16213a;
+      --verde: #4cc38a; --ambar: #e0a340; --rojo: #f2685c;
+      --sombra: 0 1px 2px rgba(0,0,0,.5), 0 12px 32px -18px rgba(0,0,0,.9);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --papel: #ffffff; --lienzo: #f5f7fb; --superficie: #ffffff;
+    --tinta: #0a0a0a; --tinta-suave: #333b4a; --apagado: #5b6478;
+    --linea: #dfe3ec; --linea-tenue: #edf0f6;
+    --azul: #004aad; --azul-hondo: #003278; --azul-lavado: #eaf0fa;
+    --verde: #1a7f4b; --ambar: #b5730a; --rojo: #b3261e;
+  }
+
+  :root[data-theme="dark"] {
+    --papel: #0b0e14; --lienzo: #0f131b; --superficie: #141926;
+    --tinta: #eef1f6; --tinta-suave: #c3cad8; --apagado: #8c96aa;
+    --linea: #262d3c; --linea-tenue: #1c2231;
+    --azul: #5b9bf0; --azul-hondo: #7db1f7; --azul-lavado: #16213a;
+    --verde: #4cc38a; --ambar: #e0a340; --rojo: #f2685c;
+    --sombra: 0 1px 2px rgba(0,0,0,.5), 0 12px 32px -18px rgba(0,0,0,.9);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--lienzo);
+    color: var(--tinta);
+    font-family: var(--ui);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.021em; text-wrap: balance; }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; border-radius: 4px; }
+
+  .rotulo {
+    font-size: .688rem; font-weight: 600; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--apagado);
+  }
+
+  .barra {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 18px 24px; background: var(--papel); border-bottom: 1px solid var(--linea);
+  }
+  .marca { display: flex; align-items: baseline; gap: 10px; }
+  .marca b { font-size: 1.0625rem; font-weight: 700; letter-spacing: -.03em; color: var(--azul); }
+  .marca b span { color: var(--tinta); }
+  .marca em {
+    font-style: normal; font-size: .8125rem; color: var(--apagado);
+    border-left: 1px solid var(--linea); padding-left: 10px;
+  }
+  .estado-modelo { font-size: .75rem; color: var(--apagado); font-family: var(--mono); }
+
+  .marco { max-width: 820px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* ---------- consulta ---------- */
+
+  .consulta { padding: 56px 0 8px; }
+  .consulta h1 { font-size: clamp(1.75rem, 5vw, 2.375rem); line-height: 1.1; margin: 14px 0 10px; }
+  .consulta p.pie { color: var(--tinta-suave); margin: 0 0 26px; max-width: 54ch; }
+
+  .buscador { display: flex; gap: 10px; flex-wrap: wrap; }
+  .buscador input {
+    flex: 1 1 320px; background: var(--superficie); color: var(--tinta);
+    border: 1px solid var(--linea); border-radius: 8px; padding: 14px 16px; font: inherit;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .buscador input:focus { outline: none; border-color: var(--azul); box-shadow: 0 0 0 3px var(--azul-lavado); }
+  ::placeholder { color: var(--apagado); opacity: .85; }
+
+  .btn {
+    border: 1px solid var(--linea); background: var(--superficie); border-radius: 8px;
+    padding: 13px 20px; font-weight: 500; cursor: pointer; transition: all .14s;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--azul); color: var(--azul); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn-principal { background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { .btn-principal { color: #06101f; } }
+  :root[data-theme="light"] .btn-principal { color: #fff; }
+  :root[data-theme="dark"] .btn-principal { color: #06101f; }
+  .btn-principal:hover:not(:disabled) { background: var(--azul-hondo); border-color: var(--azul-hondo); }
+
+  .ejemplos { margin-top: 12px; font-size: .8125rem; color: var(--apagado); }
+  .ejemplos button {
+    background: none; border: 0; padding: 0 2px; color: var(--azul);
+    cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+  }
+
+  /* ---------- bloques ---------- */
+
+  .seccion { margin-top: 34px; }
+  .seccion > .rotulo { display: block; margin-bottom: 10px; }
+
+  .tarjeta {
+    background: var(--superficie); border: 1px solid var(--linea);
+    border-radius: var(--radio); padding: 20px 22px;
+  }
+
+  .aviso {
+    background: var(--superficie); border: 1px solid var(--linea);
+    border-left: 3px solid var(--azul); border-radius: 8px; padding: 18px 20px;
+    font-size: .9375rem;
+  }
+  .aviso.malo { border-left-color: var(--rojo); }
+
+  /* ---------- ambigüedad ---------- */
+
+  .opciones { display: grid; gap: 10px; }
+  .opcion {
+    text-align: left; width: 100%; background: var(--superficie);
+    border: 1px solid var(--linea); border-radius: 8px; padding: 14px 16px;
+    cursor: pointer; transition: all .14s;
+  }
+  .opcion:hover { border-color: var(--azul); transform: translateY(-1px); box-shadow: var(--sombra); }
+  .opcion b { display: block; margin-bottom: 3px; }
+  .opcion span { font-size: .875rem; color: var(--apagado); }
+
+  /* ---------- banderas ---------- */
+
+  .banderas summary {
+    cursor: pointer; font-weight: 600; font-size: .9375rem;
+    display: flex; align-items: center; gap: 9px; list-style: none;
+  }
+  .banderas summary::-webkit-details-marker { display: none; }
+  .banderas summary::before {
+    content: "▸"; color: var(--apagado); transition: transform .15s; display: inline-block;
+  }
+  .banderas[open] summary::before { transform: rotate(90deg); }
+  .banderas { border-left-color: var(--rojo); }
+  .bandera { padding: 14px 0 0; border-top: 1px solid var(--linea-tenue); margin-top: 14px; }
+  .bandera:first-of-type { border-top: 0; }
+  .bandera h4 { margin: 0 0 6px; font-size: .9375rem; display: flex; gap: 9px; align-items: baseline; }
+  .prioridad {
+    font-size: .625rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 3px; white-space: nowrap;
+  }
+  .prioridad.urgente { background: var(--rojo); color: #fff; }
+  .prioridad.prioritaria { border: 1px solid var(--rojo); color: var(--rojo); }
+  .prioridad.precaucion { border: 1px solid var(--apagado); color: var(--apagado); }
+  .bandera ul { margin: 0 0 6px; padding-left: 18px; font-size: .875rem; color: var(--tinta-suave); }
+  .bandera p { margin: 0; font-size: .875rem; font-weight: 500; }
+  .advertencia { margin: 14px 0 0; font-size: .8125rem; color: var(--apagado); }
+
+  /* ---------- sospecha pre-test ---------- */
+
+  .pretest { border-left: 3px solid var(--azul); }
+  .pretest h3 { font-size: 1.0625rem; margin-bottom: 4px; }
+  .pretest p { margin: 0 0 14px; font-size: .875rem; color: var(--apagado); max-width: 56ch; }
+  .niveles { display: flex; gap: 8px; flex-wrap: wrap; }
+  .nivel {
+    flex: 1 1 140px; background: var(--superficie); border: 1px solid var(--linea);
+    border-radius: 8px; padding: 12px 14px; cursor: pointer; text-align: left; transition: all .14s;
+  }
+  .nivel:hover { border-color: var(--azul); }
+  .nivel[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; }
+  @media (prefers-color-scheme: dark) { .nivel[aria-pressed="true"] { color: #06101f; } }
+  :root[data-theme="light"] .nivel[aria-pressed="true"] { color: #fff; }
+  :root[data-theme="dark"] .nivel[aria-pressed="true"] { color: #06101f; }
+  .nivel b { display: block; font-size: .9375rem; }
+  .nivel span { font-size: .75rem; opacity: .8; font-variant-numeric: tabular-nums; }
+
+  /* ---------- agrupación ---------- */
+
+  .cluster { border-top: 2px solid var(--oro); }
+  .cluster .rotulo { color: var(--oro); }
+  .cluster h3 { font-size: 1.125rem; margin: 8px 0 6px; }
+  .cluster .criterio { font-size: .875rem; color: var(--tinta-suave); margin: 0 0 12px; }
+  .cluster ol { margin: 0; padding-left: 20px; font-size: .9375rem; }
+
+  /* ---------- tests ---------- */
+
+  .tests { display: grid; gap: 12px; }
+
+  .test { background: var(--superficie); border: 1px solid var(--linea); border-radius: var(--radio); overflow: hidden; }
+  .test-cab {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 14px; padding: 16px 20px 12px;
+  }
+  .test-cab h3 { font-size: 1rem; }
+  .test-cab .objetivo { font-size: .8125rem; color: var(--apagado); margin-top: 2px; }
+  .orden { font-family: var(--mono); font-size: .75rem; color: var(--azul); margin-right: 9px; }
+
+  .semaforo { display: flex; align-items: center; gap: 7px; font-size: .75rem; white-space: nowrap; color: var(--apagado); }
+  .punto { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--linea); }
+  .punto.espera { animation: latir 1.2s ease-in-out infinite; }
+  @keyframes latir { 50% { opacity: .35; } }
+
+  /* ---------- leyenda ---------- */
+
+  .leyenda {
+    background: var(--superficie); border: 1px solid var(--linea);
+    border-left: 3px solid var(--azul); border-radius: 8px; padding: 16px 20px;
+    margin-bottom: 14px; font-size: .9375rem;
+  }
+  .leyenda summary {
+    cursor: pointer; font-weight: 600; list-style: none;
+    display: flex; align-items: center; gap: 9px;
+  }
+  .leyenda summary::-webkit-details-marker { display: none; }
+  .leyenda summary::before { content: "▸"; color: var(--apagado); display: inline-block; transition: transform .15s; }
+  .leyenda[open] summary::before { transform: rotate(90deg); }
+  .leyenda dl { margin: 14px 0 0; display: grid; gap: 11px; }
+  .leyenda dt { font-weight: 600; font-family: var(--mono); font-size: .875rem; color: var(--azul); }
+  .leyenda dd { margin: 2px 0 0; color: var(--tinta-suave); }
+  .leyenda p {
+    margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--linea-tenue);
+    font-size: .875rem; color: var(--apagado);
+  }
+
+  .cifras { font-family: var(--mono); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+
+  /* Marcar el resultado es la función principal: va en la tarjeta, a la vista,
+     sin desplegar nada y sin depender de ningún paso previo. */
+  .test-acciones {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 0 20px 16px;
+  }
+  .test-acciones .rotulo { margin-right: 2px; }
+  .btn-res {
+    border: 1px solid var(--linea); background: var(--superficie); border-radius: 8px;
+    padding: 8px 18px; font-size: .9375rem; font-weight: 500; cursor: pointer; transition: all .13s;
+  }
+  .btn-res:hover { border-color: var(--azul); color: var(--azul); }
+  .btn-res[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { .btn-res[aria-pressed="true"] { color: #06101f; } }
+  :root[data-theme="light"] .btn-res[aria-pressed="true"] { color: #fff; }
+  :root[data-theme="dark"] .btn-res[aria-pressed="true"] { color: #06101f; }
+
+  .btn-ver {
+    margin-left: auto; background: none; border: 0; padding: 8px 0;
+    font-size: .8125rem; color: var(--apagado); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-ver:hover { color: var(--azul); }
+  .btn-ver::after { content: "▸"; transition: transform .15s; }
+  .btn-ver[aria-expanded="true"]::after { transform: rotate(90deg); }
+
+  .hueco { padding: 0 20px; }
+  .hueco:not(:empty) { padding-bottom: 16px; }
+
+  .test-cuerpo { padding: 16px 20px 18px; border-top: 1px solid var(--linea-tenue); }
+  .paso { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 9px 0; font-size: .875rem; }
+  .paso:not(:last-child) { border-bottom: 1px solid var(--linea-tenue); }
+  .paso dt { color: var(--apagado); font-size: .8125rem; }
+  .paso dd { margin: 0; }
+
+  .evidencia { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--linea-tenue); font-size: .875rem; }
+  .evidencia .motivos { margin: 6px 0 0; padding-left: 18px; color: var(--apagado); font-size: .8125rem; }
+  .evidencia a { color: var(--azul); }
+  .indirecta {
+    display: inline-block; font-size: .6875rem; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; border: 1px solid var(--apagado); color: var(--apagado);
+    padding: 1px 6px; border-radius: 3px; margin-left: 8px;
+  }
+
+  .marcar { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+  .marcar .btn { padding: 9px 18px; font-size: .9375rem; }
+  .marcar .btn[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { .marcar .btn[aria-pressed="true"] { color: #06101f; } }
+  :root[data-theme="light"] .marcar .btn[aria-pressed="true"] { color: #fff; }
+  :root[data-theme="dark"] .marcar .btn[aria-pressed="true"] { color: #06101f; }
+
+  .lectura { margin-top: 14px; padding: 14px 16px; background: var(--azul-lavado); border-radius: 8px; }
+  .lectura b { display: block; margin-bottom: 6px; }
+  .lectura .calculo {
+    font-family: var(--mono); font-size: .75rem; color: var(--tinta-suave);
+    margin-top: 8px; font-variant-numeric: tabular-nums;
+  }
+
+  .nota-cadena { font-size: .8125rem; color: var(--apagado); margin: 12px 0 0; max-width: 62ch; }
+
+  .cargando { display: flex; align-items: center; gap: 10px; color: var(--apagado); font-size: .9375rem; }
+  .girando {
+    width: 14px; height: 14px; border: 2px solid var(--linea); border-top-color: var(--azul);
+    border-radius: 50%; animation: girar .7s linear infinite;
+  }
+  @keyframes girar { to { transform: rotate(360deg); } }
+
+  .pie-legal {
+    margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--linea);
+    font-size: .8125rem; color: var(--apagado); max-width: 66ch;
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="barra">
+  <div class="marca">
+    <b>Fisio<span>IA</span></b>
+    <em>Asistente de tests</em>
+  </div>
+  <span class="estado-modelo" id="estado"></span>
+</div>
+
+<div class="marco">
+  <section class="consulta">
+    <span class="rotulo">Razonamiento clínico</span>
+    <h1>¿Qué sospechas?</h1>
+    <p class="pie">Escríbelo en lenguaje clínico y te devuelvo con qué verificarlo, cómo se ejecuta cada test y qué te permite concluir según su precisión diagnóstica.</p>
+
+    <form class="buscador" id="form">
+      <input id="sospecha" type="text" autocomplete="off" placeholder="Ej.: tendinopatía rotuliana, radiculopatía cervical, rotura del LCA">
+      <button class="btn btn-principal" id="enviar" type="submit">Buscar tests</button>
+    </form>
+    <p class="ejemplos">
+      Prueba con
+      <button type="button" data-ej="rotura del manguito rotador">rotura del manguito rotador</button>,
+      <button type="button" data-ej="rotura del ligamento cruzado anterior">rotura del LCA</button> o
+      <button type="button" data-ej="hombro doloroso">hombro doloroso</button>.
+    </p>
+  </section>
+
+  <div id="salida"></div>
+
+  <p class="pie-legal">
+    Herramienta de apoyo al razonamiento clínico. No emite diagnósticos ni sustituye el juicio del
+    profesional: la decisión y la responsabilidad clínica son siempre del fisioterapeuta.
+  </p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var estado = {
+    entidad: "", terminos: [], region: "",
+    tests: [], agrupaciones: [], banderas: [], advertencia: "",
+    nivel: null,
+    evidencias: {},
+    resultados: {}
+  };
+
+  var salida = document.getElementById("salida");
+  var form = document.getElementById("form");
+  var campo = document.getElementById("sospecha");
+  var enviar = document.getElementById("enviar");
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function pedir(ruta, cuerpo) {
+    return fetch(ruta, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cuerpo)
+    }).then(function (r) {
+      return r.json().then(function (d) {
+        if (!r.ok) throw new Error(d.error || "El servidor ha devuelto un error.");
+        return d;
+      });
+    });
+  }
+
+  fetch("api/estado").then(function (r) { return r.json(); }).then(function (d) {
+    document.getElementById("estado").textContent =
+      d.modelo + " · " + d.enCache + " en caché" + (d.credencial ? "" : " · sin clave");
+  }).catch(function () {});
+
+  /* ============ consulta ============ */
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-ej]"), function (b) {
+    b.addEventListener("click", function () {
+      campo.value = b.getAttribute("data-ej");
+      form.dispatchEvent(new Event("submit", { cancelable: true }));
+    });
+  });
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    consultar(campo.value.trim());
+  });
+
+  function consultar(sospecha) {
+    if (sospecha.length < 3) return;
+    enviar.disabled = true;
+    salida.innerHTML = '<div class="seccion"><div class="cargando"><span class="girando"></span>Buscando la batería de tests…</div></div>';
+
+    pedir("api/bateria", { sospecha: sospecha })
+      .then(function (d) {
+        if (d.estado === "no_reconocida") return pintarAviso(d.mensaje, true);
+        if (d.estado === "ambigua") return pintarAmbigua(d);
+
+        estado.entidad = d.entidad;
+        estado.terminos = d.terminosBusqueda || [];
+        estado.region = d.region;
+        estado.tests = d.tests;
+        estado.agrupaciones = d.agrupaciones || [];
+        estado.banderas = d.banderas || [];
+        estado.advertencia = d.advertenciaBanderas || "";
+        estado.nivel = null;
+        estado.evidencias = {};
+        estado.resultados = {};
+
+        pintar();
+        buscarEvidencia();
+      })
+      .catch(function (err) { pintarAviso(err.message, true); })
+      .finally(function () { enviar.disabled = false; });
+  }
+
+  function pintarAviso(texto, malo) {
+    salida.innerHTML = '<div class="seccion"><div class="aviso' + (malo ? " malo" : "") + '">' + esc(texto) + "</div></div>";
+  }
+
+  function pintarAmbigua(d) {
+    salida.innerHTML =
+      '<div class="seccion">' +
+        '<span class="rotulo">Concreta la sospecha</span>' +
+        '<div class="aviso" style="margin-bottom:14px">' + esc(d.mensaje) + '</div>' +
+        '<div class="opciones">' +
+          d.alternativas.map(function (a) {
+            return '<button class="opcion" data-alt="' + esc(a.entidad) + '">' +
+              "<b>" + esc(a.entidad) + "</b><span>" + esc(a.matiz) + "</span></button>";
+          }).join("") +
+        "</div>" +
+      "</div>";
+
+    Array.prototype.forEach.call(salida.querySelectorAll("[data-alt]"), function (b) {
+      b.addEventListener("click", function () {
+        campo.value = b.getAttribute("data-alt");
+        consultar(b.getAttribute("data-alt"));
+      });
+    });
+  }
+
+  /* ============ pintado principal ============ */
+
+  function pintar() {
+    salida.innerHTML =
+      bloqueBanderas() +
+      bloquePreTest() +
+      bloqueAgrupaciones() +
+      bloqueTests();
+
+    Array.prototype.forEach.call(salida.querySelectorAll("[data-nivel]"), function (b) {
+      b.addEventListener("click", function () {
+        estado.nivel = b.getAttribute("data-nivel");
+        pintar();
+      });
+    });
+
+    var ley = document.getElementById("leyenda");
+    if (ley) {
+      ley.addEventListener("toggle", function () {
+        try { localStorage.setItem("fisioia.leyenda", ley.open ? "abierta" : "vista"); } catch (e) {}
+      });
+    }
+
+    Array.prototype.forEach.call(salida.querySelectorAll("[data-ver]"), function (b) {
+      b.addEventListener("click", function () {
+        var cuerpo = b.closest(".test").querySelector(".test-cuerpo");
+        cuerpo.hidden = !cuerpo.hidden;
+        b.setAttribute("aria-expanded", String(!cuerpo.hidden));
+      });
+    });
+
+    Array.prototype.forEach.call(salida.querySelectorAll("[data-marcar]"), function (b) {
+      b.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        var nombre = b.getAttribute("data-marcar");
+        var valor = b.getAttribute("data-valor");
+        estado.resultados[nombre] = estado.resultados[nombre] === valor ? null : valor;
+        interpretarTest(nombre);
+      });
+    });
+
+    Object.keys(estado.resultados).forEach(function (nombre) {
+      if (estado.resultados[nombre]) interpretarTest(nombre);
+    });
+  }
+
+  function bloqueBanderas() {
+    if (!estado.banderas.length) return "";
+    return '<details class="seccion banderas aviso">' +
+      "<summary>Banderas rojas a descartar en " + esc(estado.region) + " · " + estado.banderas.length + "</summary>" +
+      estado.banderas.map(function (b) {
+        return '<div class="bandera">' +
+          "<h4>" + esc(b.titulo) + '<span class="prioridad ' + esc(b.prioridad) + '">' + esc(b.prioridad) + "</span></h4>" +
+          "<ul>" + b.senales.map(function (s) { return "<li>" + esc(s) + "</li>"; }).join("") + "</ul>" +
+          "<p>" + esc(b.accion) + "</p>" +
+        "</div>";
+      }).join("") +
+      '<p class="advertencia">' + esc(estado.advertencia) + "</p>" +
+    "</details>";
+  }
+
+  function bloquePreTest() {
+    var niveles = [
+      { id: "baja", nombre: "Baja", detalle: "en torno al 15%" },
+      { id: "media", nombre: "Media", detalle: "en torno al 45%" },
+      { id: "alta", nombre: "Alta", detalle: "en torno al 75%" }
+    ];
+
+    return '<div class="seccion"><div class="tarjeta pretest">' +
+      "<h3>Antes de explorar: ¿cómo de fuerte es tu sospecha de " + esc(estado.entidad) + "?</h3>" +
+      "<p>La conclusión de cada test depende de con cuánta sospecha llegas a él. Se pregunta una sola vez y se aplica a toda la batería.</p>" +
+      '<div class="niveles">' +
+        niveles.map(function (n) {
+          return '<button class="nivel" data-nivel="' + n.id + '" aria-pressed="' + (estado.nivel === n.id) + '">' +
+            "<b>" + n.nombre + "</b><span>" + n.detalle + "</span></button>";
+        }).join("") +
+      "</div></div></div>";
+  }
+
+  function bloqueAgrupaciones() {
+    if (!estado.agrupaciones.length) return "";
+
+    return estado.agrupaciones.map(function (a) {
+      var ev = estado.evidencias[a.nombre];
+      var verificada = ev && ev.hayCifras;
+
+      return '<div class="seccion"><div class="tarjeta cluster">' +
+        '<span class="rotulo">' + (verificada ? "Agrupación validada" : "Agrupación propuesta") + "</span>" +
+        "<h3>" + esc(a.nombre) + "</h3>" +
+        '<p class="criterio">' + esc(a.criterio) + "</p>" +
+        "<ol>" + a.tests.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ol>" +
+        (verificada
+          ? '<div class="evidencia">Precisión de la agrupación completa: <span class="cifras">Sn ' +
+            num(ev.sn, true) + " · Sp " + num(ev.sp, true) + "</span>. " + citaHtml(ev) + "</div>"
+          : '<div class="evidencia">' + (ev
+              ? "No se ha localizado precisión diagnóstica publicada de esta agrupación como conjunto, así que interpreta cada test por separado."
+              : '<span class="cargando"><span class="girando"></span>Comprobando si está validada…</span>') + "</div>") +
+      "</div></div>";
+    }).join("");
+  }
+
+  // La leyenda se abre sola la primera vez y luego se recuerda plegada. Quien no
+  // sabe qué es una sensibilidad tampoco sabe que tiene que preguntarlo, así que
+  // la primera vez no puede estar escondida.
+  function leyenda() {
+    var vista = false;
+    try { vista = localStorage.getItem("fisioia.leyenda") === "vista"; } catch (e) {}
+
+    return '<details class="leyenda" id="leyenda"' + (vista ? "" : " open") + ">" +
+      "<summary>Qué significan Sn y Sp</summary>" +
+      "<dl>" +
+        "<div><dt>Sn · Sensibilidad</dt><dd>De cada 100 personas que <b>sí</b> tienen la lesión, " +
+          "a cuántas las detecta el test. Un test muy sensible que sale <b>negativo</b> ayuda a <b>descartar</b>.</dd></div>" +
+        "<div><dt>Sp · Especificidad</dt><dd>De cada 100 personas que <b>no</b> la tienen, " +
+          "a cuántas el test da negativo. Un test muy específico que sale <b>positivo</b> ayuda a <b>confirmar</b>.</dd></div>" +
+        "<div><dt>Sin cifras</dt><dd>Hemos buscado en la literatura y nadie ha publicado estos datos " +
+          "para ese test en esta patología. <b>No significa que el test no sirva</b>: muchas patologías se " +
+          "diagnostican por clínica y sus estudios no incluyen personas sanas, así que no puede calcularse " +
+          "la especificidad. Puedes usar el test; lo que no podemos decirte es cuánto cambia tu sospecha.</dd></div>" +
+      "</dl>" +
+      "<p>Ambas van de 0 a 1. Pero lo que significa un resultado depende también de con cuánta " +
+      "sospecha llegabas al test: por eso te preguntamos antes de explorar.</p>" +
+    "</details>";
+  }
+
+  function bloqueTests() {
+    return '<div class="seccion">' +
+      '<span class="rotulo">Batería · ' + estado.tests.length + " tests, de cribado a confirmación</span>" +
+      leyenda() +
+      '<div class="tests">' + estado.tests.map(tarjetaTest).join("") + "</div>" +
+      '<p class="nota-cadena">Cada test se interpreta contra tu sospecha inicial, de forma independiente. Los resultados de varios tests sueltos no se encadenan: hacerlo daría una certeza que la evidencia no respalda, porque tests que exploran la misma estructura no aportan información independiente.</p>' +
+    "</div>";
+  }
+
+  function tarjetaTest(t, i) {
+    var ev = estado.evidencias[t.nombre];
+    var marcado = estado.resultados[t.nombre];
+    var id = esc(t.nombre);
+
+    return '<div class="test">' +
+      '<div class="test-cab">' +
+        "<div>" +
+          '<h3><span class="orden">' + String(i + 1).padStart(2, "0") + "</span>" + esc(t.nombre) + "</h3>" +
+          '<div class="objetivo">' + esc(t.objetivo) + "</div>" +
+        "</div>" +
+        tiraSemaforo(ev) +
+      "</div>" +
+      '<div class="test-acciones">' +
+        '<span class="rotulo">Resultado</span>' +
+        '<button class="btn-res" data-marcar="' + id + '" data-valor="positivo" aria-pressed="' + (marcado === "positivo") + '">Positivo</button>' +
+        '<button class="btn-res" data-marcar="' + id + '" data-valor="negativo" aria-pressed="' + (marcado === "negativo") + '">Negativo</button>' +
+        '<button class="btn-ver" data-ver="' + id + '" aria-expanded="false">Cómo se ejecuta</button>' +
+      "</div>" +
+      '<div class="hueco" data-hueco="' + id + '"></div>' +
+      '<div class="test-cuerpo" hidden>' +
+        "<dl>" +
+          paso("Paciente", t.posicionPaciente) +
+          paso("Terapeuta", t.posicionTerapeuta) +
+          paso("Maniobra", t.maniobra) +
+          paso("Positivo si", t.positivoSi) +
+        "</dl>" +
+        bloqueEvidencia(t.nombre, ev) +
+      "</div>" +
+    "</div>";
+  }
+
+  function paso(etiqueta, texto) {
+    return '<div class="paso"><dt>' + etiqueta + "</dt><dd>" + esc(texto) + "</dd></div>";
+  }
+
+  function tiraSemaforo(ev) {
+    if (!ev) return '<div class="semaforo"><span class="punto espera"></span>buscando</div>';
+    if (!ev.hayCifras) return '<div class="semaforo">sin cifras</div>';
+    return '<div class="semaforo"><span class="cifras">' + textoCifras(ev) + "</span></div>";
+  }
+
+  // La literatura publica a menudo solo una de las dos cifras. Se muestra la que
+  // hay y se dice cuál falta, en vez de fingir que no se sabe nada del test.
+  function textoCifras(ev) {
+    if (ev.sn != null && ev.sp != null) return "Sn " + num(ev.sn, true) + " · Sp " + num(ev.sp, true);
+    if (ev.sn != null) return "Sn " + num(ev.sn, true) + " · Sp no publicada";
+    return "Sp " + num(ev.sp, true) + " · Sn no publicada";
+  }
+
+  /** Coma decimal. Las proporciones siempre con dos decimales: 0,80 y no 0,8. */
+  function num(x, proporcion) {
+    var opciones = proporcion
+      ? { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+      : { maximumFractionDigits: 2 };
+    return Number(x).toLocaleString("es-ES", opciones);
+  }
+
+  function citaHtml(ev) {
+    if (!ev.cita) return "";
+    return 'Fuente: <a href="' + esc(ev.cita.url) + '" target="_blank" rel="noopener">' +
+      esc(ev.cita.titulo) + "</a> · " + esc(ev.cita.revista) + " " + esc(ev.cita.anio) + ".";
+  }
+
+  function bloqueEvidencia(nombre, ev) {
+    if (!ev) {
+      return '<div class="evidencia"><span class="cargando"><span class="girando"></span>Buscando precisión diagnóstica en PubMed…</span></div>';
+    }
+
+    if (!ev.hayCifras) {
+      return '<div class="evidencia"><b>Sin cifras de precisión utilizables.</b> ' + esc(ev.motivo || ev.error || "") +
+        " No se ofrece conclusión probabilística para este test." +
+        ((ev.consultados && ev.consultados.length)
+          ? '<ul class="motivos">' + ev.consultados.slice(0, 3).map(function (c) {
+              return '<li><a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.titulo) + "</a></li>";
+            }).join("") + "</ul>"
+          : "") +
+      "</div>";
+    }
+
+    return '<div class="evidencia">' +
+      '<span class="cifras">' + textoCifras(ev) + "</span>" +
+      (ev.indirecta ? '<span class="indirecta">evidencia indirecta</span>' : "") +
+      (ev.parcial ? '<span class="indirecta">cifra parcial</span>' : "") +
+      '<ul class="motivos">' + ev.calidad.motivos.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>" +
+      "<div style=\"margin-top:8px\">" + citaHtml(ev) + "</div>" +
+    "</div>";
+  }
+
+  /* ============ evidencia y conclusión ============ */
+
+  function buscarEvidencia() {
+    var elementos = estado.agrupaciones.map(function (a) { return { nombre: a.nombre, busqueda: a.nombre, tipo: "agrupacion" }; })
+      .concat(estado.tests.map(function (t) { return { nombre: t.nombre, busqueda: t.nombreBusqueda || t.nombre, tipo: "test" }; }));
+
+    pedir("api/evidencia", {
+      entidad: estado.entidad,
+      terminosBusqueda: estado.terminos,
+      elementos: elementos
+    }).then(function (d) {
+      (d.evidencias || []).forEach(function (e) { estado.evidencias[e.nombre] = e; });
+      pintar();
+    }).catch(function (err) {
+      estado.tests.forEach(function (t) {
+        estado.evidencias[t.nombre] = { hayCifras: false, error: err.message };
+      });
+      pintar();
+    });
+  }
+
+  function interpretarTest(nombre) {
+    var hueco = salida.querySelector('[data-hueco="' + nombre.replace(/"/g, '\\"') + '"]');
+    var ev = estado.evidencias[nombre];
+    var resultado = estado.resultados[nombre];
+
+    Array.prototype.forEach.call(salida.querySelectorAll('[data-marcar="' + nombre.replace(/"/g, '\\"') + '"]'), function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-valor") === resultado));
+    });
+
+    if (!hueco) return;
+    if (!resultado) { hueco.innerHTML = ""; return; }
+
+    // Marcar siempre vale. Lo que cambia es cuánto podemos decirte del resultado.
+    if (!estado.nivel) {
+      hueco.innerHTML = '<div class="lectura"><b>Resultado anotado.</b> ' +
+        "Dinos arriba con cuánta sospecha llegabas y verás qué significa este resultado, " +
+        "y de paso el de todos los tests que ya hayas marcado.</div>";
+      return;
+    }
+
+    if (!ev || !ev.hayCifras) {
+      hueco.innerHTML = '<div class="lectura"><b>Resultado anotado.</b> ' +
+        "Nadie ha publicado la precisión de este test para esta patología, así que no puede " +
+        "decirse cuánto cambia tu sospecha.</div>";
+      return;
+    }
+
+    if (ev.interpretable === false) {
+      hueco.innerHTML = '<div class="lectura"><b>Resultado anotado.</b> ' +
+        "Solo consta " + (ev.sn != null ? "la sensibilidad" : "la especificidad") +
+        " de este test. Con una sola de las dos cifras no puede calcularse la probabilidad " +
+        "tras el test, así que tómalo como orientación.</div>";
+      return;
+    }
+
+    hueco.innerHTML = '<div class="lectura"><span class="cargando"><span class="girando"></span>Calculando…</span></div>';
+
+    pedir("api/interpretar", {
+      nivelPreTest: estado.nivel, sn: ev.sn, sp: ev.sp, resultado: resultado
+    }).then(function (d) {
+      if (!d.interpretable) {
+        hueco.innerHTML = '<div class="lectura"><b>No interpretable</b>' + esc((d.problemas || []).join(" ")) + "</div>";
+        return;
+      }
+      var x = d.detalle;
+      hueco.innerHTML = '<div class="lectura">' +
+        "<b>" + esc(d.lectura) + "</b>" +
+        '<div class="calculo">' +
+          esc(x.preTestTexto) + "  →  RV " + esc(x.cual) + " " + num(x.razonDeVerosimilitud) +
+          "  →  post-test " + esc(x.postTestTexto) +
+        "</div>" +
+        '<div class="calculo">' + esc(x.magnitud.texto) + "</div>" +
+      "</div>";
+    }).catch(function (err) {
+      hueco.innerHTML = '<div class="lectura"><b>No se ha podido calcular</b>' + esc(err.message) + "</div>";
+    });
+  }
+})();
+</script>

@@ -1,0 +1,6 @@
+node_modules/
+.env
+
+# Base construida con el uso. No se versiona: cambia en cada consulta y contiene
+# cifras clinicas aun sin auditar. Se reconstruye sola al usar la herramienta.
+datos/

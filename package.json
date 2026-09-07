@@ -1,0 +1,16 @@
+{
+  "name": "fisioia-tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Asistente de razonamiento clínico: batería de tests para una sospecha e interpretación por precisión diagnóstica",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "test": "node pruebas.js",
+    "verificar": "node verificacion.js",
+    "auditar": "node auditoria.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0"
+  }
+}
