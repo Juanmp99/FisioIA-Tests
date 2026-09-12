@@ -5,10 +5,7 @@
 // queda congelado con su cita. La segunda consulta del mismo test es instantánea
 // e idéntica a la primera, que es lo que hace la herramienta reproducible.
 
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
+import { leer, escribir, cuantos } from "../lib/almacen.js";
 import { buscarPrecision, urlPubmed } from "./pubmed.js";
 import { pedirJson } from "./cliente.js";
 import { SISTEMA_EXTRACCION, ESQUEMA_EXTRACCION, mensajeExtraccion } from "./prompts.js";
@@ -16,8 +13,7 @@ import { validarPrecision, validarParcial } from "../dominio/probabilidad.js";
 import { semaforo } from "../dominio/calidad.js";
 import { comprobarCita } from "../dominio/trazabilidad.js";
 
-const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const ARCHIVO = path.join(RAIZ, "datos", "cache.json");
+const ALMACEN = "evidencia";
 
 const normalizar = (s) =>
   String(s)
@@ -29,24 +25,11 @@ const normalizar = (s) =>
 
 const clave = (test, entidad) => `${normalizar(test)}|${normalizar(entidad)}`;
 
-let memoria = null;
-
-async function cargar() {
-  if (memoria) return memoria;
-  try {
-    memoria = JSON.parse(await fs.readFile(ARCHIVO, "utf8"));
-  } catch {
-    memoria = {};
-  }
-  return memoria;
-}
-
-async function guardar(k, valor) {
-  const base = await cargar();
-  base[k] = { ...valor, fecha: new Date().toISOString() };
-  await fs.mkdir(path.dirname(ARCHIVO), { recursive: true });
-  await fs.writeFile(ARCHIVO, JSON.stringify(base, null, 2), "utf8");
-}
+// La identidad va dentro del valor y no solo en la clave: la clave se limpia
+// para poder ser un nombre de archivo, así que no se puede volver a leer de
+// ella qué test y qué entidad eran. La auditoría los necesita.
+const guardar = (k, valor, identidad) =>
+  escribir(ALMACEN, k, { ...identidad, ...valor, fecha: new Date().toISOString() });
 
 /** Sin evidencia utilizable: es un desenlace normal, no un error. */
 function sinDatos(motivo, articulos = []) {
@@ -87,9 +70,9 @@ export async function evidenciaDe({ test, busqueda, entidad, terminos, senal }) 
   const lista = (Array.isArray(terminos) && terminos.length ? terminos : [entidad]).filter(Boolean);
   const termino = lista[0];
   const k = clave(consulta, termino);
-  const base = await cargar();
+  const anotar = (valor) => guardar(k, valor, { test: consulta, entidad: termino });
 
-  const guardado = base[k];
+  const guardado = await leer(ALMACEN, k);
   if (guardado) {
     const caducado =
       !guardado.hayCifras && guardado.fecha && diasDesde(guardado.fecha) > CADUCIDAD_NEGATIVOS;
@@ -109,7 +92,7 @@ export async function evidenciaDe({ test, busqueda, entidad, terminos, senal }) 
 
   if (!articulos.length) {
     const vacio = sinDatos("No se han localizado artículos de precisión diagnóstica para este test y esta entidad.");
-    await guardar(k, vacio);
+    await anotar(vacio);
     return vacio;
   }
 
@@ -139,7 +122,7 @@ export async function evidenciaDe({ test, busqueda, entidad, terminos, senal }) 
       datos.notas || "Los artículos localizados no aportan sensibilidad ni especificidad para este test.",
       articulos,
     );
-    await guardar(k, vacio);
+    await anotar(vacio);
     return vacio;
   }
 
@@ -164,7 +147,7 @@ export async function evidenciaDe({ test, busqueda, entidad, terminos, senal }) 
       `Se localizaron cifras pero se han descartado por incoherencia: ${validacion.problemas.join(" ")}`,
       articulos,
     );
-    await guardar(k, rechazado);
+    await anotar(rechazado);
     return rechazado;
   }
 
@@ -214,10 +197,10 @@ export async function evidenciaDe({ test, busqueda, entidad, terminos, senal }) 
     consultados: articulos.map((a) => ({ pmid: a.pmid, titulo: a.titulo, url: urlPubmed(a.pmid) })),
   };
 
-  await guardar(k, resultado);
+  await anotar(resultado);
   return resultado;
 }
 
 export async function tamanoCache() {
-  return Object.keys(await cargar()).length;
+  return cuantos(ALMACEN);
 }

@@ -12,25 +12,23 @@
 // y a la patología que preguntamos. Eso es lo que hay que mirar a mano, y por
 // eso el informe existe.
 
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { todos } from "./lib/almacen.js";
 import { comprobarCita } from "./dominio/trazabilidad.js";
 import { razonesDeVerosimilitud } from "./dominio/probabilidad.js";
 
-const RAIZ = path.dirname(fileURLToPath(import.meta.url));
 const soloDudosas = process.argv.includes("--dudosas");
 
 const num = (x) => (typeof x === "number" ? x.toFixed(2).replace(".", ",") : "no publicada");
 
-const base = JSON.parse(await fs.readFile(path.join(RAIZ, "datos", "cache.json"), "utf8"));
+// Con NETLIFY_SITE_ID y NETLIFY_API_TOKEN en el entorno, esto audita la base
+// que ha construido producción. Sin ellas, la de desarrollo.
+const base = await todos("evidencia");
 
 const conCifras = [];
 const sinCifras = [];
 
-for (const [clave, v] of Object.entries(base)) {
-  const [test, entidad] = clave.split("|");
-  (v.hayCifras ? conCifras : sinCifras).push({ test, entidad, ...v });
+for (const v of base) {
+  (v.hayCifras ? conCifras : sinCifras).push({ test: v.test || "?", entidad: v.entidad || "?", ...v });
 }
 
 // Se recalcula la comprobación en el momento, para que el informe no dependa de

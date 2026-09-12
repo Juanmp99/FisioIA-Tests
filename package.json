@@ -8,9 +8,14 @@
     "start": "node --env-file-if-exists=.env server.js",
     "test": "node pruebas.js",
     "verificar": "node verificacion.js",
-    "auditar": "node auditoria.js"
+    "auditar": "node auditoria.js",
+    "dev": "ACCESO_LIBRE=1 node --env-file-if-exists=.env server.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.120.0"
+    "@anthropic-ai/sdk": "^0.120.0",
+    "@netlify/blobs": "^8.1.0"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

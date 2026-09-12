@@ -4,16 +4,24 @@ El fisioterapeuta escribe una sospecha diagnóstica en lenguaje clínico y la he
 la batería de tests con la que verificarla, cómo ejecutar cada uno, y qué permite concluir cada
 resultado según la precisión diagnóstica publicada.
 
+La herramienta se publica como imán de contactos: una landing explica qué es y pide el correo,
+y el acceso llega por email. Quien no tiene acceso no puede consultar, porque cada consulta
+gasta dinero real en la API de Anthropic.
+
 ## Ponerlo en marcha
 
 Doble clic en **`Abrir Tests.bat`**. Arranca el servidor y abre el navegador en
 `http://localhost:3200`. La ventana negra debe quedarse abierta mientras se use.
 
-Desde terminal, el equivalente es:
+Desde terminal, para desarrollar:
 
 ```bash
-npm start
+npm run dev
 ```
+
+`dev` levanta el servidor con `ACCESO_LIBRE=1`, que salta la puerta del correo para no tener
+que montar el alta entera en local. La variable se ignora en Netlify a propósito: dejarla
+puesta por descuido en el panel no abre la puerta en producción.
 
 Requiere Node 22 o superior y un archivo `.env` con `ANTHROPIC_API_KEY`. Opcionalmente
 `ANTHROPIC_MODEL`; por defecto usa `claude-sonnet-5`.
@@ -76,8 +84,57 @@ evidencia no respalda. Solo una agrupación validada como conjunto puede interpr
 | `ia/pubmed.js` | Búsqueda en PubMed con sinónimos y ensanchado progresivo. |
 | `ia/evidencia.js` | Caché de evidencia, extracción y validación. |
 | `ia/entidades.js` | Registro de entidades: garantiza que la misma sospecha dé siempre la misma respuesta. |
-| `server.js` | Servidor HTTP y los tres endpoints. |
-| `publico/index.html` | La aplicación. |
+| `lib/almacen.js` | Persistencia: archivos en local, Netlify Blobs en producción. |
+| `lib/asistente.js` | Los dos tiempos —batería y evidencia— sin nada de transporte. |
+| `lib/acceso.js` | Tokens de acceso, verificación por correo y topes de consumo. |
+| `lib/contactos.js` | Alta del contacto en Brevo. |
+| `lib/correo.js` | Envío del enlace de acceso, por Resend o por Brevo. |
+| `netlify/functions/` | Un archivo por endpoint. Cada uno declara su ruta. |
+| `server.js` | Servidor de desarrollo: monta esas mismas funciones. |
+| `publico/index.html` | La landing y el formulario de acceso. |
+| `publico/app.html` | La aplicación. |
+
+## Desplegar
+
+El sitio es estático más funciones sin servidor. No hay proceso permanente, y de ahí las dos
+decisiones que gobiernan el resto del código.
+
+**No se puede escribir en disco.** Cada invocación arranca con el sistema de archivos limpio, así
+que la caché de evidencia y el registro de entidades viven en Netlify Blobs. Perder el registro
+no sería perder velocidad: sería perder la garantía de que la misma sospecha devuelve siempre la
+misma batería.
+
+**Nada puede tardar más de 60 segundos.** Antes se pedían todos los tests de la batería en una
+sola llamada y se resolvían en serie, y la primera consulta de una entidad nueva tardaba minutos.
+Ahora el navegador pide un test por petición, tres a la vez, y pinta cada uno en cuanto llega.
+
+Variables de entorno que hay que configurar en el panel de Netlify:
+
+| Variable | Para qué |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | Obligatoria. La batería y la extracción de cifras. |
+| `BREVO_API_KEY` | Obligatoria. Alta del contacto. |
+| `BREVO_LISTA_ID` | Obligatoria. Identificador numérico de la lista. |
+| `CORREO_REMITENTE` | Obligatoria. Dirección verificada en el proveedor de correo. |
+| `RESEND_API_KEY` | El envío del enlace de acceso. Si no está, se usa Brevo. |
+| `PROVEEDOR_CORREO` | `resend` o `brevo`. Sin ella se elige el que tenga clave. |
+| `URL_PUBLICA` | Dominio del sitio, para componer el enlace del correo. |
+| `ANTHROPIC_MODEL` | Por defecto `claude-sonnet-5`. |
+| `LIMITE_DIARIO` | Consultas con coste por persona y día. Por defecto 40. |
+| `CUPO_DIARIO_GLOBAL` | Tope de toda la aplicación por día. Por defecto 2000. |
+
+## La puerta
+
+El acceso es un token por persona que se entrega por correo. No es autenticación —no hay
+contraseñas ni sesiones— sino una llave larga e irrepetible.
+
+Podría haber sido una URL secreta compartida por todos, pero una URL secreta deja de serlo en
+cuanto alguien la pega en un grupo, y entonces la factura queda abierta a desconocidos. Con un
+token por persona se puede poner un tope de consumo a cada uno y anular a quien abuse sin cerrar
+la puerta a los demás.
+
+El token no vale hasta que se abre el enlace del correo. Es lo que hace que las direcciones
+recogidas sean direcciones reales.
 
 ## Principios que no se negocian
 
@@ -105,3 +162,5 @@ no puede serlo si no ve de dónde sale el número.
 - Paralelizar la búsqueda y mostrar cada test según llega: la primera consulta tarda minutos.
 - Ordenar también por aportación real, para responder a «si solo puedo hacer un test, ¿cuál?».
 - Un botón para que el fisioterapeuta señale una cifra que no cuadra.
+- Una clave de NCBI para subir el límite de peticiones a PubMed de tres por segundo a diez.
+  Hoy es lo que marca cuántos tests pueden buscarse a la vez.
