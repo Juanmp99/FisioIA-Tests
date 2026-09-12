@@ -1,5 +1,8 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Asistente de tests · FisioIA</title>
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#070a11">
 
 <script>
 // Guardia de acceso. Va aquí arriba, antes de cualquier contenido, para que
@@ -20,321 +23,622 @@
 </script>
 
 <style>
-  :root {
-    --papel: #ffffff;
-    --lienzo: #f5f7fb;
+/* ============================================================================
+   Sistema visual
+   ----------------------------------------------------------------------------
+   Una regla gobierna todo el color: aquí no decora, significa. El verde dice
+   que un resultado decide, el ámbar que mueve sin decidir, el gris que no
+   aporta nada. Si un color no significa algo, es gris.
+
+   La segunda regla es de jerarquía: lo que el fisioterapeuta tiene que leer
+   para decidir —qué cambia este resultado en su paciente— manda sobre todo lo
+   demás. El resto es contexto y se comporta como tal.
+   ============================================================================ */
+
+:root {
+  --fondo: #070a11;
+  --superficie: #0d1320;
+  --superficie-alta: #121a29;
+  --superficie-viva: #182234;
+  --borde: #1c2637;
+  --borde-vivo: #2b3a52;
+
+  --tinta: #e9eff8;
+  --tinta-media: #a3b2c9;
+  --tinta-tenue: #66758d;
+
+  --azul: #4d9fff;
+  --azul-hondo: #1f6fd6;
+  --verde: #2fd6a6;
+  --ambar: #f5b544;
+  --rojo: #ff6f61;
+  --violeta: #a78bfa;
+
+  --brillo-azul: rgba(77, 159, 255, .14);
+  --brillo-verde: rgba(47, 214, 166, .13);
+  --brillo-ambar: rgba(245, 181, 68, .12);
+  --brillo-rojo: rgba(255, 111, 97, .12);
+
+  --radio: 16px;
+  --radio-s: 10px;
+  --sombra: 0 1px 0 rgba(255,255,255,.04) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+  --curva: cubic-bezier(.16, 1, .3, 1);
+
+  --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+:root[data-tema="claro"],
+html:not([data-tema="oscuro"]) body.claro {
+  --fondo: #f4f7fc;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-tema="oscuro"]) {
+    --fondo: #f2f6fc;
     --superficie: #ffffff;
-    --tinta: #0a0a0a;
-    --tinta-suave: #333b4a;
-    --apagado: #5b6478;
-    --linea: #dfe3ec;
-    --linea-tenue: #edf0f6;
-    --azul: #004aad;
-    --azul-hondo: #003278;
-    --azul-lavado: #eaf0fa;
-    --oro: #d4af37;
-    --verde: #1a7f4b;
-    --ambar: #b5730a;
-    --rojo: #b3261e;
-    --sombra: 0 1px 2px rgba(10, 20, 45, .06), 0 12px 32px -18px rgba(10, 20, 45, .3);
-    --radio: 10px;
-    --ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+    --superficie-alta: #ffffff;
+    --superficie-viva: #f2f6fd;
+    --borde: #dde5f0;
+    --borde-vivo: #c4d2e6;
+
+    --tinta: #0c1626;
+    --tinta-media: #44566f;
+    --tinta-tenue: #6b7c94;
+
+    --azul: #1668d6;
+    --azul-hondo: #0d4ea8;
+    --verde: #0f9a74;
+    --ambar: #b57314;
+    --rojo: #c8382b;
+    --violeta: #7048d6;
+
+    --brillo-azul: rgba(22, 104, 214, .08);
+    --brillo-verde: rgba(15, 154, 116, .09);
+    --brillo-ambar: rgba(181, 115, 20, .09);
+    --brillo-rojo: rgba(200, 56, 43, .08);
+
+    --sombra: 0 1px 2px rgba(16, 34, 61, .05), 0 16px 36px -26px rgba(16, 34, 61, .4);
   }
+}
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --papel: #0b0e14; --lienzo: #0f131b; --superficie: #141926;
-      --tinta: #eef1f6; --tinta-suave: #c3cad8; --apagado: #8c96aa;
-      --linea: #262d3c; --linea-tenue: #1c2231;
-      --azul: #5b9bf0; --azul-hondo: #7db1f7; --azul-lavado: #16213a;
-      --verde: #4cc38a; --ambar: #e0a340; --rojo: #f2685c;
-      --sombra: 0 1px 2px rgba(0,0,0,.5), 0 12px 32px -18px rgba(0,0,0,.9);
-    }
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--tinta);
+  font-family: var(--ui);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 96px;
+}
+
+/* Profundidad del fondo: dos focos de luz muy tenues que evitan que la pantalla
+   sea un plano liso. Fijos, para que no compitan con el contenido al desplazar. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(70% 50% at 15% -5%, var(--brillo-azul) 0%, transparent 70%),
+    radial-gradient(60% 45% at 100% 8%, rgba(167, 139, 250, .09) 0%, transparent 70%);
+}
+
+.marco { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 0 20px 60px; }
+
+a { color: var(--azul); text-underline-offset: 3px; }
+
+/* ============ barra superior ============ */
+
+.barra {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 24px;
+  background: color-mix(in srgb, var(--fondo) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border-bottom: 1px solid var(--borde);
+}
+
+.marca { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.marca b { font-size: 1.0625rem; font-weight: 800; letter-spacing: -.03em; }
+.marca b span { color: var(--verde); }
+.marca em {
+  font-style: normal; font-size: .8125rem; color: var(--tinta-tenue);
+  padding-left: 10px; border-left: 1px solid var(--borde-vivo);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.estado-modelo {
+  font-family: var(--mono); font-size: .6875rem; color: var(--tinta-tenue);
+  white-space: nowrap;
+}
+
+/* ============ consulta ============ */
+
+.consulta { padding: 52px 0 34px; }
+
+.rotulo {
+  display: inline-block;
+  font-size: .6875rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--tinta-tenue);
+}
+
+.consulta h1 {
+  margin: 12px 0 10px;
+  font-size: clamp(1.9rem, 5.4vw, 2.6rem); line-height: 1.1;
+  letter-spacing: -.035em; font-weight: 800;
+}
+
+.consulta .pie { margin: 0 0 26px; color: var(--tinta-media); max-width: 62ch; }
+
+.buscador { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.buscador input {
+  flex: 1 1 320px; min-width: 0;
+  background: var(--superficie); color: var(--tinta);
+  border: 1px solid var(--borde-vivo); border-radius: 14px;
+  padding: 16px 18px; font: inherit;
+  transition: border-color .2s, box-shadow .2s;
+}
+.buscador input::placeholder { color: var(--tinta-tenue); }
+.buscador input:focus {
+  outline: 0; border-color: var(--azul);
+  box-shadow: 0 0 0 4px var(--brillo-azul);
+}
+
+.btn {
+  border: 0; border-radius: 14px; font: inherit; font-weight: 650;
+  padding: 16px 26px; cursor: pointer;
+  transition: transform .15s var(--curva), filter .2s, background .2s;
+}
+.btn:active { transform: scale(.98); }
+.btn-principal {
+  background: linear-gradient(180deg, var(--azul) 0%, var(--azul-hondo) 100%);
+  color: #fff; box-shadow: 0 6px 20px -8px var(--azul);
+}
+.btn-principal:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-principal:disabled { opacity: .55; cursor: default; }
+
+.ejemplos { margin: 14px 0 0; font-size: .875rem; color: var(--tinta-tenue); }
+.ejemplos button {
+  background: none; border: 0; padding: 0; font: inherit;
+  color: var(--azul); cursor: pointer; text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ============ piezas comunes ============ */
+
+.seccion { margin-top: 30px; animation: entrar .5s var(--curva) both; }
+
+.tarjeta {
+  background: linear-gradient(180deg, var(--superficie-alta) 0%, var(--superficie) 100%);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  padding: 22px 24px;
+}
+
+.aviso {
+  border-left: 3px solid var(--azul);
+  background: var(--brillo-azul);
+  border-radius: 0 var(--radio-s) var(--radio-s) 0;
+  padding: 14px 16px; color: var(--tinta-media);
+}
+.aviso.malo { border-left-color: var(--rojo); background: var(--brillo-rojo); }
+
+.opciones { display: grid; gap: 10px; }
+.opcion {
+  display: block; width: 100%; text-align: left;
+  background: var(--superficie-alta); border: 1px solid var(--borde);
+  border-radius: var(--radio-s); padding: 16px 18px; font: inherit; color: var(--tinta);
+  cursor: pointer; transition: border-color .2s, transform .15s var(--curva), background .2s;
+}
+.opcion:hover { border-color: var(--azul); transform: translateX(3px); background: var(--superficie-viva); }
+.opcion b { display: block; }
+.opcion span { display: block; font-size: .875rem; color: var(--tinta-tenue); margin-top: 3px; }
+
+/* ============ banderas rojas ============ */
+
+details.banderas {
+  border: 1px solid color-mix(in srgb, var(--rojo) 35%, var(--borde));
+  background: var(--brillo-rojo);
+  border-radius: var(--radio); padding: 4px 20px;
+}
+details.banderas summary {
+  cursor: pointer; padding: 14px 0; font-weight: 650; color: var(--tinta);
+  list-style: none; display: flex; align-items: center; gap: 10px;
+}
+details.banderas summary::-webkit-details-marker { display: none; }
+details.banderas summary::before {
+  content: ""; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--rojo); box-shadow: 0 0 0 4px var(--brillo-rojo);
+  animation: latir 2.4s ease-in-out infinite;
+}
+.bandera { padding: 14px 0; border-top: 1px solid var(--borde); }
+.bandera h4 { margin: 0 0 6px; font-size: .9375rem; display: flex; align-items: center; gap: 10px; }
+.prioridad {
+  font-size: .625rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 700;
+  padding: 3px 8px; border-radius: 999px;
+  background: var(--brillo-ambar); color: var(--ambar);
+}
+.prioridad.urgente { background: var(--brillo-rojo); color: var(--rojo); }
+.bandera ul { margin: 0 0 8px; padding-left: 18px; color: var(--tinta-media); font-size: .875rem; }
+.bandera p { margin: 0; font-size: .875rem; color: var(--tinta); }
+.advertencia { font-size: .8125rem; color: var(--tinta-tenue); padding: 12px 0 16px; margin: 0; border-top: 1px solid var(--borde); }
+
+/* ============ sospecha previa ============ */
+
+.pretest h3 { margin: 0 0 6px; font-size: 1.0625rem; letter-spacing: -.01em; }
+.pretest p { margin: 0 0 18px; color: var(--tinta-media); font-size: .9375rem; max-width: 58ch; }
+
+.niveles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.nivel {
+  position: relative; overflow: hidden;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+  border-radius: var(--radio-s); padding: 14px 12px; cursor: pointer;
+  font: inherit; color: var(--tinta); text-align: left;
+  transition: border-color .2s, background .2s, transform .15s var(--curva);
+}
+.nivel:hover { border-color: var(--borde-vivo); transform: translateY(-2px); }
+.nivel b { display: block; font-size: .9375rem; }
+.nivel span { display: block; font-size: .75rem; color: var(--tinta-tenue); font-family: var(--mono); }
+.nivel[aria-pressed="true"] {
+  border-color: var(--azul); background: var(--brillo-azul);
+  box-shadow: 0 0 0 1px var(--azul) inset;
+}
+.nivel[aria-pressed="true"] span { color: var(--azul); }
+
+/* ============ medidor de probabilidad ============ */
+
+.medidor { margin: 14px 0 2px; }
+
+.pista {
+  position: relative; height: 10px; border-radius: 999px;
+  background: var(--superficie-viva);
+  border: 1px solid var(--borde);
+  overflow: visible;
+}
+
+.zona { position: absolute; top: 0; bottom: 0; }
+.zona-descarta { left: 0; width: 10%; background: linear-gradient(90deg, var(--brillo-verde), transparent); border-radius: 999px 0 0 999px; }
+.zona-confirma { right: 0; width: 15%; background: linear-gradient(270deg, var(--brillo-verde), transparent); border-radius: 0 999px 999px 0; }
+
+.recorrido {
+  position: absolute; top: 0; bottom: 0; border-radius: 999px;
+  animation: barrer .85s var(--curva) both;
+}
+.recorrido.sube { background: linear-gradient(90deg, transparent, var(--verde)); transform-origin: left center; }
+.recorrido.baja { background: linear-gradient(270deg, transparent, var(--azul)); transform-origin: right center; }
+.recorrido.nula { background: var(--tinta-tenue); opacity: .35; }
+
+.aguja { position: absolute; top: 50%; width: 2px; height: 20px; margin-top: -10px; border-radius: 2px; }
+.aguja-pre { background: var(--tinta-tenue); opacity: .8; }
+.aguja-post {
+  width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+  background: var(--tinta); border: 3px solid var(--fondo);
+  animation: deslizar .85s var(--curva) both;
+  left: var(--hasta);
+}
+.aguja-post.sube { background: var(--verde); box-shadow: 0 0 14px var(--verde); }
+.aguja-post.baja { background: var(--azul); box-shadow: 0 0 14px var(--azul); }
+.aguja-post.nula { background: var(--tinta-tenue); box-shadow: none; }
+
+.medidor-pies {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: 10px; font-family: var(--mono); font-size: .75rem; color: var(--tinta-tenue);
+  font-variant-numeric: tabular-nums;
+}
+.destino { font-size: 1.25rem; font-weight: 700; color: var(--tinta); }
+.destino.sube { color: var(--verde); }
+.destino.baja { color: var(--azul); }
+
+/* ============ agrupaciones ============ */
+
+.cluster-nota {
+  display: flex; gap: 12px; align-items: flex-start;
+  font-size: .875rem; color: var(--tinta-tenue);
+  border: 1px dashed var(--borde-vivo); border-radius: var(--radio-s);
+  padding: 13px 16px;
+}
+.cluster-nota b { color: var(--tinta-media); font-weight: 600; }
+
+.tarjeta.cluster { border-color: color-mix(in srgb, var(--violeta) 40%, var(--borde)); }
+.tarjeta.cluster .rotulo { color: var(--violeta); }
+.tarjeta.cluster h3 { margin: 8px 0 4px; font-size: 1.0625rem; }
+.tarjeta.cluster .criterio { margin: 0 0 12px; color: var(--tinta-media); font-size: .9375rem; }
+.tarjeta.cluster ol { margin: 0; padding-left: 20px; color: var(--tinta-media); font-size: .9375rem; }
+
+/* ============ leyenda ============ */
+
+.leyenda {
+  border: 1px solid var(--borde); border-radius: var(--radio);
+  background: var(--superficie); padding: 2px 20px; margin-bottom: 16px;
+}
+.leyenda summary {
+  cursor: pointer; padding: 14px 0; font-weight: 600; font-size: .9375rem;
+  color: var(--tinta-media);
+}
+.leyenda dl { margin: 0; padding-bottom: 6px; }
+.leyenda dt { font-family: var(--mono); font-size: .8125rem; color: var(--azul); margin-top: 14px; }
+.leyenda dd { margin: 4px 0 0; font-size: .875rem; color: var(--tinta-media); }
+.leyenda > p { font-size: .8125rem; color: var(--tinta-tenue); padding: 14px 0 16px; margin: 14px 0 0; border-top: 1px solid var(--borde); }
+
+/* ============ tarjeta de test ============ */
+
+.tests { display: grid; gap: 14px; }
+
+.test {
+  background: linear-gradient(180deg, var(--superficie-alta) 0%, var(--superficie) 100%);
+  border: 1px solid var(--borde); border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+  animation: entrar .45s var(--curva) both;
+  transition: border-color .25s;
+}
+.test.marcado { border-color: var(--borde-vivo); }
+
+.test-cab { display: flex; gap: 16px; align-items: flex-start; padding: 18px 20px 14px; }
+
+.orden {
+  flex: none;
+  width: 30px; height: 30px; border-radius: 9px;
+  display: grid; place-items: center;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+  font-family: var(--mono); font-size: .75rem; font-weight: 700; color: var(--tinta-tenue);
+}
+
+.test-titulo { flex: 1; min-width: 0; }
+.test-titulo h3 { margin: 0; font-size: 1.0625rem; letter-spacing: -.015em; }
+.objetivo { font-size: .875rem; color: var(--tinta-tenue); margin-top: 2px; }
+
+/* La franja de cifras y calidad. Antes estaba escondida dentro del desplegable:
+   la valoración de la evidencia se calculaba y no se veía. */
+.franja { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 0 20px 14px; }
+
+.cifra {
+  font-family: var(--mono); font-size: .8125rem; font-variant-numeric: tabular-nums;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+  border-radius: 8px; padding: 5px 10px; color: var(--tinta);
+}
+.cifra i { font-style: normal; color: var(--tinta-tenue); }
+.cifra.vacia { color: var(--tinta-tenue); }
+
+.sello {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: .75rem; font-weight: 600; border-radius: 999px;
+  padding: 5px 11px 5px 9px; border: 1px solid transparent;
+}
+.sello::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.sello.verde { color: var(--verde); background: var(--brillo-verde); border-color: color-mix(in srgb, var(--verde) 30%, transparent); }
+.sello.ambar { color: var(--ambar); background: var(--brillo-ambar); border-color: color-mix(in srgb, var(--ambar) 30%, transparent); }
+.sello.rojo { color: var(--tinta-tenue); background: var(--superficie-viva); border-color: var(--borde); }
+.sello.espera { color: var(--tinta-tenue); background: var(--superficie-viva); border-color: var(--borde); }
+.sello.espera::before { animation: latir 1.3s ease-in-out infinite; }
+
+.marbete {
+  font-size: .6875rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 700;
+  padding: 4px 9px; border-radius: 6px;
+  background: var(--brillo-ambar); color: var(--ambar);
+}
+
+/* ============ acciones del test ============ */
+
+.test-acciones {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 0 20px 18px;
+}
+.test-acciones .rotulo { margin-right: 4px; }
+
+.btn-res {
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+  border-radius: 10px; padding: 9px 18px; font: inherit; font-weight: 600;
+  color: var(--tinta-media); cursor: pointer;
+  transition: all .18s var(--curva);
+}
+.btn-res:hover { border-color: var(--borde-vivo); color: var(--tinta); }
+.btn-res[data-valor="positivo"][aria-pressed="true"] {
+  background: var(--brillo-verde); border-color: var(--verde); color: var(--verde);
+  box-shadow: 0 0 18px -6px var(--verde);
+}
+.btn-res[data-valor="negativo"][aria-pressed="true"] {
+  background: var(--brillo-azul); border-color: var(--azul); color: var(--azul);
+  box-shadow: 0 0 18px -6px var(--azul);
+}
+
+.btn-ver {
+  margin-left: auto;
+  background: none; border: 0; font: inherit; font-size: .875rem;
+  color: var(--tinta-tenue); cursor: pointer; padding: 8px 0;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-ver:hover { color: var(--tinta); }
+.btn-ver::after { content: "›"; transition: transform .25s var(--curva); font-size: 1.1rem; line-height: 1; }
+.btn-ver[aria-expanded="true"]::after { transform: rotate(90deg); }
+
+/* ============ veredicto de un resultado ============ */
+
+.veredicto {
+  margin: 0 20px 18px; padding: 16px 18px;
+  border-radius: 12px; border: 1px solid var(--borde);
+  background: var(--superficie-viva);
+  animation: subir .4s var(--curva) both;
+}
+.veredicto.decide { border-color: color-mix(in srgb, var(--verde) 45%, transparent); background: var(--brillo-verde); }
+.veredicto.mueve { border-color: color-mix(in srgb, var(--azul) 40%, transparent); background: var(--brillo-azul); }
+.veredicto.nulo { border-color: color-mix(in srgb, var(--ambar) 40%, transparent); background: var(--brillo-ambar); }
+
+.veredicto-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.icono { flex: none; width: 20px; height: 20px; }
+.veredicto b { font-size: 1rem; letter-spacing: -.01em; }
+.veredicto .lectura { margin: 0; font-size: .9375rem; color: var(--tinta); }
+.calculo {
+  font-family: var(--mono); font-size: .75rem; color: var(--tinta-tenue);
+  margin-top: 10px; font-variant-numeric: tabular-nums; line-height: 1.7;
+}
+
+/* ============ cuerpo desplegable ============ */
+
+.test-cuerpo { border-top: 1px solid var(--borde); background: var(--superficie); padding: 18px 20px; }
+.test-cuerpo dl { margin: 0; display: grid; gap: 12px; }
+.paso { display: grid; grid-template-columns: 104px 1fr; gap: 14px; align-items: start; }
+.paso dt { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--tinta-tenue); font-weight: 700; padding-top: 2px; }
+.paso dd { margin: 0; font-size: .9375rem; color: var(--tinta-media); }
+
+/* La cita nunca se esconde: sin revisor humano, el fisioterapeuta es la última
+   línea de defensa y no puede serlo si no ve de dónde sale el número. */
+.fuente {
+  margin: 0 20px 18px; padding: 12px 14px;
+  border-radius: 10px; border: 1px solid var(--borde);
+  background: var(--superficie); font-size: .8125rem; color: var(--tinta-tenue);
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.fuente a { color: var(--tinta-media); }
+.fuente a:hover { color: var(--azul); }
+
+.motivos { margin: 10px 0 0; padding-left: 18px; font-size: .8125rem; color: var(--tinta-tenue); }
+.motivos li { margin-bottom: 4px; }
+
+/* ============ conclusión final ============ */
+
+.conclusion {
+  margin-top: 34px;
+  border-radius: 20px; padding: 1px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--azul) 45%, transparent), transparent 55%, color-mix(in srgb, var(--verde) 30%, transparent));
+  animation: entrar .5s var(--curva) both;
+}
+.conclusion-dentro {
+  background: linear-gradient(180deg, var(--superficie-alta), var(--superficie));
+  border-radius: 19px; padding: 26px 26px 24px;
+}
+.conclusion h2 { margin: 10px 0 4px; font-size: 1.375rem; letter-spacing: -.025em; }
+.conclusion .sumario { margin: 0; color: var(--tinta-media); }
+
+.conclusion-medidor { margin: 22px 0 4px; }
+
+.hitos { display: grid; gap: 10px; margin-top: 22px; }
+.hito {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 13px 15px; border-radius: 11px;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+  font-size: .9375rem; color: var(--tinta-media);
+}
+.hito.alerta { border-color: color-mix(in srgb, var(--ambar) 45%, transparent); background: var(--brillo-ambar); color: var(--tinta); }
+.hito b { color: var(--tinta); font-weight: 650; }
+
+.nota-cadena { font-size: .8125rem; color: var(--tinta-tenue); margin: 18px 0 0; max-width: 64ch; }
+
+/* ============ barra de resumen fija ============ */
+
+.resumen-fijo {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--fondo) 88%, transparent);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border-top: 1px solid var(--borde);
+  transform: translateY(110%);
+  transition: transform .45s var(--curva);
+}
+.resumen-fijo.visible { transform: translateY(0); }
+.resumen-caja {
+  max-width: 860px; margin: 0 auto;
+  display: flex; align-items: center; gap: 16px;
+}
+.resumen-texto { flex: 1; min-width: 0; font-size: .875rem; color: var(--tinta-media); }
+.resumen-texto b { color: var(--tinta); }
+.resumen-cifra {
+  font-family: var(--mono); font-size: 1.25rem; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.resumen-cifra.sube { color: var(--verde); }
+.resumen-cifra.baja { color: var(--azul); }
+.btn-resumen {
+  flex: none; background: var(--superficie-viva); border: 1px solid var(--borde-vivo);
+  border-radius: 10px; padding: 9px 16px; font: inherit; font-size: .875rem; font-weight: 600;
+  color: var(--tinta); cursor: pointer; transition: all .18s var(--curva);
+}
+.btn-resumen:hover { border-color: var(--azul); color: var(--azul); }
+
+/* ============ carga ============ */
+
+.cargando { display: flex; align-items: center; gap: 11px; color: var(--tinta-tenue); font-size: .9375rem; }
+.girando {
+  width: 15px; height: 15px; flex: none;
+  border: 2px solid var(--borde-vivo); border-top-color: var(--azul);
+  border-radius: 50%; animation: girar .7s linear infinite;
+}
+
+.progreso {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; border-radius: var(--radio-s);
+  background: var(--superficie); border: 1px solid var(--borde);
+  margin-bottom: 14px;
+}
+.progreso-texto { font-size: .875rem; color: var(--tinta-media); white-space: nowrap; }
+.progreso-pista { flex: 1; height: 4px; border-radius: 999px; background: var(--superficie-viva); overflow: hidden; }
+.progreso-barra {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, var(--azul), var(--verde));
+  transition: width .5s var(--curva);
+}
+
+.esqueleto {
+  height: 12px; border-radius: 6px;
+  background: linear-gradient(90deg, var(--superficie-viva) 25%, var(--borde) 50%, var(--superficie-viva) 75%);
+  background-size: 200% 100%;
+  animation: brillar 1.4s ease-in-out infinite;
+}
+
+/* ============ pie ============ */
+
+.pie-legal {
+  margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--borde);
+  font-size: .8125rem; color: var(--tinta-tenue); max-width: 66ch;
+}
+
+/* ============ animaciones ============ */
+
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes latir { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes brillar { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes entrar { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes subir { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes barrer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes deslizar { from { left: var(--desde); } to { left: var(--hasta); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .aguja-post { left: var(--hasta); }
+  .recorrido { transform: none; }
+  .resumen-fijo { transform: translateY(110%); }
+  .resumen-fijo.visible { transform: none; }
+}
+
+@media (max-width: 620px) {
+  .paso { grid-template-columns: 1fr; gap: 2px; }
+  .niveles { grid-template-columns: 1fr; }
+  .btn-ver { margin-left: 0; }
+  .conclusion-dentro { padding: 22px 18px; }
+
+  /* En un móvil no cabe el nombre largo junto al estado del modelo, y el que
+     sobra es el subtítulo: la marca ya dice dónde estás. */
+  .marca em { display: none; }
+
+  /* El resumen fijo tiene que seguir siendo una línea de vistazo, no un
+     párrafo que se coma media pantalla. */
+  .resumen-texto {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; font-size: .8125rem; line-height: 1.4;
   }
-
-  :root[data-theme="light"] {
-    --papel: #ffffff; --lienzo: #f5f7fb; --superficie: #ffffff;
-    --tinta: #0a0a0a; --tinta-suave: #333b4a; --apagado: #5b6478;
-    --linea: #dfe3ec; --linea-tenue: #edf0f6;
-    --azul: #004aad; --azul-hondo: #003278; --azul-lavado: #eaf0fa;
-    --verde: #1a7f4b; --ambar: #b5730a; --rojo: #b3261e;
-  }
-
-  :root[data-theme="dark"] {
-    --papel: #0b0e14; --lienzo: #0f131b; --superficie: #141926;
-    --tinta: #eef1f6; --tinta-suave: #c3cad8; --apagado: #8c96aa;
-    --linea: #262d3c; --linea-tenue: #1c2231;
-    --azul: #5b9bf0; --azul-hondo: #7db1f7; --azul-lavado: #16213a;
-    --verde: #4cc38a; --ambar: #e0a340; --rojo: #f2685c;
-    --sombra: 0 1px 2px rgba(0,0,0,.5), 0 12px 32px -18px rgba(0,0,0,.9);
-  }
-
-  * { box-sizing: border-box; }
-
-  body {
-    margin: 0;
-    background: var(--lienzo);
-    color: var(--tinta);
-    font-family: var(--ui);
-    font-size: 16px;
-    line-height: 1.55;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.021em; text-wrap: balance; }
-  button { font: inherit; color: inherit; }
-  :focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; border-radius: 4px; }
-
-  .rotulo {
-    font-size: .688rem; font-weight: 600; letter-spacing: .13em;
-    text-transform: uppercase; color: var(--apagado);
-  }
-
-  .barra {
-    display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    padding: 18px 24px; background: var(--papel); border-bottom: 1px solid var(--linea);
-  }
-  .marca { display: flex; align-items: baseline; gap: 10px; }
-  .marca b { font-size: 1.0625rem; font-weight: 700; letter-spacing: -.03em; color: var(--azul); }
-  .marca b span { color: var(--tinta); }
-  .marca em {
-    font-style: normal; font-size: .8125rem; color: var(--apagado);
-    border-left: 1px solid var(--linea); padding-left: 10px;
-  }
-  .estado-modelo { font-size: .75rem; color: var(--apagado); font-family: var(--mono); }
-
-  .marco { max-width: 820px; margin: 0 auto; padding: 0 24px 96px; }
-
-  /* ---------- consulta ---------- */
-
-  .consulta { padding: 56px 0 8px; }
-  .consulta h1 { font-size: clamp(1.75rem, 5vw, 2.375rem); line-height: 1.1; margin: 14px 0 10px; }
-  .consulta p.pie { color: var(--tinta-suave); margin: 0 0 26px; max-width: 54ch; }
-
-  .buscador { display: flex; gap: 10px; flex-wrap: wrap; }
-  .buscador input {
-    flex: 1 1 320px; background: var(--superficie); color: var(--tinta);
-    border: 1px solid var(--linea); border-radius: 8px; padding: 14px 16px; font: inherit;
-    transition: border-color .15s, box-shadow .15s;
-  }
-  .buscador input:focus { outline: none; border-color: var(--azul); box-shadow: 0 0 0 3px var(--azul-lavado); }
-  ::placeholder { color: var(--apagado); opacity: .85; }
-
-  .btn {
-    border: 1px solid var(--linea); background: var(--superficie); border-radius: 8px;
-    padding: 13px 20px; font-weight: 500; cursor: pointer; transition: all .14s;
-  }
-  .btn:hover:not(:disabled) { border-color: var(--azul); color: var(--azul); }
-  .btn:disabled { opacity: .5; cursor: default; }
-  .btn-principal { background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600; }
-  @media (prefers-color-scheme: dark) { .btn-principal { color: #06101f; } }
-  :root[data-theme="light"] .btn-principal { color: #fff; }
-  :root[data-theme="dark"] .btn-principal { color: #06101f; }
-  .btn-principal:hover:not(:disabled) { background: var(--azul-hondo); border-color: var(--azul-hondo); }
-
-  .ejemplos { margin-top: 12px; font-size: .8125rem; color: var(--apagado); }
-  .ejemplos button {
-    background: none; border: 0; padding: 0 2px; color: var(--azul);
-    cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
-  }
-
-  /* ---------- bloques ---------- */
-
-  .seccion { margin-top: 34px; }
-  .seccion > .rotulo { display: block; margin-bottom: 10px; }
-
-  .tarjeta {
-    background: var(--superficie); border: 1px solid var(--linea);
-    border-radius: var(--radio); padding: 20px 22px;
-  }
-
-  .aviso {
-    background: var(--superficie); border: 1px solid var(--linea);
-    border-left: 3px solid var(--azul); border-radius: 8px; padding: 18px 20px;
-    font-size: .9375rem;
-  }
-  .aviso.malo { border-left-color: var(--rojo); }
-
-  /* ---------- ambigüedad ---------- */
-
-  .opciones { display: grid; gap: 10px; }
-  .opcion {
-    text-align: left; width: 100%; background: var(--superficie);
-    border: 1px solid var(--linea); border-radius: 8px; padding: 14px 16px;
-    cursor: pointer; transition: all .14s;
-  }
-  .opcion:hover { border-color: var(--azul); transform: translateY(-1px); box-shadow: var(--sombra); }
-  .opcion b { display: block; margin-bottom: 3px; }
-  .opcion span { font-size: .875rem; color: var(--apagado); }
-
-  /* ---------- banderas ---------- */
-
-  .banderas summary {
-    cursor: pointer; font-weight: 600; font-size: .9375rem;
-    display: flex; align-items: center; gap: 9px; list-style: none;
-  }
-  .banderas summary::-webkit-details-marker { display: none; }
-  .banderas summary::before {
-    content: "▸"; color: var(--apagado); transition: transform .15s; display: inline-block;
-  }
-  .banderas[open] summary::before { transform: rotate(90deg); }
-  .banderas { border-left-color: var(--rojo); }
-  .bandera { padding: 14px 0 0; border-top: 1px solid var(--linea-tenue); margin-top: 14px; }
-  .bandera:first-of-type { border-top: 0; }
-  .bandera h4 { margin: 0 0 6px; font-size: .9375rem; display: flex; gap: 9px; align-items: baseline; }
-  .prioridad {
-    font-size: .625rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-    padding: 2px 7px; border-radius: 3px; white-space: nowrap;
-  }
-  .prioridad.urgente { background: var(--rojo); color: #fff; }
-  .prioridad.prioritaria { border: 1px solid var(--rojo); color: var(--rojo); }
-  .prioridad.precaucion { border: 1px solid var(--apagado); color: var(--apagado); }
-  .bandera ul { margin: 0 0 6px; padding-left: 18px; font-size: .875rem; color: var(--tinta-suave); }
-  .bandera p { margin: 0; font-size: .875rem; font-weight: 500; }
-  .advertencia { margin: 14px 0 0; font-size: .8125rem; color: var(--apagado); }
-
-  /* ---------- sospecha pre-test ---------- */
-
-  .pretest { border-left: 3px solid var(--azul); }
-  .pretest h3 { font-size: 1.0625rem; margin-bottom: 4px; }
-  .pretest p { margin: 0 0 14px; font-size: .875rem; color: var(--apagado); max-width: 56ch; }
-  .niveles { display: flex; gap: 8px; flex-wrap: wrap; }
-  .nivel {
-    flex: 1 1 140px; background: var(--superficie); border: 1px solid var(--linea);
-    border-radius: 8px; padding: 12px 14px; cursor: pointer; text-align: left; transition: all .14s;
-  }
-  .nivel:hover { border-color: var(--azul); }
-  .nivel[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; }
-  @media (prefers-color-scheme: dark) { .nivel[aria-pressed="true"] { color: #06101f; } }
-  :root[data-theme="light"] .nivel[aria-pressed="true"] { color: #fff; }
-  :root[data-theme="dark"] .nivel[aria-pressed="true"] { color: #06101f; }
-  .nivel b { display: block; font-size: .9375rem; }
-  .nivel span { font-size: .75rem; opacity: .8; font-variant-numeric: tabular-nums; }
-
-  /* ---------- agrupación ---------- */
-
-  .cluster { border-top: 2px solid var(--oro); }
-  .cluster .rotulo { color: var(--oro); }
-  .cluster h3 { font-size: 1.125rem; margin: 8px 0 6px; }
-  .cluster .criterio { font-size: .875rem; color: var(--tinta-suave); margin: 0 0 12px; }
-  .cluster ol { margin: 0; padding-left: 20px; font-size: .9375rem; }
-
-  /* ---------- tests ---------- */
-
-  .tests { display: grid; gap: 12px; }
-
-  .test { background: var(--superficie); border: 1px solid var(--linea); border-radius: var(--radio); overflow: hidden; }
-  .test-cab {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 14px; padding: 16px 20px 12px;
-  }
-  .test-cab h3 { font-size: 1rem; }
-  .test-cab .objetivo { font-size: .8125rem; color: var(--apagado); margin-top: 2px; }
-  .orden { font-family: var(--mono); font-size: .75rem; color: var(--azul); margin-right: 9px; }
-
-  .semaforo { display: flex; align-items: center; gap: 7px; font-size: .75rem; white-space: nowrap; color: var(--apagado); }
-  .punto { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--linea); }
-  .punto.espera { animation: latir 1.2s ease-in-out infinite; }
-  @keyframes latir { 50% { opacity: .35; } }
-
-  /* ---------- leyenda ---------- */
-
-  .leyenda {
-    background: var(--superficie); border: 1px solid var(--linea);
-    border-left: 3px solid var(--azul); border-radius: 8px; padding: 16px 20px;
-    margin-bottom: 14px; font-size: .9375rem;
-  }
-  .leyenda summary {
-    cursor: pointer; font-weight: 600; list-style: none;
-    display: flex; align-items: center; gap: 9px;
-  }
-  .leyenda summary::-webkit-details-marker { display: none; }
-  .leyenda summary::before { content: "▸"; color: var(--apagado); display: inline-block; transition: transform .15s; }
-  .leyenda[open] summary::before { transform: rotate(90deg); }
-  .leyenda dl { margin: 14px 0 0; display: grid; gap: 11px; }
-  .leyenda dt { font-weight: 600; font-family: var(--mono); font-size: .875rem; color: var(--azul); }
-  .leyenda dd { margin: 2px 0 0; color: var(--tinta-suave); }
-  .leyenda p {
-    margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--linea-tenue);
-    font-size: .875rem; color: var(--apagado);
-  }
-
-  .cifras { font-family: var(--mono); font-size: .8125rem; font-variant-numeric: tabular-nums; }
-
-  /* Marcar el resultado es la función principal: va en la tarjeta, a la vista,
-     sin desplegar nada y sin depender de ningún paso previo. */
-  .test-acciones {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: 0 20px 16px;
-  }
-  .test-acciones .rotulo { margin-right: 2px; }
-  .btn-res {
-    border: 1px solid var(--linea); background: var(--superficie); border-radius: 8px;
-    padding: 8px 18px; font-size: .9375rem; font-weight: 500; cursor: pointer; transition: all .13s;
-  }
-  .btn-res:hover { border-color: var(--azul); color: var(--azul); }
-  .btn-res[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600; }
-  @media (prefers-color-scheme: dark) { .btn-res[aria-pressed="true"] { color: #06101f; } }
-  :root[data-theme="light"] .btn-res[aria-pressed="true"] { color: #fff; }
-  :root[data-theme="dark"] .btn-res[aria-pressed="true"] { color: #06101f; }
-
-  .btn-ver {
-    margin-left: auto; background: none; border: 0; padding: 8px 0;
-    font-size: .8125rem; color: var(--apagado); cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .btn-ver:hover { color: var(--azul); }
-  .btn-ver::after { content: "▸"; transition: transform .15s; }
-  .btn-ver[aria-expanded="true"]::after { transform: rotate(90deg); }
-
-  .hueco { padding: 0 20px; }
-  .hueco:not(:empty) { padding-bottom: 16px; }
-
-  .test-cuerpo { padding: 16px 20px 18px; border-top: 1px solid var(--linea-tenue); }
-  .paso { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 9px 0; font-size: .875rem; }
-  .paso:not(:last-child) { border-bottom: 1px solid var(--linea-tenue); }
-  .paso dt { color: var(--apagado); font-size: .8125rem; }
-  .paso dd { margin: 0; }
-
-  .evidencia { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--linea-tenue); font-size: .875rem; }
-  .evidencia .motivos { margin: 6px 0 0; padding-left: 18px; color: var(--apagado); font-size: .8125rem; }
-  .evidencia a { color: var(--azul); }
-  .indirecta {
-    display: inline-block; font-size: .6875rem; font-weight: 600; letter-spacing: .06em;
-    text-transform: uppercase; border: 1px solid var(--apagado); color: var(--apagado);
-    padding: 1px 6px; border-radius: 3px; margin-left: 8px;
-  }
-
-  .marcar { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
-  .marcar .btn { padding: 9px 18px; font-size: .9375rem; }
-  .marcar .btn[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600; }
-  @media (prefers-color-scheme: dark) { .marcar .btn[aria-pressed="true"] { color: #06101f; } }
-  :root[data-theme="light"] .marcar .btn[aria-pressed="true"] { color: #fff; }
-  :root[data-theme="dark"] .marcar .btn[aria-pressed="true"] { color: #06101f; }
-
-  .lectura { margin-top: 14px; padding: 14px 16px; background: var(--azul-lavado); border-radius: 8px; }
-  .lectura b { display: block; margin-bottom: 6px; }
-  .lectura .calculo {
-    font-family: var(--mono); font-size: .75rem; color: var(--tinta-suave);
-    margin-top: 8px; font-variant-numeric: tabular-nums;
-  }
-
-  .nota-cadena { font-size: .8125rem; color: var(--apagado); margin: 12px 0 0; max-width: 62ch; }
-
-  .cargando { display: flex; align-items: center; gap: 10px; color: var(--apagado); font-size: .9375rem; }
-  .girando {
-    width: 14px; height: 14px; border: 2px solid var(--linea); border-top-color: var(--azul);
-    border-radius: 50%; animation: girar .7s linear infinite;
-  }
-  @keyframes girar { to { transform: rotate(360deg); } }
-
-  .pie-legal {
-    margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--linea);
-    font-size: .8125rem; color: var(--apagado); max-width: 66ch;
-  }
-
-  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  .resumen-cifra { font-size: 1.125rem; }
+  .btn-resumen { padding: 9px 13px; font-size: .8125rem; }
+  .resumen-caja { gap: 12px; }
+}
 </style>
 
 <div class="barra">
@@ -369,6 +673,10 @@
     Herramienta de apoyo al razonamiento clínico. No emite diagnósticos ni sustituye el juicio del
     profesional: la decisión y la responsabilidad clínica son siempre del fisioterapeuta.
   </p>
+</div>
+
+<div class="resumen-fijo" id="resumen-fijo" hidden>
+  <div class="resumen-caja" id="resumen-caja"></div>
 </div>
 
 <script>
@@ -409,9 +717,12 @@
     nivel: null,
     evidencias: {},
     resultados: {},
-    // Qué desplegables están abiertos. Ahora que cada test llega por su cuenta
-    // la pantalla se repinta varias veces, y sin esto el "cómo se ejecuta" se
-    // cerraría solo en mitad de la lectura.
+    // Interpretaciones que ha devuelto el servidor, por nombre de test. De aquí
+    // sale la conclusión final: se reutiliza el cálculo del dominio en lugar de
+    // rehacer la aritmética en el navegador, que acabaría divergiendo.
+    interpretaciones: {},
+    // Qué desplegables están abiertos. La pantalla se repinta cada vez que
+    // llega un test, y sin esto se cerraría solo en mitad de la lectura.
     abiertos: {}
   };
 
@@ -419,6 +730,8 @@
   var form = document.getElementById("form");
   var campo = document.getElementById("sospecha");
   var enviar = document.getElementById("enviar");
+  var fijo = document.getElementById("resumen-fijo");
+  var fijoCaja = document.getElementById("resumen-caja");
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
@@ -444,18 +757,29 @@
     });
   }
 
-  var restantesHoy = null;
+  var baseEstado = "";
 
   function mostrarRestantes(n) {
-    restantesHoy = n;
     var caja = document.getElementById("estado");
-    if (caja) caja.textContent = caja.textContent.split(" · ")[0] + " · " + n + " consultas hoy";
+    if (caja) caja.textContent = baseEstado + " · " + n + " consultas hoy";
   }
 
   fetch("/api/estado").then(function (r) { return r.json(); }).then(function (d) {
-    document.getElementById("estado").textContent =
-      d.modelo + " · " + d.enCache + " en caché" + (d.credencial ? "" : " · sin clave");
+    baseEstado = d.modelo + " · " + d.enCache + " en caché" + (d.credencial ? "" : " · sin clave");
+    document.getElementById("estado").textContent = baseEstado;
   }).catch(function () {});
+
+  /* ============ iconos ============ */
+
+  function icono(tipo) {
+    var trazo = '<svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+    if (tipo === "decide") return trazo + '<path d="M20 6 9 17l-5-5"/></svg>';
+    if (tipo === "mueve") return trazo + '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
+    if (tipo === "nulo") return trazo + '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>';
+    if (tipo === "alerta") return trazo + '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>';
+    if (tipo === "libro") return trazo + '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
+    return trazo + '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
+  }
 
   /* ============ consulta ============ */
 
@@ -474,7 +798,16 @@
   function consultar(sospecha) {
     if (sospecha.length < 3) return;
     enviar.disabled = true;
-    salida.innerHTML = '<div class="seccion"><div class="cargando"><span class="girando"></span>Buscando la batería de tests…</div></div>';
+    ocultarResumen();
+    salida.innerHTML =
+      '<div class="seccion"><div class="tarjeta">' +
+        '<div class="cargando"><span class="girando"></span>Identificando la entidad y proponiendo la batería…</div>' +
+        '<div style="display:grid;gap:10px;margin-top:18px">' +
+          '<div class="esqueleto" style="width:70%"></div>' +
+          '<div class="esqueleto" style="width:45%"></div>' +
+          '<div class="esqueleto" style="width:60%"></div>' +
+        "</div>" +
+      "</div></div>";
 
     pedir("/api/bateria", { sospecha: sospecha })
       .then(function (d) {
@@ -491,6 +824,7 @@
         estado.nivel = null;
         estado.evidencias = {};
         estado.resultados = {};
+        estado.interpretaciones = {};
         estado.abiertos = {};
 
         pintar();
@@ -508,7 +842,7 @@
     salida.innerHTML =
       '<div class="seccion">' +
         '<span class="rotulo">Concreta la sospecha</span>' +
-        '<div class="aviso" style="margin-bottom:14px">' + esc(d.mensaje) + '</div>' +
+        '<div class="aviso" style="margin:12px 0 16px">' + esc(d.mensaje) + "</div>" +
         '<div class="opciones">' +
           d.alternativas.map(function (a) {
             return '<button class="opcion" data-alt="' + esc(a.entidad) + '">' +
@@ -525,14 +859,66 @@
     });
   }
 
+  /* ============ medidor de probabilidad ============ */
+
+  var pct = function (x) { return Math.round(x * 100); };
+
+  /**
+   * La pieza que hace tangible lo abstracto: dónde estaba tu sospecha y a dónde
+   * la lleva este resultado. Las zonas de los extremos son los umbrales a
+   * partir de los cuales se habla de confirmar o descartar en la práctica.
+   */
+  function medidor(pre, post, sentido) {
+    var a = Math.max(0, Math.min(100, pct(pre)));
+    var b = Math.max(0, Math.min(100, pct(post)));
+    var izq = Math.min(a, b);
+    var ancho = Math.abs(b - a);
+    var clase = sentido === "nulo" ? "nula" : (b >= a ? "sube" : "baja");
+
+    return '<div class="medidor">' +
+        '<div class="pista">' +
+          '<span class="zona zona-descarta"></span>' +
+          '<span class="zona zona-confirma"></span>' +
+          '<span class="recorrido ' + clase + '" style="left:' + izq + '%;width:' + ancho + '%"></span>' +
+          '<span class="aguja aguja-pre" style="left:' + a + '%"></span>' +
+          '<span class="aguja aguja-post ' + clase + '" style="--desde:' + a + '%;--hasta:' + b + '%"></span>' +
+        "</div>" +
+        '<div class="medidor-pies">' +
+          "<span>partías del " + a + "%</span>" +
+          '<span class="destino ' + clase + '" data-desde="' + a + '" data-hasta="' + b + '">' + a + "%</span>" +
+        "</div>" +
+      "</div>";
+  }
+
+  /** Cuenta el porcentaje hasta su valor, para que el cambio se vea ocurrir. */
+  function animarCifras(raiz) {
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    Array.prototype.forEach.call((raiz || document).querySelectorAll("[data-hasta]"), function (el) {
+      var desde = Number(el.getAttribute("data-desde"));
+      var hasta = Number(el.getAttribute("data-hasta"));
+      if (reduce || desde === hasta) { el.textContent = hasta + "%"; return; }
+
+      var inicio = null;
+      var duracion = 850;
+      function paso(t) {
+        if (inicio === null) inicio = t;
+        var avance = Math.min(1, (t - inicio) / duracion);
+        var suave = 1 - Math.pow(1 - avance, 3);
+        el.textContent = Math.round(desde + (hasta - desde) * suave) + "%";
+        if (avance < 1) requestAnimationFrame(paso);
+      }
+      requestAnimationFrame(paso);
+    });
+  }
+
   /* ============ pintado principal ============ */
 
   function pintar() {
     salida.innerHTML =
       bloqueBanderas() +
       bloquePreTest() +
-      bloqueAgrupaciones() +
-      bloqueTests();
+      bloqueTests() +
+      '<div id="conclusion"></div>';
 
     Array.prototype.forEach.call(salida.querySelectorAll("[data-nivel]"), function (b) {
       b.addEventListener("click", function () {
@@ -563,6 +949,7 @@
         var nombre = b.getAttribute("data-marcar");
         var valor = b.getAttribute("data-valor");
         estado.resultados[nombre] = estado.resultados[nombre] === valor ? null : valor;
+        if (!estado.resultados[nombre]) delete estado.interpretaciones[nombre];
         interpretarTest(nombre);
       });
     });
@@ -570,11 +957,14 @@
     Object.keys(estado.resultados).forEach(function (nombre) {
       if (estado.resultados[nombre]) interpretarTest(nombre);
     });
+
+    animarCifras(salida);
+    refrescarConclusion();
   }
 
   function bloqueBanderas() {
     if (!estado.banderas.length) return "";
-    return '<details class="seccion banderas aviso">' +
+    return '<details class="seccion banderas">' +
       "<summary>Banderas rojas a descartar en " + esc(estado.region) + " · " + estado.banderas.length + "</summary>" +
       estado.banderas.map(function (b) {
         return '<div class="bandera">' +
@@ -605,26 +995,51 @@
       "</div></div></div>";
   }
 
+  /**
+   * Agrupaciones.
+   *
+   * Solo merecen protagonismo cuando la literatura publica su precisión como
+   * conjunto: son la única forma legítima de combinar varios tests. Mientras no
+   * esté verificado, ocupar dos tarjetas grandes para acabar diciendo "no me
+   * hagas caso" era ruido, y encima ruido destacado. Se queda en una línea.
+   */
   function bloqueAgrupaciones() {
     if (!estado.agrupaciones.length) return "";
 
-    return estado.agrupaciones.map(function (a) {
+    var validadas = estado.agrupaciones.filter(function (a) {
       var ev = estado.evidencias[a.nombre];
-      var verificada = ev && ev.hayCifras;
+      return ev && ev.hayCifras;
+    });
 
-      return '<div class="seccion"><div class="tarjeta cluster">' +
-        '<span class="rotulo">' + (verificada ? "Agrupación validada" : "Agrupación propuesta") + "</span>" +
+    var html = validadas.map(function (a) {
+      var ev = estado.evidencias[a.nombre];
+      return '<div class="tarjeta cluster" style="margin-bottom:14px">' +
+        '<span class="rotulo">Agrupación validada</span>' +
         "<h3>" + esc(a.nombre) + "</h3>" +
         '<p class="criterio">' + esc(a.criterio) + "</p>" +
         "<ol>" + a.tests.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ol>" +
-        (verificada
-          ? '<div class="evidencia">Precisión de la agrupación completa: <span class="cifras">Sn ' +
-            num(ev.sn, true) + " · Sp " + num(ev.sp, true) + "</span>. " + citaHtml(ev) + "</div>"
-          : '<div class="evidencia">' + (ev
-              ? "No se ha localizado precisión diagnóstica publicada de esta agrupación como conjunto, así que interpreta cada test por separado."
-              : '<span class="cargando"><span class="girando"></span>Comprobando si está validada…</span>') + "</div>") +
-      "</div></div>";
+        '<div class="franja" style="padding:14px 0 0">' + chipsCifras(ev) + selloCalidad(ev) + "</div>" +
+        fuente(ev) +
+      "</div>";
     }).join("");
+
+    var pendientes = estado.agrupaciones.filter(function (a) {
+      var ev = estado.evidencias[a.nombre];
+      return !ev || !ev.hayCifras;
+    });
+
+    if (pendientes.length) {
+      var buscando = pendientes.some(function (a) { return !estado.evidencias[a.nombre]; });
+      html += '<div class="cluster-nota">' + icono("info") +
+        "<span>" + (buscando
+          ? "Comprobando si hay agrupaciones validadas para esta patología…"
+          : "<b>" + pendientes.length + (pendientes.length === 1 ? " agrupación descrita" : " agrupaciones descritas") +
+            "</b> para esta patología (" + esc(pendientes.map(function (a) { return a.nombre; }).join(", ")) +
+            "), pero sin precisión diagnóstica publicada del conjunto. Interpreta cada test por separado.") +
+        "</span></div>";
+    }
+
+    return html;
   }
 
   // La leyenda se abre sola la primera vez y luego se recuerda plegada. Quien no
@@ -652,9 +1067,23 @@
   }
 
   function bloqueTests() {
+    var listos = estado.tests.filter(function (t) { return estado.evidencias[t.nombre]; }).length;
+    var total = estado.tests.length;
+
+    var progreso = listos < total
+      ? '<div class="progreso">' +
+          '<span class="girando"></span>' +
+          '<span class="progreso-texto">Rastreando PubMed · ' + listos + " de " + total + "</span>" +
+          '<span class="progreso-pista"><span class="progreso-barra" style="width:' + Math.round((listos / total) * 100) + '%"></span></span>' +
+        "</div>"
+      : "";
+
     return '<div class="seccion">' +
-      '<span class="rotulo">Batería · ' + estado.tests.length + " tests, de cribado a confirmación</span>" +
+      '<span class="rotulo">Batería · ' + total + " tests, de cribado a confirmación</span>" +
+      '<div style="height:12px"></div>' +
+      bloqueAgrupaciones() +
       leyenda() +
+      progreso +
       '<div class="tests">' + estado.tests.map(tarjetaTest).join("") + "</div>" +
       '<p class="nota-cadena">Cada test se interpreta contra tu sospecha inicial, de forma independiente. Los resultados de varios tests sueltos no se encadenan: hacerlo daría una certeza que la evidencia no respalda, porque tests que exploran la misma estructura no aportan información independiente.</p>' +
     "</div>";
@@ -666,14 +1095,15 @@
     var id = esc(t.nombre);
     var abierto = Boolean(estado.abiertos[t.nombre]);
 
-    return '<div class="test">' +
+    return '<div class="test' + (marcado ? " marcado" : "") + '" style="animation-delay:' + Math.min(i * 45, 320) + 'ms">' +
       '<div class="test-cab">' +
-        "<div>" +
-          '<h3><span class="orden">' + String(i + 1).padStart(2, "0") + "</span>" + esc(t.nombre) + "</h3>" +
+        '<span class="orden">' + String(i + 1).padStart(2, "0") + "</span>" +
+        '<div class="test-titulo">' +
+          "<h3>" + esc(t.nombre) + "</h3>" +
           '<div class="objetivo">' + esc(t.objetivo) + "</div>" +
         "</div>" +
-        tiraSemaforo(ev) +
       "</div>" +
+      '<div class="franja">' + chipsCifras(ev) + selloCalidad(ev) + marbetes(ev) + "</div>" +
       '<div class="test-acciones">' +
         '<span class="rotulo">Resultado</span>' +
         '<button class="btn-res" data-marcar="' + id + '" data-valor="positivo" aria-pressed="' + (marcado === "positivo") + '">Positivo</button>' +
@@ -681,6 +1111,7 @@
         '<button class="btn-ver" data-ver="' + id + '" aria-expanded="' + abierto + '">Cómo se ejecuta</button>' +
       "</div>" +
       '<div class="hueco" data-hueco="' + id + '"></div>' +
+      fuente(ev) +
       '<div class="test-cuerpo"' + (abierto ? "" : " hidden") + ">" +
         "<dl>" +
           paso("Paciente", t.posicionPaciente) +
@@ -688,7 +1119,9 @@
           paso("Maniobra", t.maniobra) +
           paso("Positivo si", t.positivoSi) +
         "</dl>" +
-        bloqueEvidencia(t.nombre, ev) +
+        (ev && ev.calidad && ev.calidad.motivos && ev.calidad.motivos.length
+          ? '<ul class="motivos">' + ev.calidad.motivos.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>"
+          : "") +
       "</div>" +
     "</div>";
   }
@@ -697,18 +1130,42 @@
     return '<div class="paso"><dt>' + etiqueta + "</dt><dd>" + esc(texto) + "</dd></div>";
   }
 
-  function tiraSemaforo(ev) {
-    if (!ev) return '<div class="semaforo"><span class="punto espera"></span>buscando</div>';
-    if (!ev.hayCifras) return '<div class="semaforo">sin cifras</div>';
-    return '<div class="semaforo"><span class="cifras">' + textoCifras(ev) + "</span></div>";
+  /** Las cifras como piezas propias, no como un texto gris al margen. */
+  function chipsCifras(ev) {
+    if (!ev) return '<span class="cifra vacia"><span class="esqueleto" style="width:88px;display:inline-block;vertical-align:-2px"></span></span>';
+    if (!ev.hayCifras) return '<span class="cifra vacia">sin cifras publicadas</span>';
+
+    var trozos = "";
+    trozos += ev.sn != null
+      ? '<span class="cifra"><i>Sn</i> ' + num(ev.sn, true) + "</span>"
+      : '<span class="cifra vacia"><i>Sn</i> no publicada</span>';
+    trozos += ev.sp != null
+      ? '<span class="cifra"><i>Sp</i> ' + num(ev.sp, true) + "</span>"
+      : '<span class="cifra vacia"><i>Sp</i> no publicada</span>';
+    return trozos;
   }
 
-  // La literatura publica a menudo solo una de las dos cifras. Se muestra la que
-  // hay y se dice cuál falta, en vez de fingir que no se sabe nada del test.
-  function textoCifras(ev) {
-    if (ev.sn != null && ev.sp != null) return "Sn " + num(ev.sn, true) + " · Sp " + num(ev.sp, true);
-    if (ev.sn != null) return "Sn " + num(ev.sn, true) + " · Sp no publicada";
-    return "Sp " + num(ev.sp, true) + " · Sn no publicada";
+  /**
+   * El semáforo de calidad, por fin en pantalla.
+   *
+   * El dominio valora cada artículo con QUADAS-2, AMSTAR-2 y GRADE y produce un
+   * color. Hasta ahora ese color se calculaba y no se pintaba en ninguna parte:
+   * la valoración de la evidencia estaba escondida dentro de un desplegable.
+   */
+  function selloCalidad(ev) {
+    if (!ev) return '<span class="sello espera">buscando evidencia</span>';
+    if (!ev.calidad) return "";
+    var c = ev.calidad;
+    return '<span class="sello ' + esc(c.id) + '">' + esc(c.etiqueta) + "</span>";
+  }
+
+  function marbetes(ev) {
+    if (!ev || !ev.hayCifras) return "";
+    var m = "";
+    if (ev.indirecta) m += '<span class="marbete">evidencia indirecta</span>';
+    if (ev.parcial) m += '<span class="marbete">cifra parcial</span>';
+    if (ev.deCache) m += "";
+    return m;
   }
 
   /** Coma decimal. Las proporciones siempre con dos decimales: 0,80 y no 0,8. */
@@ -719,38 +1176,31 @@
     return Number(x).toLocaleString("es-ES", opciones);
   }
 
-  function citaHtml(ev) {
-    if (!ev.cita) return "";
-    return 'Fuente: <a href="' + esc(ev.cita.url) + '" target="_blank" rel="noopener">' +
-      esc(ev.cita.titulo) + "</a> · " + esc(ev.cita.revista) + " " + esc(ev.cita.anio) + ".";
-  }
-
-  function bloqueEvidencia(nombre, ev) {
-    if (!ev) {
-      return '<div class="evidencia"><span class="cargando"><span class="girando"></span>Buscando precisión diagnóstica en PubMed…</span></div>';
-    }
+  /** La cita, siempre visible. Es lo que permite comprobar el número. */
+  function fuente(ev) {
+    if (!ev) return "";
 
     if (!ev.hayCifras) {
-      return '<div class="evidencia"><b>Sin cifras de precisión utilizables.</b> ' + esc(ev.motivo || ev.error || "") +
-        " No se ofrece conclusión probabilística para este test." +
-        ((ev.consultados && ev.consultados.length)
-          ? '<ul class="motivos">' + ev.consultados.slice(0, 3).map(function (c) {
-              return '<li><a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.titulo) + "</a></li>";
-            }).join("") + "</ul>"
+      var consultados = (ev.consultados || []).slice(0, 2);
+      return '<div class="fuente">' + icono("libro") + "<span>" +
+        esc(ev.motivo || ev.error || "No se han localizado cifras de precisión.") +
+        (consultados.length
+          ? " Se consultó: " + consultados.map(function (c) {
+              return '<a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.titulo) + "</a>";
+            }).join(" · ")
           : "") +
-      "</div>";
+      "</span></div>";
     }
 
-    return '<div class="evidencia">' +
-      '<span class="cifras">' + textoCifras(ev) + "</span>" +
-      (ev.indirecta ? '<span class="indirecta">evidencia indirecta</span>' : "") +
-      (ev.parcial ? '<span class="indirecta">cifra parcial</span>' : "") +
-      '<ul class="motivos">' + ev.calidad.motivos.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>" +
-      "<div style=\"margin-top:8px\">" + citaHtml(ev) + "</div>" +
-    "</div>";
+    if (!ev.cita) return "";
+    return '<div class="fuente">' + icono("libro") + "<span>" +
+      '<a href="' + esc(ev.cita.url) + '" target="_blank" rel="noopener">' + esc(ev.cita.titulo) + "</a> · " +
+      esc(ev.cita.revista) + " " + esc(ev.cita.anio) +
+      (ev.trazable === false ? " · <b>cifra no localizada en la frase citada, compruébala</b>" : "") +
+    "</span></div>";
   }
 
-  /* ============ evidencia y conclusión ============ */
+  /* ============ evidencia ============ */
 
   // Peticiones simultáneas. Cada una hace varias consultas a PubMed, que
   // limita a unas tres por segundo, y cada función corre por su cuenta sin
@@ -798,6 +1248,21 @@
     return Promise.all(frentes);
   }
 
+  /* ============ interpretación de un resultado ============ */
+
+  /**
+   * Clasifica el resultado para elegir color e icono. La frase clínica la
+   * escribe siempre el servidor: aquí solo se decide cómo se presenta.
+   */
+  function claseVeredicto(d) {
+    if (!d || !d.interpretable) return "nulo";
+    if (d.detalle.magnitud.nivel === "irrelevante") return "nulo";
+    var p = d.detalle.postTest;
+    if (d.resultado === "positivo" && p >= 0.85) return "decide";
+    if (d.resultado === "negativo" && p <= 0.10) return "decide";
+    return "mueve";
+  }
+
   function interpretarTest(nombre) {
     var hueco = salida.querySelector('[data-hueco="' + nombre.replace(/"/g, '\\"') + '"]');
     var ev = estado.evidencias[nombre];
@@ -808,52 +1273,254 @@
     });
 
     if (!hueco) return;
-    if (!resultado) { hueco.innerHTML = ""; return; }
+    if (!resultado) { hueco.innerHTML = ""; refrescarConclusion(); return; }
 
     // Marcar siempre vale. Lo que cambia es cuánto podemos decirte del resultado.
     if (!estado.nivel) {
-      hueco.innerHTML = '<div class="lectura"><b>Resultado anotado.</b> ' +
-        "Dinos arriba con cuánta sospecha llegabas y verás qué significa este resultado, " +
-        "y de paso el de todos los tests que ya hayas marcado.</div>";
+      hueco.innerHTML = veredictoSimple("nulo", "Resultado anotado",
+        "Dinos arriba con cuánta sospecha llegabas y verás qué significa este resultado, y de paso el de todos los tests que ya hayas marcado.");
+      refrescarConclusion();
       return;
     }
 
     if (!ev || !ev.hayCifras) {
-      hueco.innerHTML = '<div class="lectura"><b>Resultado anotado.</b> ' +
-        "Nadie ha publicado la precisión de este test para esta patología, así que no puede " +
-        "decirse cuánto cambia tu sospecha.</div>";
+      hueco.innerHTML = veredictoSimple("nulo", "Resultado anotado",
+        "Nadie ha publicado la precisión de este test para esta patología, así que no puede decirse cuánto cambia tu sospecha.");
+      refrescarConclusion();
       return;
     }
 
     if (ev.interpretable === false) {
-      hueco.innerHTML = '<div class="lectura"><b>Resultado anotado.</b> ' +
+      hueco.innerHTML = veredictoSimple("nulo", "Resultado anotado",
         "Solo consta " + (ev.sn != null ? "la sensibilidad" : "la especificidad") +
-        " de este test. Con una sola de las dos cifras no puede calcularse la probabilidad " +
-        "tras el test, así que tómalo como orientación.</div>";
+        " de este test. Con una sola de las dos cifras no puede calcularse la probabilidad tras el test, así que tómalo como orientación.");
+      refrescarConclusion();
       return;
     }
 
-    hueco.innerHTML = '<div class="lectura"><span class="cargando"><span class="girando"></span>Calculando…</span></div>';
+    hueco.innerHTML = '<div class="veredicto"><div class="cargando"><span class="girando"></span>Calculando…</div></div>';
 
     pedir("/api/interpretar", {
       nivelPreTest: estado.nivel, sn: ev.sn, sp: ev.sp, resultado: resultado
     }).then(function (d) {
+      if (estado.resultados[nombre] !== resultado) return;
+
       if (!d.interpretable) {
-        hueco.innerHTML = '<div class="lectura"><b>No interpretable</b>' + esc((d.problemas || []).join(" ")) + "</div>";
+        hueco.innerHTML = veredictoSimple("nulo", "No interpretable", (d.problemas || []).join(" "));
         return;
       }
+
+      estado.interpretaciones[nombre] = d;
+
       var x = d.detalle;
-      hueco.innerHTML = '<div class="lectura">' +
-        "<b>" + esc(d.lectura) + "</b>" +
-        '<div class="calculo">' +
-          esc(x.preTestTexto) + "  →  RV " + esc(x.cual) + " " + num(x.razonDeVerosimilitud) +
-          "  →  post-test " + esc(x.postTestTexto) +
-        "</div>" +
-        '<div class="calculo">' + esc(x.magnitud.texto) + "</div>" +
-      "</div>";
+      var clase = claseVeredicto(d);
+      var titulos = { decide: "Decide", mueve: "Mueve tu sospecha", nulo: "No aporta" };
+
+      hueco.innerHTML =
+        '<div class="veredicto ' + clase + '">' +
+          '<div class="veredicto-cab">' + icono(clase) + "<b>" + titulos[clase] + "</b></div>" +
+          '<p class="lectura">' + esc(d.lectura) + "</p>" +
+          medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") +
+          '<div class="calculo">' +
+            esc(x.preTestTexto) + "  →  RV " + esc(x.cual) + " " + num(x.razonDeVerosimilitud) +
+            "  ·  " + esc(x.magnitud.texto) +
+          "</div>" +
+        "</div>";
+
+      animarCifras(hueco);
+      refrescarConclusion();
     }).catch(function (err) {
-      hueco.innerHTML = '<div class="lectura"><b>No se ha podido calcular</b>' + esc(err.message) + "</div>";
+      hueco.innerHTML = veredictoSimple("nulo", "No se ha podido calcular", err.message);
     });
+  }
+
+  function veredictoSimple(clase, titulo, texto) {
+    return '<div class="veredicto ' + clase + '">' +
+      '<div class="veredicto-cab">' + icono(clase) + "<b>" + esc(titulo) + "</b></div>" +
+      '<p class="lectura">' + esc(texto) + "</p>" +
+    "</div>";
+  }
+
+  /* ============ conclusión final ============ */
+
+  /**
+   * La síntesis de la exploración.
+   *
+   * Lo que NO hace, y es deliberado: encadenar los resultados para dar una
+   * probabilidad final. Tests que exploran la misma estructura no aportan
+   * información independiente, y multiplicar sus razones de verosimilitud daría
+   * una certeza que la evidencia no respalda. Sería el peor error posible aquí.
+   *
+   * Lo que sí hace: señalar cuál de los resultados que has obtenido es el que
+   * de verdad decide, decirte cuáles has marcado sin que aporten nada, y
+   * avisarte cuando tu propia exploración se contradice.
+   */
+  function sintesis() {
+    var marcados = Object.keys(estado.resultados).filter(function (n) { return estado.resultados[n]; });
+    if (!marcados.length) return { fase: "sin_marcar" };
+    if (!estado.nivel) return { fase: "sin_nivel", marcados: marcados.length };
+
+    var conCalculo = [];
+    var sinCifras = [];
+    var parciales = [];
+
+    marcados.forEach(function (n) {
+      var ev = estado.evidencias[n];
+      var d = estado.interpretaciones[n];
+      if (d && d.interpretable) conCalculo.push({ nombre: n, d: d });
+      else if (ev && ev.hayCifras && ev.interpretable === false) parciales.push(n);
+      else if (ev && !ev.hayCifras) sinCifras.push(n);
+    });
+
+    // Fuerza de un resultado: cuánto se aleja de 1 su razón de verosimilitud,
+    // en cualquiera de las dos direcciones.
+    function fuerza(d) {
+      var lr = d.detalle.razonDeVerosimilitud;
+      return lr >= 1 ? lr : 1 / lr;
+    }
+
+    var utiles = conCalculo.filter(function (x) { return x.d.detalle.magnitud.nivel !== "irrelevante"; });
+    var nulos = conCalculo.filter(function (x) { return x.d.detalle.magnitud.nivel === "irrelevante"; });
+
+    var decisivo = null;
+    utiles.forEach(function (x) { if (!decisivo || fuerza(x.d) > fuerza(decisivo.d)) decisivo = x; });
+
+    // Discordancia: unos empujan hacia arriba y otros hacia abajo.
+    var suben = utiles.filter(function (x) { return x.d.detalle.postTest > x.d.detalle.preTest; });
+    var bajan = utiles.filter(function (x) { return x.d.detalle.postTest < x.d.detalle.preTest; });
+
+    return {
+      fase: "listo",
+      marcados: marcados.length,
+      decisivo: decisivo,
+      utiles: utiles,
+      nulos: nulos,
+      sinCifras: sinCifras,
+      parciales: parciales,
+      discordante: suben.length > 0 && bajan.length > 0,
+      suben: suben,
+      bajan: bajan
+    };
+  }
+
+  function listaNombres(ns) {
+    return ns.map(function (n) { return esc(n); }).join(", ");
+  }
+
+  function refrescarConclusion() {
+    var caja = document.getElementById("conclusion");
+    if (!caja) return;
+
+    var s = sintesis();
+
+    if (s.fase === "sin_marcar") { caja.innerHTML = ""; ocultarResumen(); return; }
+
+    if (s.fase === "sin_nivel") {
+      caja.innerHTML = '<div class="conclusion"><div class="conclusion-dentro">' +
+        '<span class="rotulo">Conclusión</span>' +
+        "<h2>Falta tu sospecha inicial</h2>" +
+        '<p class="sumario">Has marcado ' + s.marcados + (s.marcados === 1 ? " resultado" : " resultados") +
+        ", pero sin saber con cuánta sospecha llegabas no puede calcularse qué significan. " +
+        "Márcala arriba y se interpretan todos de golpe.</p>" +
+      "</div></div>";
+      ocultarResumen();
+      return;
+    }
+
+    var partes = [];
+
+    if (!s.decisivo) {
+      partes.push('<span class="rotulo">Conclusión</span>');
+      partes.push("<h2>Nada de lo explorado decide</h2>");
+      partes.push('<p class="sumario">Has marcado ' + s.marcados +
+        (s.marcados === 1 ? " resultado" : " resultados") +
+        ", pero ninguno mueve tu sospecha lo suficiente como para cambiar tu decisión. " +
+        "Sigues donde estabas.</p>");
+    } else {
+      var x = s.decisivo.d.detalle;
+      var clase = claseVeredicto(s.decisivo.d);
+      partes.push('<span class="rotulo">Conclusión</span>');
+      partes.push("<h2>" + esc(s.decisivo.d.lectura) + "</h2>");
+      partes.push('<p class="sumario">De todo lo que has explorado, el resultado que más pesa es ' +
+        "<b>" + esc(s.decisivo.nombre) + " " + esc(s.decisivo.d.resultado) + "</b>. " +
+        "Es el que más mueve tu sospecha, y esto es lo que hace con ella:</p>");
+      partes.push('<div class="conclusion-medidor">' + medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") + "</div>");
+    }
+
+    var hitos = [];
+
+    if (s.discordante) {
+      hitos.push('<div class="hito alerta">' + icono("alerta") +
+        "<span><b>Tus resultados no van en la misma dirección.</b> " +
+        listaNombres(s.suben.map(function (x) { return x.nombre; })) + " apunta" + (s.suben.length > 1 ? "n" : "") + " a confirmar, " +
+        "mientras que " + listaNombres(s.bajan.map(function (x) { return x.nombre; })) + " apunta" + (s.bajan.length > 1 ? "n" : "") + " a descartar. " +
+        "Merece una segunda mirada antes de decidir.</span></div>");
+    }
+
+    if (s.nulos.length) {
+      hitos.push('<div class="hito">' + icono("nulo") +
+        "<span><b>" + s.nulos.length + (s.nulos.length === 1 ? " resultado no aporta" : " resultados no aportan") + " nada:</b> " +
+        listaNombres(s.nulos.map(function (x) { return x.nombre; })) + ". " +
+        "Su precisión publicada es tan pobre que salen igual con lesión y sin ella.</span></div>");
+    }
+
+    if (s.parciales.length) {
+      hitos.push('<div class="hito">' + icono("info") +
+        "<span><b>" + s.parciales.length + (s.parciales.length === 1 ? " resultado se queda" : " resultados se quedan") + " en orientación:</b> " +
+        listaNombres(s.parciales) + ". Solo consta una de las dos cifras, así que no puede calcularse la probabilidad tras el test.</span></div>");
+    }
+
+    if (s.sinCifras.length) {
+      hitos.push('<div class="hito">' + icono("info") +
+        "<span><b>" + s.sinCifras.length + (s.sinCifras.length === 1 ? " resultado no cuenta" : " resultados no cuentan") + ":</b> " +
+        listaNombres(s.sinCifras) + ". Nadie ha publicado su precisión para esta patología.</span></div>");
+    }
+
+    if (hitos.length) partes.push('<div class="hitos">' + hitos.join("") + "</div>");
+
+    partes.push('<p class="nota-cadena">Esta conclusión no encadena los resultados entre sí. ' +
+      "Tests que exploran la misma estructura no aportan información independiente, y multiplicar " +
+      "sus razones de verosimilitud daría una certeza que la evidencia no respalda. Lo que ves es " +
+      "el resultado que más mueve tu sospecha, interpretado contra la sospecha con la que llegaste.</p>");
+
+    caja.innerHTML = '<div class="conclusion"><div class="conclusion-dentro">' + partes.join("") + "</div></div>";
+    animarCifras(caja);
+    pintarResumen(s);
+  }
+
+  /* ============ barra de resumen fija ============ */
+
+  function ocultarResumen() {
+    fijo.classList.remove("visible");
+    fijo.hidden = true;
+  }
+
+  function pintarResumen(s) {
+    if (!s.decisivo) {
+      fijoCaja.innerHTML =
+        '<span class="resumen-texto">Has marcado <b>' + s.marcados + "</b> " +
+        (s.marcados === 1 ? "resultado" : "resultados") + ", pero ninguno decide todavía.</span>" +
+        '<button class="btn-resumen" id="ir-conclusion">Ver conclusión</button>';
+    } else {
+      var x = s.decisivo.d.detalle;
+      var sube = x.postTest >= x.preTest;
+      fijoCaja.innerHTML =
+        '<span class="resumen-cifra ' + (sube ? "sube" : "baja") + '">' + pct(x.postTest) + "%</span>" +
+        '<span class="resumen-texto">Tu sospecha tras <b>' + esc(s.decisivo.nombre) + "</b>, " +
+        "que es el resultado que más pesa.</span>" +
+        '<button class="btn-resumen" id="ir-conclusion">Ver conclusión</button>';
+    }
+
+    fijo.hidden = false;
+    requestAnimationFrame(function () { fijo.classList.add("visible"); });
+
+    var boton = document.getElementById("ir-conclusion");
+    if (boton) {
+      boton.addEventListener("click", function () {
+        var caja = document.getElementById("conclusion");
+        if (caja) caja.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
   }
 })();
 </script>
