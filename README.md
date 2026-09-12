@@ -118,7 +118,7 @@ Variables de entorno que hay que configurar en el panel de Netlify:
 | `CORREO_REMITENTE` | Obligatoria. Remitente verificado: `hola@fisioia.app`. |
 | `PROVEEDOR_CORREO` | `brevo` o `resend`. Sin ella gana el que tenga clave. |
 | `RESEND_API_KEY` | Solo si algún día se cambia de proveedor de correo. |
-| `URL_PUBLICA` | Dominio del sitio, para componer el enlace del correo. |
+| `URL_PUBLICA` | `https://asistente-tests.fisioia.app`, para componer el enlace del correo. |
 | `ANTHROPIC_MODEL` | Por defecto `claude-sonnet-5`. |
 | `LIMITE_DIARIO` | Consultas con coste por persona y día. Por defecto 40. |
 | `CUPO_DIARIO_GLOBAL` | Tope de toda la aplicación por día. Por defecto 2000. |
