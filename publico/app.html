@@ -381,12 +381,28 @@ details.banderas summary::before {
   transition: border-color .25s, box-shadow .25s;
 }
 .test.marcado { border-color: var(--borde-vivo); }
+
+/* El tono de cada tarjeta. No es decoración: sale de la calidad de la evidencia
+   de ese test, así que un vistazo al listado ya dice dónde hay literatura
+   sólida y dónde se pisa terreno flojo. Se queda deliberadamente tenue: los
+   colores saturados están reservados al veredicto, que es lo que debe saltar. */
+.test {
+  position: relative;
+  --tono: var(--tinta-tenue);
+  background:
+    radial-gradient(120% 70% at 0% 0%, color-mix(in srgb, var(--tono) 9%, transparent) 0%, transparent 62%),
+    linear-gradient(180deg, var(--superficie-alta) 0%, var(--superficie) 100%);
+}
+.test.tono-verde { --tono: var(--verde); }
+.test.tono-ambar { --tono: var(--ambar); }
+.test.tono-rojo { --tono: var(--tinta-tenue); }
+.test.tono-espera { --tono: var(--azul); }
+
 .test::before {
   content: ""; position: absolute; inset: 0 0 auto; height: 1px;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--azul) 60%, transparent), transparent);
-  opacity: .5;
+  background: linear-gradient(90deg, transparent, var(--tono), transparent 75%);
+  opacity: .6;
 }
-.test { position: relative; }
 
 /* La cabecera es lo primero que se lee de cada test y ahora se comporta como
    tal: el número entra deslizándose y el título tiene el peso de un titular. */
@@ -404,11 +420,13 @@ details.banderas summary::before {
   flex: none;
   font-family: var(--mono); font-size: 2.5rem; font-weight: 800; line-height: .9;
   letter-spacing: -.05em; font-variant-numeric: tabular-nums;
-  background: linear-gradient(150deg, var(--tinta) 0%, var(--tinta-tenue) 55%, transparent 130%);
+  background: linear-gradient(155deg, var(--tono) 0%, color-mix(in srgb, var(--tono) 45%, var(--tinta-tenue)) 50%, transparent 125%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 20px color-mix(in srgb, var(--tono) 28%, transparent));
   animation: entrarOrden .6s var(--curva) both;
   animation-delay: inherit;
   padding-top: 2px;
+  transition: filter .4s var(--curva);
 }
 
 .test-titulo { flex: 1; min-width: 0; }
@@ -1164,8 +1182,11 @@ details.banderas summary::before {
     var ev = estado.evidencias[t.nombre];
     var marcado = estado.resultados[t.nombre];
     var id = esc(t.nombre);
+    // Mientras se busca, el tono es el azul de "trabajando"; al llegar la
+    // evidencia lo fija su semáforo de calidad.
+    var tono = ev && ev.calidad ? esc(ev.calidad.id) : "espera";
 
-    return '<div class="test' + (marcado ? " marcado" : "") + '" style="animation-delay:' + Math.min(i * 55, 400) + 'ms">' +
+    return '<div class="test tono-' + tono + (marcado ? " marcado" : "") + '" style="animation-delay:' + Math.min(i * 55, 400) + 'ms">' +
       '<div class="test-cab">' +
         '<span class="orden">' + String(i + 1).padStart(2, "0") + "</span>" +
         '<div class="test-titulo">' +
