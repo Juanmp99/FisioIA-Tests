@@ -377,24 +377,48 @@ details.banderas summary::before {
   border: 1px solid var(--borde); border-radius: var(--radio);
   box-shadow: var(--sombra);
   overflow: hidden;
-  animation: entrar .45s var(--curva) both;
-  transition: border-color .25s;
+  animation: entrarCine .65s var(--curva) both;
+  transition: border-color .25s, box-shadow .25s;
 }
 .test.marcado { border-color: var(--borde-vivo); }
+.test::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--azul) 60%, transparent), transparent);
+  opacity: .5;
+}
+.test { position: relative; }
 
-.test-cab { display: flex; gap: 16px; align-items: flex-start; padding: 18px 20px 14px; }
+/* La cabecera es lo primero que se lee de cada test y ahora se comporta como
+   tal: el número entra deslizándose y el título tiene el peso de un titular. */
+.test-cab {
+  position: relative;
+  display: flex; gap: 18px; align-items: flex-start;
+  padding: 26px 24px 16px;
+}
+.test-cab::after {
+  content: ""; position: absolute; left: 24px; right: 24px; bottom: 0; height: 1px;
+  background: linear-gradient(90deg, var(--borde-vivo), transparent 70%);
+}
 
 .orden {
   flex: none;
-  width: 30px; height: 30px; border-radius: 9px;
-  display: grid; place-items: center;
-  background: var(--superficie-viva); border: 1px solid var(--borde);
-  font-family: var(--mono); font-size: .75rem; font-weight: 700; color: var(--tinta-tenue);
+  font-family: var(--mono); font-size: 2.5rem; font-weight: 800; line-height: .9;
+  letter-spacing: -.05em; font-variant-numeric: tabular-nums;
+  background: linear-gradient(150deg, var(--tinta) 0%, var(--tinta-tenue) 55%, transparent 130%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: entrarOrden .6s var(--curva) both;
+  animation-delay: inherit;
+  padding-top: 2px;
 }
 
 .test-titulo { flex: 1; min-width: 0; }
-.test-titulo h3 { margin: 0; font-size: 1.0625rem; letter-spacing: -.015em; }
-.objetivo { font-size: .875rem; color: var(--tinta-tenue); margin-top: 2px; }
+.test-titulo h3 {
+  margin: 0; font-size: clamp(1.3rem, 3.4vw, 1.6rem);
+  letter-spacing: -.035em; line-height: 1.15; font-weight: 750;
+  background: linear-gradient(120deg, var(--tinta) 20%, color-mix(in srgb, var(--azul) 55%, var(--tinta)) 120%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.objetivo { font-size: .9375rem; color: var(--tinta-tenue); margin-top: 6px; max-width: 62ch; }
 
 /* La franja de cifras y calidad. Antes estaba escondida dentro del desplegable:
    la valoración de la evidencia se calculaba y no se veía. */
@@ -410,8 +434,12 @@ details.banderas summary::before {
 
 .sello {
   display: inline-flex; align-items: center; gap: 7px;
-  font-size: .75rem; font-weight: 600; border-radius: 999px;
-  padding: 5px 11px 5px 9px; border: 1px solid transparent;
+  font-size: .8125rem; font-weight: 600; border-radius: 999px;
+  padding: 6px 13px 6px 11px; border: 1px solid transparent;
+}
+.sello i {
+  font-style: normal; font-size: .6875rem; text-transform: uppercase;
+  letter-spacing: .07em; font-weight: 700; opacity: .7;
 }
 .sello::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .sello.verde { color: var(--verde); background: var(--brillo-verde); border-color: color-mix(in srgb, var(--verde) 30%, transparent); }
@@ -450,15 +478,17 @@ details.banderas summary::before {
   box-shadow: 0 0 18px -6px var(--azul);
 }
 
-.btn-ver {
+.btn-ficha {
   margin-left: auto;
-  background: none; border: 0; font: inherit; font-size: .875rem;
-  color: var(--tinta-tenue); cursor: pointer; padding: 8px 0;
-  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--superficie-viva); border: 1px solid var(--borde-vivo);
+  border-radius: 10px; font: inherit; font-size: .9375rem; font-weight: 600;
+  color: var(--tinta-media); cursor: pointer; padding: 9px 16px;
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: all .18s var(--curva);
 }
-.btn-ver:hover { color: var(--tinta); }
-.btn-ver::after { content: "›"; transition: transform .25s var(--curva); font-size: 1.1rem; line-height: 1; }
-.btn-ver[aria-expanded="true"]::after { transform: rotate(90deg); }
+.btn-ficha:hover { color: var(--azul); border-color: var(--azul); background: var(--brillo-azul); }
+.btn-ficha::after { content: "›"; font-size: 1.15rem; line-height: 1; transition: transform .2s var(--curva); }
+.btn-ficha:hover::after { transform: translateX(3px); }
 
 /* ============ veredicto de un resultado ============ */
 
@@ -481,13 +511,48 @@ details.banderas summary::before {
   margin-top: 10px; font-variant-numeric: tabular-nums; line-height: 1.7;
 }
 
-/* ============ cuerpo desplegable ============ */
+/* ============ ficha de ejecución ============ */
 
-.test-cuerpo { border-top: 1px solid var(--borde); background: var(--superficie); padding: 18px 20px; }
-.test-cuerpo dl { margin: 0; display: grid; gap: 12px; }
-.paso { display: grid; grid-template-columns: 104px 1fr; gap: 14px; align-items: start; }
-.paso dt { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--tinta-tenue); font-weight: 700; padding-top: 2px; }
-.paso dd { margin: 0; font-size: .9375rem; color: var(--tinta-media); }
+/* Un panel flotante y no un acordeón: son cuatro pasos que se leen con el
+   paciente delante, y en un móvil una ventana a pantalla casi completa se lee
+   mucho mejor que un desplegable perdido en mitad del listado. */
+.hoja { position: fixed; inset: 0; z-index: 80; display: grid; }
+/* El atributo hidden pone display:none desde la hoja del navegador, y cualquier
+   display propio lo gana. Sin esta línea el panel se queda siempre abierto. */
+.hoja[hidden] { display: none; }
+.hoja-fondo {
+  position: absolute; inset: 0;
+  background: rgba(4, 7, 13, .72);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  animation: aparecer .28s ease both;
+}
+.hoja-panel {
+  position: relative; z-index: 1;
+  width: min(620px, 100%); max-height: 88vh; overflow-y: auto;
+  margin: auto auto 0; padding: 28px 26px calc(30px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, var(--superficie-alta), var(--superficie));
+  border: 1px solid var(--borde-vivo); border-bottom: 0;
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -20px 60px -20px rgba(0,0,0,.8);
+  animation: subirHoja .42s var(--curva) both;
+}
+@media (min-width: 700px) {
+  .hoja-panel { margin: auto; border-radius: 22px; border-bottom: 1px solid var(--borde-vivo); }
+}
+.hoja-cerrar {
+  position: absolute; top: 16px; right: 16px;
+  width: 34px; height: 34px; border-radius: 10px;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+  color: var(--tinta-media); font-size: 1.25rem; line-height: 1; cursor: pointer;
+}
+.hoja-cerrar:hover { color: var(--tinta); border-color: var(--borde-vivo); }
+.hoja-rotulo { display: block; margin-bottom: 8px; }
+.hoja h3 { margin: 0 0 22px; font-size: 1.5rem; letter-spacing: -.03em; padding-right: 40px; }
+
+.hoja dl { margin: 0; display: grid; gap: 16px; }
+.paso { display: grid; grid-template-columns: 108px 1fr; gap: 16px; align-items: start; }
+.paso dt { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--azul); font-weight: 700; padding-top: 3px; }
+.paso dd { margin: 0; font-size: 1rem; color: var(--tinta); }
 
 /* La cita nunca se esconde: sin revisor humano, el fisioterapeuta es la última
    línea de defensa y no puede serlo si no ve de dónde sale el número. */
@@ -607,8 +672,15 @@ details.banderas summary::before {
 @keyframes latir { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 @keyframes brillar { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 @keyframes entrar { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes entrarCine {
+  from { opacity: 0; transform: translateY(26px) scale(.985); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes entrarOrden { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
 @keyframes subir { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 @keyframes barrer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
+@keyframes subirHoja { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
 @keyframes deslizar { from { left: var(--desde); } to { left: var(--hasta); } }
 
 @media (prefers-reduced-motion: reduce) {
@@ -622,7 +694,7 @@ details.banderas summary::before {
 @media (max-width: 620px) {
   .paso { grid-template-columns: 1fr; gap: 2px; }
   .niveles { grid-template-columns: 1fr; }
-  .btn-ver { margin-left: 0; }
+  .btn-ficha { margin-left: 0; width: 100%; justify-content: center; }
   .conclusion-dentro { padding: 22px 18px; }
 
   /* En un móvil no cabe el nombre largo junto al estado del modelo, y el que
@@ -679,6 +751,14 @@ details.banderas summary::before {
   <div class="resumen-caja" id="resumen-caja"></div>
 </div>
 
+<div class="hoja" id="hoja" hidden>
+  <div class="hoja-fondo" data-cerrar-hoja></div>
+  <div class="hoja-panel" role="dialog" aria-modal="true" aria-labelledby="hoja-titulo">
+    <button class="hoja-cerrar" data-cerrar-hoja aria-label="Cerrar">&times;</button>
+    <div id="hoja-cuerpo"></div>
+  </div>
+</div>
+
 <script>
 (function () {
   "use strict";
@@ -720,10 +800,7 @@ details.banderas summary::before {
     // Interpretaciones que ha devuelto el servidor, por nombre de test. De aquí
     // sale la conclusión final: se reutiliza el cálculo del dominio en lugar de
     // rehacer la aritmética en el navegador, que acabaría divergiendo.
-    interpretaciones: {},
-    // Qué desplegables están abiertos. La pantalla se repinta cada vez que
-    // llega un test, y sin esto se cerraría solo en mitad de la lectura.
-    abiertos: {}
+    interpretaciones: {}
   };
 
   var salida = document.getElementById("salida");
@@ -825,7 +902,6 @@ details.banderas summary::before {
         estado.evidencias = {};
         estado.resultados = {};
         estado.interpretaciones = {};
-        estado.abiertos = {};
 
         pintar();
         buscarEvidencia();
@@ -934,13 +1010,8 @@ details.banderas summary::before {
       });
     }
 
-    Array.prototype.forEach.call(salida.querySelectorAll("[data-ver]"), function (b) {
-      b.addEventListener("click", function () {
-        var cuerpo = b.closest(".test").querySelector(".test-cuerpo");
-        cuerpo.hidden = !cuerpo.hidden;
-        b.setAttribute("aria-expanded", String(!cuerpo.hidden));
-        estado.abiertos[b.getAttribute("data-ver")] = !cuerpo.hidden;
-      });
+    Array.prototype.forEach.call(salida.querySelectorAll("[data-ficha]"), function (b) {
+      b.addEventListener("click", function () { abrirFicha(b.getAttribute("data-ficha")); });
     });
 
     Array.prototype.forEach.call(salida.querySelectorAll("[data-marcar]"), function (b) {
@@ -1093,9 +1164,8 @@ details.banderas summary::before {
     var ev = estado.evidencias[t.nombre];
     var marcado = estado.resultados[t.nombre];
     var id = esc(t.nombre);
-    var abierto = Boolean(estado.abiertos[t.nombre]);
 
-    return '<div class="test' + (marcado ? " marcado" : "") + '" style="animation-delay:' + Math.min(i * 45, 320) + 'ms">' +
+    return '<div class="test' + (marcado ? " marcado" : "") + '" style="animation-delay:' + Math.min(i * 55, 400) + 'ms">' +
       '<div class="test-cab">' +
         '<span class="orden">' + String(i + 1).padStart(2, "0") + "</span>" +
         '<div class="test-titulo">' +
@@ -1108,21 +1178,10 @@ details.banderas summary::before {
         '<span class="rotulo">Resultado</span>' +
         '<button class="btn-res" data-marcar="' + id + '" data-valor="positivo" aria-pressed="' + (marcado === "positivo") + '">Positivo</button>' +
         '<button class="btn-res" data-marcar="' + id + '" data-valor="negativo" aria-pressed="' + (marcado === "negativo") + '">Negativo</button>' +
-        '<button class="btn-ver" data-ver="' + id + '" aria-expanded="' + abierto + '">Cómo se ejecuta</button>' +
+        '<button class="btn-ficha" data-ficha="' + id + '">¿Cómo se hace?</button>' +
       "</div>" +
       '<div class="hueco" data-hueco="' + id + '"></div>' +
       fuente(ev) +
-      '<div class="test-cuerpo"' + (abierto ? "" : " hidden") + ">" +
-        "<dl>" +
-          paso("Paciente", t.posicionPaciente) +
-          paso("Terapeuta", t.posicionTerapeuta) +
-          paso("Maniobra", t.maniobra) +
-          paso("Positivo si", t.positivoSi) +
-        "</dl>" +
-        (ev && ev.calidad && ev.calidad.motivos && ev.calidad.motivos.length
-          ? '<ul class="motivos">' + ev.calidad.motivos.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>"
-          : "") +
-      "</div>" +
     "</div>";
   }
 
@@ -1130,18 +1189,73 @@ details.banderas summary::before {
     return '<div class="paso"><dt>' + etiqueta + "</dt><dd>" + esc(texto) + "</dd></div>";
   }
 
+  /* ============ ficha de ejecución ============ */
+
+  var hoja = document.getElementById("hoja");
+  var hojaCuerpo = document.getElementById("hoja-cuerpo");
+  var devolverFoco = null;
+
+  function abrirFicha(nombre) {
+    var t = null;
+    estado.tests.forEach(function (x) { if (x.nombre === nombre) t = x; });
+    if (!t) return;
+
+    var ev = estado.evidencias[nombre];
+
+    hojaCuerpo.innerHTML =
+      '<span class="rotulo hoja-rotulo">Cómo se ejecuta</span>' +
+      '<h3 id="hoja-titulo">' + esc(t.nombre) + "</h3>" +
+      "<dl>" +
+        paso("Paciente", t.posicionPaciente) +
+        paso("Terapeuta", t.posicionTerapeuta) +
+        paso("Maniobra", t.maniobra) +
+        paso("Positivo si", t.positivoSi) +
+      "</dl>" +
+      (t.otrosNombres && t.otrosNombres.length
+        ? '<p class="nota-cadena">También conocido como: ' + esc(t.otrosNombres.join(", ")) + ".</p>"
+        : "") +
+      (ev && ev.calidad && ev.calidad.motivos && ev.calidad.motivos.length
+        ? '<p class="nota-cadena" style="margin-top:20px"><b>Sobre la evidencia de este test</b></p>' +
+          '<ul class="motivos">' + ev.calidad.motivos.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>"
+        : "");
+
+    devolverFoco = document.activeElement;
+    hoja.hidden = false;
+    document.body.style.overflow = "hidden";
+    var cerrar = hoja.querySelector(".hoja-cerrar");
+    if (cerrar) cerrar.focus();
+  }
+
+  function cerrarFicha() {
+    hoja.hidden = true;
+    document.body.style.overflow = "";
+    if (devolverFoco && devolverFoco.focus) devolverFoco.focus();
+    devolverFoco = null;
+  }
+
+  Array.prototype.forEach.call(hoja.querySelectorAll("[data-cerrar-hoja]"), function (b) {
+    b.addEventListener("click", cerrarFicha);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !hoja.hidden) cerrarFicha();
+  });
+
   /** Las cifras como piezas propias, no como un texto gris al margen. */
   function chipsCifras(ev) {
     if (!ev) return '<span class="cifra vacia"><span class="esqueleto" style="width:88px;display:inline-block;vertical-align:-2px"></span></span>';
     if (!ev.hayCifras) return '<span class="cifra vacia">sin cifras publicadas</span>';
 
+    // Con el nombre entero y no con la abreviatura: "Sn" obliga a traducir
+    // mentalmente antes de entender, y esto lo usa gente que no vive en la
+    // medicina basada en la evidencia. La abreviatura se queda en la línea del
+    // cálculo, donde el espacio manda y la leyenda ya la explica.
     var trozos = "";
     trozos += ev.sn != null
-      ? '<span class="cifra"><i>Sn</i> ' + num(ev.sn, true) + "</span>"
-      : '<span class="cifra vacia"><i>Sn</i> no publicada</span>';
+      ? '<span class="cifra"><i>Sensibilidad</i> ' + num(ev.sn, true) + "</span>"
+      : '<span class="cifra vacia"><i>Sensibilidad</i> no publicada</span>';
     trozos += ev.sp != null
-      ? '<span class="cifra"><i>Sp</i> ' + num(ev.sp, true) + "</span>"
-      : '<span class="cifra vacia"><i>Sp</i> no publicada</span>';
+      ? '<span class="cifra"><i>Especificidad</i> ' + num(ev.sp, true) + "</span>"
+      : '<span class="cifra vacia"><i>Especificidad</i> no publicada</span>';
     return trozos;
   }
 
@@ -1155,8 +1269,14 @@ details.banderas summary::before {
   function selloCalidad(ev) {
     if (!ev) return '<span class="sello espera">buscando evidencia</span>';
     if (!ev.calidad) return "";
+
+    // El sello valora el artículo, no la utilidad del test: un estudio
+    // impecable puede medir un test que no sirve para nada. Decirlo en la
+    // etiqueta evita la confusión de verlo en verde junto a un "no aporta".
+    var adjetivos = { verde: "sólida", ambar: "limitada", rojo: "insuficiente" };
     var c = ev.calidad;
-    return '<span class="sello ' + esc(c.id) + '">' + esc(c.etiqueta) + "</span>";
+    return '<span class="sello ' + esc(c.id) + '" title="' + esc(c.etiqueta) + '">' +
+      "<i>Calidad del estudio</i>" + esc(adjetivos[c.id] || c.etiqueta) + "</span>";
   }
 
   function marbetes(ev) {
