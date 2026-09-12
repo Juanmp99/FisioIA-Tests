@@ -88,7 +88,7 @@ evidencia no respalda. Solo una agrupación validada como conjunto puede interpr
 | `lib/asistente.js` | Los dos tiempos —batería y evidencia— sin nada de transporte. |
 | `lib/acceso.js` | Tokens de acceso, verificación por correo y topes de consumo. |
 | `lib/contactos.js` | Alta del contacto en Brevo. |
-| `lib/correo.js` | Envío del enlace de acceso, por Resend o por Brevo. |
+| `lib/correo.js` | Envío del enlace de acceso por Brevo transaccional. |
 | `netlify/functions/` | Un archivo por endpoint. Cada uno declara su ruta. |
 | `server.js` | Servidor de desarrollo: monta esas mismas funciones. |
 | `publico/index.html` | La landing y el formulario de acceso. |
@@ -114,10 +114,10 @@ Variables de entorno que hay que configurar en el panel de Netlify:
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Obligatoria. La batería y la extracción de cifras. |
 | `BREVO_API_KEY` | Obligatoria. Alta del contacto. |
-| `BREVO_LISTA_ID` | Obligatoria. Identificador numérico de la lista. |
-| `CORREO_REMITENTE` | Obligatoria. Dirección verificada en el proveedor de correo. |
-| `RESEND_API_KEY` | El envío del enlace de acceso. Si no está, se usa Brevo. |
-| `PROVEEDOR_CORREO` | `resend` o `brevo`. Sin ella se elige el que tenga clave. |
+| `BREVO_LISTA_ID` | Obligatoria. Identificador numérico de la lista (`14`). |
+| `CORREO_REMITENTE` | Obligatoria. Remitente verificado: `hola@fisioia.app`. |
+| `PROVEEDOR_CORREO` | `brevo` o `resend`. Sin ella gana el que tenga clave. |
+| `RESEND_API_KEY` | Solo si algún día se cambia de proveedor de correo. |
 | `URL_PUBLICA` | Dominio del sitio, para componer el enlace del correo. |
 | `ANTHROPIC_MODEL` | Por defecto `claude-sonnet-5`. |
 | `LIMITE_DIARIO` | Consultas con coste por persona y día. Por defecto 40. |
