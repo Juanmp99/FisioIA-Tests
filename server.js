@@ -84,7 +84,7 @@ const servidor = http.createServer(async (req, res) => {
 });
 
 servidor.listen(PUERTO, async () => {
-  console.log(`FisioIA · asistente de tests → http://localhost:${PUERTO}`);
+  console.log(`FisioIA · exploración guiada → http://localhost:${PUERTO}`);
   console.log(`Modelo: ${MODELO} · ${await tamanoCache()} elementos en caché`);
   if (!hayCredencial()) {
     console.log("Aviso: ANTHROPIC_API_KEY no está definida. La búsqueda y la batería devolverán error.");

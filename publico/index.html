@@ -3,276 +3,508 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Asistente de tests · FisioIA</title>
-<meta name="description" content="Escribe tu sospecha diagnóstica y recibe la batería de tests que la verifica, cómo se ejecuta cada uno y qué permite concluir cada resultado según la precisión diagnóstica publicada.">
+<title>Exploración guiada · FisioIA</title>
+<meta name="description" content="Escribe tu sospecha y ten la exploración resuelta: qué tests hacer, cómo se ejecuta cada uno, cuánto puedes fiarte y qué concluir. Con la evidencia publicada delante.">
+<meta name="theme-color" content="#070a11">
 
-<meta property="og:title" content="Asistente de tests · FisioIA">
-<meta property="og:description" content="Qué tests confirman tu sospecha, cómo se hacen y qué puedes concluir de cada resultado. Con la cifra y su cita delante.">
+<meta property="og:title" content="Nadie se sabe 300 tests de memoria. Ahora no hace falta.">
+<meta property="og:description" content="Tu copiloto a pie de camilla: qué tests hacer, cómo se ejecutan, cuánto puedes fiarte de cada resultado y qué concluir. Gratis para fisioterapeutas.">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="es_ES">
 
 <style>
+/* ============================================================================
+   Mismo sistema visual que la herramienta, a propósito: quien deja su correo
+   aquí y entra después no debe notar que cambia de sitio.
+   ============================================================================ */
+
+:root {
+  --fondo: #070a11;
+  --superficie: #0d1320;
+  --superficie-alta: #121a29;
+  --superficie-viva: #182234;
+  --borde: #1c2637;
+  --borde-vivo: #2b3a52;
+
+  --tinta: #e9eff8;
+  --tinta-media: #a3b2c9;
+  --tinta-tenue: #66758d;
+
+  --azul: #4d9fff;
+  --azul-hondo: #1f6fd6;
+  --verde: #2fd6a6;
+  --ambar: #f5b544;
+  --rojo: #ff6f61;
+
+  --brillo-azul: rgba(77, 159, 255, .14);
+  --brillo-verde: rgba(47, 214, 166, .13);
+  --brillo-ambar: rgba(245, 181, 68, .12);
+  --brillo-rojo: rgba(255, 111, 97, .12);
+
+  --radio: 16px;
+  --sombra: 0 1px 0 rgba(255,255,255,.04) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+  --curva: cubic-bezier(.16, 1, .3, 1);
+  --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: light) {
   :root {
-    --verde: #00a97f;
-    --verde-hondo: #008a68;
-    --verde-lavado: #e6f7f1;
-    --marino: #0a2540;
-    --tinta: #0f2740;
-    --tinta-suave: #3c4a5c;
-    --apagado: #64748b;
-    --papel: #ffffff;
-    --linea: #e2e8f0;
-    --rojo: #b3261e;
-    --ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --sombra: 0 1px 2px rgba(10, 37, 64, .05), 0 24px 48px -28px rgba(10, 37, 64, .35);
+    --fondo: #f2f6fc;
+    --superficie: #ffffff;
+    --superficie-alta: #ffffff;
+    --superficie-viva: #f2f6fd;
+    --borde: #dde5f0;
+    --borde-vivo: #c4d2e6;
+
+    --tinta: #0c1626;
+    --tinta-media: #44566f;
+    --tinta-tenue: #6b7c94;
+
+    --azul: #1668d6;
+    --azul-hondo: #0d4ea8;
+    --verde: #0f9a74;
+    --ambar: #b57314;
+    --rojo: #c8382b;
+
+    --brillo-azul: rgba(22, 104, 214, .08);
+    --brillo-verde: rgba(15, 154, 116, .09);
+    --brillo-ambar: rgba(181, 115, 20, .09);
+    --brillo-rojo: rgba(200, 56, 43, .08);
+
+    --sombra: 0 1px 2px rgba(16, 34, 61, .05), 0 16px 36px -26px rgba(16, 34, 61, .4);
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --verde: #2fd6a6; --verde-hondo: #4ce0b6; --verde-lavado: #10241f;
-      --marino: #e8eef6; --tinta: #e8eef6; --tinta-suave: #b9c5d6; --apagado: #8b99ad;
-      --papel: #131924; --linea: #253044;
-      --rojo: #f2685c;
-      --sombra: 0 1px 2px rgba(0,0,0,.5), 0 24px 48px -28px rgba(0,0,0,.9);
-    }
-  }
+  /* El verde de modo claro es oscuro, así que el texto del botón se invierte.
+     En oscuro el verde es luminoso y el texto va en negro. */
+  button.enviar { color: #fff; }
+  .girando { border-color: rgba(255,255,255,.35); border-top-color: #fff; }
+}
 
-  * { box-sizing: border-box; }
+* { box-sizing: border-box; }
 
-  body {
-    margin: 0;
-    font-family: var(--ui);
-    color: var(--tinta);
-    background: var(--papel);
-    background-image:
-      radial-gradient(120% 80% at 50% 0%, var(--verde-lavado) 0%, transparent 55%),
-      radial-gradient(90% 60% at 100% 100%, rgba(0, 74, 173, .07) 0%, transparent 60%);
-    background-repeat: no-repeat;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--tinta);
+  font-family: var(--ui);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
 
-  .marco { max-width: 680px; margin: 0 auto; padding: 44px 20px 56px; }
+body::before {
+  content: "";
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(70% 45% at 20% -5%, var(--brillo-verde) 0%, transparent 68%),
+    radial-gradient(60% 40% at 95% 5%, var(--brillo-azul) 0%, transparent 70%);
+}
 
-  /* ============ marca ============ */
+.marco { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; padding: 0 20px; }
 
-  .marca { text-align: center; margin-bottom: 34px; }
-  .marca b {
-    display: block; font-size: 2rem; font-weight: 800;
-    letter-spacing: -.035em; color: var(--marino);
-  }
-  .marca b span { color: var(--verde); }
-  .marca em {
-    display: block; font-style: normal; font-size: 1.0625rem;
-    color: var(--tinta-suave); margin-top: 2px; font-weight: 500;
-  }
-  .marca hr {
-    width: 140px; margin: 16px auto 0;
-    border: 0; border-top: 2px solid var(--verde);
-  }
+a { color: var(--azul); text-underline-offset: 3px; }
 
-  /* ============ tarjeta principal ============ */
+.rotulo {
+  display: inline-block;
+  font-size: .6875rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--tinta-tenue);
+}
 
-  .tarjeta {
-    background: var(--papel);
-    border: 1px solid var(--linea);
-    border-radius: 18px;
-    padding: 36px 30px;
-    box-shadow: var(--sombra);
-  }
+/* ============ cabecera ============ */
 
-  .rotulo {
-    display: inline-block;
-    font-size: .6875rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-    color: var(--verde-hondo); background: var(--verde-lavado);
-    padding: 5px 11px; border-radius: 999px; margin-bottom: 16px;
-  }
+.barra {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 22px 0 0;
+}
+.barra b { font-size: 1.125rem; font-weight: 800; letter-spacing: -.03em; }
+.barra b span { color: var(--verde); }
+.barra em {
+  font-style: normal; font-size: .875rem; color: var(--tinta-tenue);
+  padding-left: 11px; border-left: 1px solid var(--borde-vivo);
+}
 
-  h1 {
-    margin: 0 0 16px;
-    font-size: clamp(1.75rem, 5.6vw, 2.35rem);
-    line-height: 1.16; letter-spacing: -.03em; font-weight: 800;
-  }
-  h1 span { color: var(--verde); }
+/* ============ hero ============ */
 
-  .entradilla { margin: 0 0 8px; font-size: 1.0625rem; color: var(--tinta-suave); }
+.hero { padding: 54px 0 12px; }
 
-  /* ============ formulario ============ */
+.escena { margin: 16px 0 20px; font-size: 1.125rem; color: var(--tinta-tenue); }
+.escena span { display: inline-block; animation: entrar .6s var(--curva) both; }
+.escena span:nth-child(1) { animation-delay: .15s; }
+.escena span:nth-child(2) { animation-delay: .5s; }
+.escena span:nth-child(3) { animation-delay: .85s; }
+.escena .duda { color: var(--ambar); font-weight: 600; }
 
-  form { margin: 26px 0 0; }
+h1 {
+  margin: 0 0 18px;
+  font-size: clamp(2.1rem, 6.4vw, 3.25rem); line-height: 1.06;
+  letter-spacing: -.042em; font-weight: 800;
+  animation: entrar .7s var(--curva) both; animation-delay: 1.15s;
+}
+h1 span {
+  display: block;
+  background: linear-gradient(100deg, var(--verde) 0%, var(--azul) 78%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
 
-  .campo {
-    display: flex; align-items: center; gap: 10px;
-    border: 2px solid var(--verde); border-radius: 12px;
-    background: var(--papel); padding: 0 14px;
-  }
-  .campo:focus-within { box-shadow: 0 0 0 4px rgba(0, 169, 127, .18); }
-  .campo svg { flex: none; color: var(--verde); }
+.entradilla {
+  margin: 0 0 30px; font-size: 1.125rem; color: var(--tinta-media); max-width: 60ch;
+  animation: entrar .7s var(--curva) both; animation-delay: 1.35s;
+}
 
-  input[type="email"] {
-    flex: 1; border: 0; outline: 0; background: transparent;
-    font: inherit; color: var(--tinta);
-    padding: 15px 0;
-  }
-  input[type="email"]::placeholder { color: var(--apagado); }
+/* ============ formulario ============ */
 
-  button {
-    width: 100%; margin-top: 12px;
-    border: 0; border-radius: 12px;
-    background: var(--verde); color: #fff;
-    font: inherit; font-weight: 700; font-size: 1.0625rem;
-    padding: 16px 20px; cursor: pointer;
-    transition: background .15s ease;
-  }
-  button:hover:not(:disabled) { background: var(--verde-hondo); }
-  button:disabled { opacity: .6; cursor: default; }
+.captura {
+  background: linear-gradient(180deg, var(--superficie-alta), var(--superficie));
+  border: 1px solid var(--borde-vivo); border-radius: 20px;
+  box-shadow: var(--sombra); padding: 26px 24px 22px;
+  animation: entrar .7s var(--curva) both; animation-delay: 1.5s;
+}
+.captura.abajo { animation: none; margin-top: 8px; }
 
-  .letra-pequena {
-    margin: 14px 0 0; text-align: center;
-    font-size: .8125rem; color: var(--apagado);
-  }
+.campo {
+  display: flex; align-items: center; gap: 11px;
+  border: 1px solid var(--borde-vivo); border-radius: 13px;
+  background: var(--fondo); padding: 0 15px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.campo:focus-within { border-color: var(--verde); box-shadow: 0 0 0 4px var(--brillo-verde); }
+.campo svg { flex: none; color: var(--verde); }
 
-  .aviso {
-    margin: 0 0 20px; padding: 12px 14px;
-    border-left: 3px solid var(--verde); background: var(--verde-lavado);
-    border-radius: 0 8px 8px 0; font-size: .9375rem; color: var(--tinta-suave);
-  }
-  .aviso.malo { border-left-color: var(--rojo); background: rgba(179, 38, 30, .07); }
+input[type="email"] {
+  flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+  font: inherit; color: var(--tinta); padding: 16px 0;
+}
+input[type="email"]::placeholder { color: var(--tinta-tenue); }
 
-  /* ============ contenido ============ */
+button.enviar {
+  width: 100%; margin-top: 11px; border: 0; border-radius: 13px;
+  background: linear-gradient(180deg, var(--verde) 0%, color-mix(in srgb, var(--verde) 70%, #000) 100%);
+  color: #04140f; font: inherit; font-weight: 750; font-size: 1.0625rem;
+  padding: 17px 20px; cursor: pointer;
+  box-shadow: 0 8px 24px -10px var(--verde);
+  transition: transform .15s var(--curva), filter .2s;
+}
+button.enviar:hover:not(:disabled) { filter: brightness(1.07); }
+button.enviar:active { transform: scale(.99); }
+button.enviar:disabled { opacity: .6; cursor: default; }
 
-  .seccion { margin-top: 40px; }
-  .seccion h2 {
-    margin: 0 0 18px; font-size: 1.1875rem; font-weight: 700; letter-spacing: -.02em;
-  }
+.letra-pequena { margin: 14px 0 0; text-align: center; font-size: .8125rem; color: var(--tinta-tenue); }
 
-  ol.pasos { list-style: none; margin: 0; padding: 0; counter-reset: paso; }
-  ol.pasos li {
-    counter-increment: paso;
-    position: relative; padding: 0 0 20px 44px;
-  }
-  ol.pasos li::before {
-    content: counter(paso, decimal-leading-zero);
-    position: absolute; left: 0; top: 1px;
-    width: 30px; height: 30px; border-radius: 9px;
-    background: var(--verde-lavado); color: var(--verde-hondo);
-    font-size: .8125rem; font-weight: 800;
-    display: flex; align-items: center; justify-content: center;
-  }
-  ol.pasos b { display: block; font-weight: 700; }
-  ol.pasos span { color: var(--tinta-suave); font-size: .9375rem; }
+.aviso {
+  margin: 0 0 18px; padding: 13px 15px;
+  border-left: 3px solid var(--verde); background: var(--brillo-verde);
+  border-radius: 0 10px 10px 0; font-size: .9375rem; color: var(--tinta-media);
+}
+.aviso.malo { border-left-color: var(--rojo); background: var(--brillo-rojo); }
 
-  ul.garantias { list-style: none; margin: 0; padding: 0; }
-  ul.garantias li {
-    padding: 14px 0; border-top: 1px solid var(--linea);
-    font-size: .9375rem; color: var(--tinta-suave);
-  }
-  ul.garantias li:first-child { border-top: 0; padding-top: 0; }
-  ul.garantias b { color: var(--tinta); }
+/* ============ secciones ============ */
 
-  /* ============ pie ============ */
+.seccion { margin-top: 68px; }
+.seccion h2 {
+  margin: 12px 0 10px; font-size: clamp(1.5rem, 4.2vw, 2rem);
+  letter-spacing: -.032em; line-height: 1.15; font-weight: 780;
+}
+.seccion .intro { margin: 0 0 26px; color: var(--tinta-media); max-width: 60ch; }
 
-  footer {
-    margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--linea);
-    text-align: center; font-size: .8125rem; color: var(--apagado);
-  }
-  footer p { margin: 0 0 10px; }
+/* ============ lo que tienes ============ */
 
-  .girando {
-    display: inline-block; width: 14px; height: 14px; vertical-align: -2px;
-    border: 2px solid rgba(255,255,255,.45); border-top-color: #fff;
-    border-radius: 50%; animation: girar .7s linear infinite;
-  }
-  @keyframes girar { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+.entregables { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.entregables li {
+  display: flex; gap: 15px; align-items: flex-start;
+  background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: 14px; padding: 17px 19px;
+}
+.entregables b { display: block; color: var(--tinta); font-weight: 680; margin-bottom: 3px; }
+.entregables p { margin: 0; font-size: .9375rem; color: var(--tinta-media); }
+.entregables li.bandera { border-color: color-mix(in srgb, var(--rojo) 38%, var(--borde)); background: var(--brillo-rojo); }
+
+.tic { flex: none; width: 22px; height: 22px; margin-top: 2px; color: var(--verde); }
+.tic path { stroke-dasharray: 34; stroke-dashoffset: 34; }
+.visible .tic path { animation: trazar .55s var(--curva) both; }
+.visible .entregables li:nth-child(1) .tic path { animation-delay: .05s; }
+.visible .entregables li:nth-child(2) .tic path { animation-delay: .2s; }
+.visible .entregables li:nth-child(3) .tic path { animation-delay: .35s; }
+.visible .entregables li:nth-child(4) .tic path { animation-delay: .5s; }
+.visible .entregables li:nth-child(5) .tic path { animation-delay: .7s; }
+.entregables li.bandera .tic { color: var(--rojo); }
+
+/* ============ demostración ============ */
+
+.caso {
+  background: linear-gradient(180deg, var(--superficie-alta), var(--superficie));
+  border: 1px solid var(--borde); border-radius: 16px;
+  padding: 20px 22px; margin-bottom: 14px;
+}
+.caso-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+.caso-cab h3 { margin: 0; font-size: 1.125rem; letter-spacing: -.02em; }
+.marbete {
+  font-family: var(--mono); font-size: .6875rem; text-transform: uppercase; letter-spacing: .08em;
+  padding: 4px 9px; border-radius: 6px; background: var(--brillo-verde); color: var(--verde);
+}
+.cifras {
+  font-family: var(--mono); font-size: .8125rem; color: var(--tinta-tenue);
+  font-variant-numeric: tabular-nums; margin-bottom: 14px;
+}
+
+.pista {
+  position: relative; height: 10px; border-radius: 999px;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+}
+.zona { position: absolute; top: 0; bottom: 0; }
+.zona-descarta { left: 0; width: 10%; background: linear-gradient(90deg, var(--brillo-verde), transparent); border-radius: 999px 0 0 999px; }
+.zona-confirma { right: 0; width: 15%; background: linear-gradient(270deg, var(--brillo-verde), transparent); border-radius: 0 999px 999px 0; }
+.recorrido {
+  position: absolute; top: 0; bottom: 0; border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--verde));
+  transform: scaleX(0); transform-origin: left center;
+}
+.visible .recorrido { animation: barrer .9s var(--curva) .3s both; }
+.aguja { position: absolute; top: 50%; width: 2px; height: 20px; margin-top: -10px; border-radius: 2px; background: var(--tinta-tenue); }
+.aguja-post {
+  width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+  background: var(--verde); border: 3px solid var(--fondo);
+  box-shadow: 0 0 14px var(--verde); left: var(--desde);
+}
+.visible .aguja-post { animation: deslizar .9s var(--curva) .3s both; }
+
+.pies {
+  display: flex; justify-content: space-between; align-items: baseline; margin-top: 11px;
+  font-family: var(--mono); font-size: .75rem; color: var(--tinta-tenue); font-variant-numeric: tabular-nums;
+}
+.destino { font-size: 1.375rem; font-weight: 700; color: var(--verde); }
+
+.lectura { margin: 14px 0 0; font-size: .9375rem; }
+.lectura.nulo { color: var(--ambar); }
+.lectura.decide { color: var(--verde); }
+.lectura b { font-weight: 680; }
+
+.remate {
+  margin: 22px 0 0; padding: 16px 18px;
+  border-left: 3px solid var(--azul); background: var(--brillo-azul);
+  border-radius: 0 12px 12px 0; color: var(--tinta-media); font-size: .9375rem;
+}
+.remate b { color: var(--tinta); }
+
+/* ============ garantías ============ */
+
+.garantias { list-style: none; margin: 0; padding: 0; }
+.garantias li { padding: 18px 0; border-top: 1px solid var(--borde); font-size: .9375rem; color: var(--tinta-media); }
+.garantias li:first-child { border-top: 0; padding-top: 0; }
+.garantias b { color: var(--tinta); font-weight: 680; }
+
+/* ============ pie ============ */
+
+footer {
+  margin-top: 70px; padding: 26px 0 44px; border-top: 1px solid var(--borde);
+  text-align: center; font-size: .8125rem; color: var(--tinta-tenue);
+}
+footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
+
+.girando {
+  display: inline-block; width: 15px; height: 15px; vertical-align: -2px;
+  border: 2px solid rgba(0,0,0,.25); border-top-color: #04140f;
+  border-radius: 50%; animation: girar .7s linear infinite;
+}
+
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes entrar { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes trazar { to { stroke-dashoffset: 0; } }
+@keyframes barrer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes deslizar { from { left: var(--desde); } to { left: var(--hasta); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .tic path { stroke-dashoffset: 0; }
+  .recorrido { transform: scaleX(1); }
+  .aguja-post { left: var(--hasta); }
+}
 </style>
 </head>
 <body>
 
 <div class="marco">
 
-  <div class="marca">
+  <div class="barra">
     <b>Fisio<span>IA</span></b>
-    <em>Asistente de tests</em>
-    <hr>
+    <em>Exploración guiada</em>
   </div>
 
-  <div class="tarjeta">
-    <div id="avisos"></div>
+  <section class="hero">
+    <span class="rotulo">Gratis para fisioterapeutas</span>
 
-    <div id="oferta">
-      <span class="rotulo">Gratis para fisioterapeutas</span>
-      <h1>Qué tests confirman tu sospecha, <span>y qué puedes concluir</span> de cada resultado</h1>
-      <p class="entradilla">
-        Escribe tu sospecha diagnóstica en lenguaje clínico. El asistente te devuelve la batería
-        de tests con la que verificarla, cómo se ejecuta cada uno y qué permite concluir cada
-        resultado según la precisión diagnóstica publicada.
-      </p>
+    <p class="escena">
+      <span>Paciente en la camilla.</span>
+      <span>Sospechas algo.</span>
+      <span class="duda">No lo tienes del todo claro.</span>
+    </p>
 
-      <form id="form" novalidate>
-        <div class="campo">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-            <path d="m2 7 10 6 10-6"></path>
-          </svg>
-          <input id="correo" type="email" name="email" autocomplete="email" required
-                 placeholder="Introduce tu correo electrónico…" aria-label="Tu correo electrónico">
-        </div>
-        <button id="enviar" type="submit">Quiero mi acceso gratuito &nbsp;→</button>
-      </form>
+    <h1>Nadie se sabe 300 tests de memoria.<span>Ahora no hace falta.</span></h1>
 
-      <p class="letra-pequena">Al solicitar tu acceso, aceptas unirte a nuestra lista de correo.</p>
+    <p class="entradilla">
+      Tu copiloto a pie de camilla. Escribe tu sospecha y tienes la exploración resuelta:
+      qué tests hacer, cómo se ejecuta cada uno, cuánto puedes fiarte de lo que te salga
+      y qué puedes concluir. Con la evidencia publicada delante, en segundos.
+    </p>
+
+    <div class="captura" id="captura">
+      <div id="avisos"></div>
+      <div id="oferta">
+        <form id="form" novalidate>
+          <div class="campo">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+              <path d="m2 7 10 6 10-6"></path>
+            </svg>
+            <input id="correo" type="email" name="email" autocomplete="email" required
+                   placeholder="Introduce tu correo electrónico…" aria-label="Tu correo electrónico">
+          </div>
+          <button class="enviar" id="enviar" type="submit">Quiero mi acceso gratuito &nbsp;→</button>
+        </form>
+        <p class="letra-pequena">Te mandamos el acceso por correo. Al solicitarlo, aceptas unirte a nuestra lista.</p>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <div class="seccion">
-    <h2>Cómo funciona</h2>
-    <ol class="pasos">
-      <li>
-        <b>Escribe la sospecha</b>
-        <span>«Radiculopatía cervical», «rotura del LCA», «tendinopatía rotuliana». Si lo que
-        escribes es un síndrome y no una entidad concreta, no adivina: te ofrece las compatibles
-        para que elijas.</span>
-      </li>
-      <li>
-        <b>Recibe la batería</b>
-        <span>Los tests con los que verificarla, con la posición del paciente, la maniobra y qué
-        se considera positivo. Y la sensibilidad y la especificidad de cada uno, extraídas de un
-        artículo concreto.</span>
-      </li>
-      <li>
-        <b>Marca lo que vas explorando</b>
-        <span>Positivo o negativo en cada test. Debajo aparece qué significa ese resultado y cómo
-        queda tu sospecha después de hacerlo.</span>
-      </li>
-    </ol>
-  </div>
+  <section class="seccion" id="entregables">
+    <span class="rotulo">Lo que tienes</span>
+    <h2>Escribes la sospecha. Ya está.</h2>
+    <p class="intro">
+      No hace falta que recuerdes qué tests existen para esa patología, ni cómo se hacían,
+      ni qué significaba aquel número. Eso es lo que aporta la herramienta.
+    </p>
 
-  <div class="seccion">
-    <h2>Por qué puedes fiarte de las cifras</h2>
+    <ul class="entregables">
+      <li>
+        <svg class="tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        <div>
+          <b>Los tests con los que confirmarlo</b>
+          <p>Los que la literatura usa para esa patología concreta, ordenados como se exploran: primero los de cribado, después los de confirmación.</p>
+        </div>
+      </li>
+      <li>
+        <svg class="tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        <div>
+          <b>Cómo se ejecuta cada uno</b>
+          <p>Posición del paciente, posición tuya, la maniobra y qué se considera positivo. Escrito como un recordatorio para quien ya sabe, no como un manual: nadie aprende un test nuevo con el paciente delante.</p>
+        </div>
+      </li>
+      <li>
+        <svg class="tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        <div>
+          <b>Cuánto puedes fiarte de cada uno</b>
+          <p>Su sensibilidad y su especificidad, sacadas de un artículo concreto que puedes abrir ahí mismo. Y una valoración de la calidad de ese estudio, para que sepas si el número es sólido o va con pinzas.</p>
+        </div>
+      </li>
+      <li>
+        <svg class="tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        <div>
+          <b>Qué puedes concluir</b>
+          <p>Marcas positivo o negativo según exploras y te dice cómo queda tu sospecha después de cada test. Al final, una conclusión de toda la exploración: cuál de tus hallazgos es el que de verdad decide.</p>
+        </div>
+      </li>
+      <li class="bandera">
+        <svg class="tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg>
+        <div>
+          <b>Y las banderas rojas de esa región</b>
+          <p>Lo que hay que descartar antes de seguir, con sus señales de alarma y qué hacer en cada caso. Aparecen solas, sin que las pidas.</p>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <section class="seccion" id="demo">
+    <span class="rotulo">Un ejemplo</span>
+    <h2>Qué significa «cuánto puedes fiarte»</h2>
+    <p class="intro">
+      Dos tests de hombro para una sospecha de rotura del manguito. Llegas con una sospecha
+      media, en torno al 45%. Los dos te salen <b>positivos</b>.
+    </p>
+
+    <div class="caso">
+      <div class="caso-cab">
+        <h3>Arco doloroso</h3>
+        <span class="marbete">positivo</span>
+      </div>
+      <div class="cifras">Sensibilidad 0,97 · Especificidad 0,05</div>
+      <div class="pista">
+        <span class="zona zona-descarta"></span>
+        <span class="zona zona-confirma"></span>
+        <span class="recorrido" style="left:45%;width:1%"></span>
+        <span class="aguja" style="left:45%"></span>
+        <span class="aguja aguja-post" style="--desde:45%;--hasta:46%"></span>
+      </div>
+      <div class="pies"><span>partías del 45%</span><span class="destino">46%</span></div>
+      <p class="lectura nulo"><b>Apenas cambia tu sospecha.</b> Una sensibilidad de 0,97 impresiona, pero con una especificidad de 0,05 este test también sale positivo en casi todos los hombros sanos. No decidas en función de él.</p>
+    </div>
+
+    <div class="caso">
+      <div class="caso-cab">
+        <h3>External rotation lag sign</h3>
+        <span class="marbete">positivo</span>
+      </div>
+      <div class="cifras">Sensibilidad 0,56 · Especificidad 0,98</div>
+      <div class="pista">
+        <span class="zona zona-descarta"></span>
+        <span class="zona zona-confirma"></span>
+        <span class="recorrido" style="left:45%;width:51%"></span>
+        <span class="aguja" style="left:45%"></span>
+        <span class="aguja aguja-post" style="--desde:45%;--hasta:96%"></span>
+      </div>
+      <div class="pies"><span>partías del 45%</span><span class="destino">96%</span></div>
+      <p class="lectura decide"><b>Confirma la sospecha a efectos prácticos.</b> Poco sensible, así que un negativo no descartaría nada. Pero cuando sale positivo, es concluyente.</p>
+    </div>
+
+    <p class="remate">
+      <b>Mismo hombro, misma sospecha, los dos positivos.</b> Uno no te dice nada y el otro
+      cierra el caso. Sin las cifras delante no hay forma de distinguirlos, y esa distinción
+      es la diferencia entre explorar y adivinar.
+    </p>
+  </section>
+
+  <section class="seccion">
+    <span class="rotulo">Por qué fiarte</span>
+    <h2>De dónde salen los números</h2>
+    <p class="intro">
+      Es la pregunta correcta, porque una herramienta así solo vale si las cifras son reales.
+      Cuatro cosas que hace y que conviene que sepas.
+    </p>
+
     <ul class="garantias">
       <li>
-        <b>No salen de la memoria del modelo.</b> Cada número viene de un artículo localizado en
-        PubMed en ese momento, y la cita queda visible junto a la cifra para que puedas ir a
-        comprobarla.
+        <b>No salen de la memoria de una IA.</b> Cada número viene de un artículo localizado
+        en PubMed en ese momento, y la cita queda visible junto a la cifra. Si quieres
+        comprobarla, la abres.
       </li>
       <li>
-        <b>Se comprueban solas.</b> Sensibilidad, especificidad y razones de verosimilitud están
-        ligadas por una identidad matemática. Si las cuatro cifras no la cumplen, el dato se
-        descarta en lugar de mostrarse.
+        <b>Se comprueban solas.</b> Sensibilidad, especificidad y razones de verosimilitud
+        están ligadas por una identidad matemática. Si las cifras extraídas no la cumplen, el
+        dato se descarta en lugar de mostrarse.
       </li>
       <li>
         <b>Te avisa cuando un test no aporta.</b> Antes de decir si un resultado confirma o
         descarta, comprueba que el test haya movido de verdad tu sospecha. Si apenas la mueve,
-        te lo dice.
+        te lo dice — como en el ejemplo de aquí arriba.
       </li>
       <li>
-        <b>Y cuando no hay evidencia, lo dice.</b> Muchos tests de uso corriente no tienen cifras
-        publicadas para la patología que estás verificando. En esos casos no se inventa una
-        conclusión: te dice que no la hay.
+        <b>Y cuando no hay evidencia, lo dice.</b> Muchos tests de uso corriente no tienen
+        cifras publicadas para la patología que estás verificando. En esos casos no se inventa
+        una conclusión: te dice que no la hay y por qué.
       </li>
     </ul>
-  </div>
+  </section>
+
+  <section class="seccion" id="final">
+    <span class="rotulo">Empieza ahora</span>
+    <h2>Déjanos tu correo y te mandamos el acceso</h2>
+    <p class="intro">
+      Es gratis. Te llega un enlace personal y, desde ese momento, entras directamente
+      siempre que quieras.
+    </p>
+    <div class="captura abajo">
+      <button class="enviar" id="ir-arriba" type="button">Quiero mi acceso gratuito &nbsp;→</button>
+    </div>
+  </section>
 
   <footer>
     <p>
@@ -295,6 +527,7 @@
   var boton = document.getElementById("enviar");
   var avisos = document.getElementById("avisos");
   var oferta = document.getElementById("oferta");
+  var captura = document.getElementById("captura");
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
@@ -315,6 +548,13 @@
   };
   var motivo = new URLSearchParams(location.search).get("motivo");
   if (motivo && motivos[motivo]) avisar(motivos[motivo], true);
+
+  // El botón del final lleva al formulario de arriba en lugar de duplicarlo:
+  // dos formularios en la misma página son dos sitios donde puede fallar algo.
+  document.getElementById("ir-arriba").addEventListener("click", function () {
+    captura.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(function () { campo.focus(); }, 500);
+  });
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -341,20 +581,38 @@
       });
     }).then(function () {
       oferta.innerHTML =
-        '<span class="rotulo">Ya está en camino</span>' +
-        "<h1>Revisa tu <span>bandeja de entrada</span></h1>" +
-        '<p class="entradilla">Hemos enviado tu enlace de acceso a <b>' + esc(correo) + "</b>. " +
-        "Ábrelo y entrarás directamente; ese dispositivo quedará desbloqueado para las " +
-        "próximas veces.</p>" +
-        '<p class="entradilla">Si no aparece en un par de minutos, mira en spam o en la ' +
-        "pestaña de promociones.</p>";
-      oferta.scrollIntoView({ behavior: "smooth", block: "center" });
+        '<p class="rotulo">Ya está en camino</p>' +
+        '<h2 style="margin:8px 0 10px">Revisa tu bandeja de entrada</h2>' +
+        '<p style="margin:0 0 10px;color:var(--tinta-media)">Hemos enviado tu enlace de acceso a <b>' + esc(correo) + "</b>. " +
+        "Ábrelo y entrarás directamente; ese dispositivo quedará desbloqueado para las próximas veces.</p>" +
+        '<p style="margin:0;color:var(--tinta-tenue);font-size:.9375rem">Si no aparece en un par de minutos, mira en spam o en la pestaña de promociones.</p>';
+      captura.scrollIntoView({ behavior: "smooth", block: "center" });
     }).catch(function (err) {
       avisar(err.message, true);
       boton.disabled = false;
       boton.innerHTML = "Quiero mi acceso gratuito &nbsp;→";
     });
   });
+
+  // Las animaciones de las secciones se disparan al llegar a ellas, no al
+  // cargar: si se lanzan todas de golpe, el usuario se las pierde.
+  if ("IntersectionObserver" in window) {
+    var observador = new IntersectionObserver(function (entradas) {
+      entradas.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add("visible"); observador.unobserve(e.target); }
+      });
+    }, { threshold: .22 });
+
+    ["entregables", "demo"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) observador.observe(el);
+    });
+  } else {
+    ["entregables", "demo"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add("visible");
+    });
+  }
 })();
 </script>
 
