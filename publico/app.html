@@ -361,6 +361,15 @@ a { color: var(--azul); text-underline-offset: 3px; }
 .paso-carril.hecho .paso-valor { color: var(--verde); }
 .paso-carril.activo .paso-valor { color: var(--azul); }
 
+/* Lo que falta por hacer, invitando en vez de alarmando. */
+.paso-carril.pendiente .paso-num { border-color: var(--azul); color: var(--azul); }
+.paso-carril.pendiente .paso-valor { color: var(--azul); animation: respirar 2.2s ease-in-out infinite; }
+
+.paso-detalle {
+  display: block; font-size: .75rem; margin-top: 3px; color: var(--tinta-tenue);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 @media (max-width: 860px) {
   /* En un móvil no hay ancho para un carril lateral: pasa a ser una barra fina
      pegada arriba, con los tres pasos en horizontal. */
@@ -380,6 +389,7 @@ a { color: var(--azul); text-underline-offset: 3px; }
   .paso-texto { padding-top: 0; }
   .paso-texto b { font-size: .8125rem; }
   .paso-valor { font-size: .6875rem; }
+  .paso-detalle { display: none; }
   .alerta-banderas { margin-bottom: 12px; }
 }
 
@@ -828,6 +838,7 @@ details.banderas summary::before {
 
 @keyframes girar { to { transform: rotate(360deg); } }
 @keyframes latir { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes respirar { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 @keyframes brillar { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 @keyframes entrar { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes entrarCine {
@@ -882,7 +893,7 @@ details.banderas summary::before {
     <h1>¿Qué sospechas?</h1>
 
     <form class="buscador" id="form">
-      <input id="sospecha" type="text" autocomplete="off" placeholder="Escribe la sospecha diagnóstica…">
+      <input id="sospecha" type="text" autocomplete="off" placeholder="Ej.: tendinopatía rotuliana, radiculopatía cervical, rotura del LCA">
       <button class="btn btn-principal" id="enviar" type="submit">Buscar tests</button>
     </form>
 
@@ -1080,7 +1091,7 @@ details.banderas summary::before {
 
     salida.innerHTML =
       '<div class="seccion"><div class="tarjeta">' +
-        '<div class="cargando"><span class="girando"></span>Identificando la entidad y proponiendo la batería…</div>' +
+        '<div class="cargando"><span class="girando"></span>Preparando tu exploración…</div>' +
         '<div style="display:grid;gap:10px;margin-top:18px">' +
           '<div class="esqueleto" style="width:70%"></div>' +
           '<div class="esqueleto" style="width:45%"></div>' +
@@ -1828,13 +1839,27 @@ details.banderas summary::before {
     NIVELES.forEach(function (n) { if (n.id === estado.nivel) nivel = n; });
 
     return [
-      { titulo: "Tu sospecha", valor: nivel ? nivel.corto : "sin marcar", hecho: Boolean(nivel) },
+      {
+        titulo: "Tu sospecha",
+        // Es el paso que más gente se salta, y sin él no puede concluirse nada.
+        // Mientras falte, pide que lo marquen en lugar de limitarse a informar.
+        valor: nivel ? nivel.corto : "empieza aquí",
+        hecho: Boolean(nivel),
+        pendiente: !nivel
+      },
       {
         titulo: "La exploración",
         valor: marcados ? marcados + " de " + estado.tests.length + " marcados" : estado.tests.length + " tests",
         hecho: marcados > 0
       },
-      { titulo: "La conclusión", valor: post || (marcados ? "en curso" : "—"), hecho: Boolean(post) }
+      {
+        titulo: "La conclusión",
+        valor: post || (marcados ? "en curso" : "—"),
+        // El nombre del test que decide: era la mitad útil de la barra fija que
+        // quitamos, y en el carril cabe sin estorbar.
+        detalle: post && s.decisivo ? "lo decide " + s.decisivo.nombre : null,
+        hecho: Boolean(post)
+      }
     ];
   }
 
@@ -1862,11 +1887,13 @@ details.banderas summary::before {
         estadoPasos().map(function (p, i) {
           return "<li>" +
             '<button class="paso-carril' + (p.hecho ? " hecho" : "") +
+            (p.pendiente ? " pendiente" : "") +
             (pasoActivo === i + 1 ? " activo" : "") + '" data-paso="' + (i + 1) + '">' +
             '<span class="paso-num"><span>' + (i + 1) + "</span></span>" +
             '<span class="paso-texto"><b>' + p.titulo + "</b>" +
-            '<span class="paso-valor">' + esc(p.valor) + "</span></span>" +
-            "</button></li>";
+            '<span class="paso-valor">' + esc(p.valor) + "</span>" +
+            (p.detalle ? '<span class="paso-detalle" title="' + esc(p.detalle) + '">' + esc(p.detalle) + "</span>" : "") +
+            "</span></button></li>";
         }).join("") +
       "</ol>";
 
