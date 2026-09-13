@@ -204,11 +204,38 @@ a { color: var(--azul); text-underline-offset: 3px; }
 .btn-principal:hover:not(:disabled) { filter: brightness(1.08); }
 .btn-principal:disabled { opacity: .55; cursor: default; }
 
-.ejemplos { margin: 14px 0 0; font-size: .875rem; color: var(--tinta-tenue); }
-.ejemplos button {
-  background: none; border: 0; padding: 0; font: inherit;
-  color: var(--azul); cursor: pointer; text-decoration: underline;
-  text-underline-offset: 3px;
+/* ============ tira de sugerencias ============ */
+
+/* Desfila como un panel de salidas, pero se para al acercarse y desaparece en
+   cuanto hay resultados en pantalla: es un elemento de bienvenida, no algo que
+   deba seguir moviéndose mientras se trabaja. */
+.tira { margin: 22px 0 0; }
+.tira-rotulo { display: block; margin-bottom: 10px; }
+
+.tira-pista {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 92%, transparent);
+}
+
+.tira-cinta {
+  display: flex; gap: 10px; width: max-content;
+  animation: desfilar 66s linear infinite;
+}
+.tira-pista:hover .tira-cinta,
+.tira-cinta:focus-within { animation-play-state: paused; }
+
+.sugerencia {
+  flex: none;
+  background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: 999px; padding: 9px 17px;
+  font: inherit; font-size: .875rem; color: var(--tinta-media);
+  white-space: nowrap; cursor: pointer;
+  transition: color .18s, border-color .18s, background .18s, transform .18s var(--curva);
+}
+.sugerencia:hover {
+  color: var(--azul); border-color: var(--azul);
+  background: var(--brillo-azul); transform: translateY(-2px);
 }
 
 /* ============ piezas comunes ============ */
@@ -700,6 +727,9 @@ details.banderas summary::before {
 @keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
 @keyframes subirHoja { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
 @keyframes deslizar { from { left: var(--desde); } to { left: var(--hasta); } }
+/* La cinta lleva la lista dos veces: al llegar a la mitad vuelve al origen y el
+   salto es invisible. */
+@keyframes desfilar { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -707,6 +737,7 @@ details.banderas summary::before {
   .recorrido { transform: none; }
   .resumen-fijo { transform: translateY(110%); }
   .resumen-fijo.visible { transform: none; }
+  .tira-pista { overflow-x: auto; }
 }
 
 @media (max-width: 620px) {
@@ -749,12 +780,10 @@ details.banderas summary::before {
       <input id="sospecha" type="text" autocomplete="off" placeholder="Ej.: tendinopatía rotuliana, radiculopatía cervical, rotura del LCA">
       <button class="btn btn-principal" id="enviar" type="submit">Buscar tests</button>
     </form>
-    <p class="ejemplos">
-      Prueba con
-      <button type="button" data-ej="rotura del manguito rotador">rotura del manguito rotador</button>,
-      <button type="button" data-ej="rotura del ligamento cruzado anterior">rotura del LCA</button> o
-      <button type="button" data-ej="hombro doloroso">hombro doloroso</button>.
-    </p>
+    <div class="tira" id="tira">
+      <span class="rotulo tira-rotulo">O prueba con una de estas</span>
+      <div class="tira-pista"><div class="tira-cinta" id="tira-cinta"></div></div>
+    </div>
   </section>
 
   <div id="salida"></div>
@@ -876,6 +905,31 @@ details.banderas summary::before {
     return trazo + '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
   }
 
+  /* ============ tira de sugerencias ============ */
+
+  // Entidades concretas a propósito: un síndrome como "hombro doloroso" hace
+  // que la herramienta pida que concretes, y como carta de presentación
+  // conviene que la primera consulta de alguien salga bien a la primera.
+  var EJEMPLOS = [
+    "rotura del manguito rotador", "tendinopatía del supraespinoso", "capsulitis adhesiva",
+    "inestabilidad glenohumeral anterior", "epicondilalgia lateral", "epitrocleítis",
+    "síndrome del túnel carpiano", "tenosinovitis de De Quervain", "rizartrosis",
+    "pinzamiento femoroacetabular", "tendinopatía glútea", "rotura del labrum acetabular",
+    "rotura del ligamento cruzado anterior", "rotura de menisco medial", "tendinopatía rotuliana",
+    "condromalacia rotuliana", "esguince del ligamento peroneoastragalino anterior",
+    "fascitis plantar", "tendinopatía aquílea", "radiculopatía cervical",
+    "hernia discal lumbar", "estenosis de canal lumbar"
+  ];
+
+  (function pintarTira() {
+    var cinta = document.getElementById("tira-cinta");
+    var boton = function (texto) {
+      return '<button type="button" class="sugerencia" data-ej="' + esc(texto) + '">' + esc(texto) + "</button>";
+    };
+    // Dos vueltas de la misma lista: es lo que hace que el bucle no se note.
+    cinta.innerHTML = EJEMPLOS.map(boton).join("") + EJEMPLOS.map(boton).join("");
+  })();
+
   /* ============ consulta ============ */
 
   Array.prototype.forEach.call(document.querySelectorAll("[data-ej]"), function (b) {
@@ -894,6 +948,11 @@ details.banderas summary::before {
     if (sospecha.length < 3) return;
     enviar.disabled = true;
     ocultarResumen();
+
+    // La tira era la carta de presentación. Con resultados en pantalla, algo
+    // moviéndose al lado del campo solo estorba.
+    var tira = document.getElementById("tira");
+    if (tira) tira.hidden = true;
     salida.innerHTML =
       '<div class="seccion"><div class="tarjeta">' +
         '<div class="cargando"><span class="girando"></span>Identificando la entidad y proponiendo la batería…</div>' +
