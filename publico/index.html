@@ -191,6 +191,10 @@ button.enviar:disabled { opacity: .6; cursor: default; }
 
 .letra-pequena { margin: 14px 0 0; text-align: center; font-size: .8125rem; color: var(--tinta-tenue); }
 
+.cta-medio { margin-top: 26px; text-align: center; }
+.cta-medio button.enviar { width: auto; margin: 0; padding: 16px 32px; }
+.cta-medio p { margin: 12px 0 0; font-size: .875rem; color: var(--tinta-tenue); }
+
 .aviso {
   margin: 0 0 18px; padding: 13px 15px;
   border-left: 3px solid var(--verde); background: var(--brillo-verde);
@@ -411,6 +415,11 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
         </div>
       </li>
     </ul>
+
+    <div class="cta-medio">
+      <button class="enviar" type="button" data-ir-arriba>Quiero mi acceso gratuito &nbsp;→</button>
+      <p>Gratis. Te mandamos el enlace por correo.</p>
+    </div>
   </section>
 
   <section class="seccion" id="demo">
@@ -502,7 +511,7 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
       siempre que quieras.
     </p>
     <div class="captura abajo">
-      <button class="enviar" id="ir-arriba" type="button">Quiero mi acceso gratuito &nbsp;→</button>
+      <button class="enviar" type="button" data-ir-arriba>Quiero mi acceso gratuito &nbsp;→</button>
     </div>
   </section>
 
@@ -551,9 +560,11 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
 
   // El botón del final lleva al formulario de arriba en lugar de duplicarlo:
   // dos formularios en la misma página son dos sitios donde puede fallar algo.
-  document.getElementById("ir-arriba").addEventListener("click", function () {
-    captura.scrollIntoView({ behavior: "smooth", block: "center" });
-    setTimeout(function () { campo.focus(); }, 500);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-ir-arriba]"), function (b) {
+    b.addEventListener("click", function () {
+      captura.scrollIntoView({ behavior: "smooth", block: "center" });
+      setTimeout(function () { campo.focus(); }, 500);
+    });
   });
 
   form.addEventListener("submit", function (e) {
