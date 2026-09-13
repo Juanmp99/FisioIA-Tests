@@ -160,7 +160,16 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
 /* ============ consulta ============ */
 
-.consulta { padding: 52px 0 34px; }
+.consulta { padding: 56px 0 30px; }
+
+/* La escena: el momento del fisio, antes de contarle nada. Cada frase entra
+   por su lado para que se lea como se piensa, a trompicones. */
+.escena { margin: 16px 0 18px; font-size: 1.0625rem; color: var(--tinta-tenue); }
+.escena span { display: inline-block; animation: entrar .6s var(--curva) both; }
+.escena span:nth-child(1) { animation-delay: .1s; }
+.escena span:nth-child(2) { animation-delay: .45s; }
+.escena span:nth-child(3) { animation-delay: .8s; }
+.escena .duda { color: var(--ambar); font-weight: 600; }
 
 .rotulo {
   display: inline-block;
@@ -169,12 +178,57 @@ a { color: var(--azul); text-underline-offset: 3px; }
 }
 
 .consulta h1 {
-  margin: 12px 0 10px;
-  font-size: clamp(1.9rem, 5.4vw, 2.6rem); line-height: 1.1;
-  letter-spacing: -.035em; font-weight: 800;
+  margin: 0 0 14px;
+  font-size: clamp(2rem, 5.8vw, 3rem); line-height: 1.08;
+  letter-spacing: -.04em; font-weight: 800;
+  animation: entrar .7s var(--curva) both; animation-delay: 1.1s;
+}
+.consulta h1 span {
+  display: block;
+  background: linear-gradient(100deg, var(--verde) 0%, var(--azul) 75%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 
-.consulta .pie { margin: 0 0 26px; color: var(--tinta-media); max-width: 62ch; }
+.consulta .pie {
+  margin: 0 0 28px; color: var(--tinta-media); max-width: 64ch; font-size: 1.0625rem;
+  animation: entrar .7s var(--curva) both; animation-delay: 1.3s;
+}
+
+.buscador { animation: entrar .7s var(--curva) both; animation-delay: 1.45s; }
+.tira { animation: entrar .7s var(--curva) both; animation-delay: 1.6s; }
+
+/* ============ lo que obtienes ============ */
+
+/* El segundo golpe: en lugar de un párrafo que promete, la respuesta se monta
+   sola en pantalla pieza a pieza. Se entiende lo completo que es sin leer. */
+.despliegue { margin-top: 34px; padding-top: 26px; border-top: 1px solid var(--borde); }
+.despliegue ul { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 12px; }
+.despliegue li {
+  display: flex; align-items: flex-start; gap: 13px;
+  font-size: 1.0625rem; color: var(--tinta-media);
+  animation: entrar .55s var(--curva) both;
+}
+.despliegue li b { color: var(--tinta); font-weight: 650; }
+.despliegue li:nth-child(1) { animation-delay: 1.9s; }
+.despliegue li:nth-child(2) { animation-delay: 2.15s; }
+.despliegue li:nth-child(3) { animation-delay: 2.4s; }
+.despliegue li:nth-child(4) { animation-delay: 2.65s; }
+.despliegue li:nth-child(5) { animation-delay: 3s; }
+
+.tic { flex: none; width: 21px; height: 21px; margin-top: 2px; color: var(--verde); }
+.tic path {
+  stroke-dasharray: 30; stroke-dashoffset: 30;
+  animation: trazar .5s var(--curva) both;
+}
+.despliegue li:nth-child(1) .tic path { animation-delay: 2.1s; }
+.despliegue li:nth-child(2) .tic path { animation-delay: 2.35s; }
+.despliegue li:nth-child(3) .tic path { animation-delay: 2.6s; }
+.despliegue li:nth-child(4) .tic path { animation-delay: 2.85s; }
+.despliegue li:nth-child(5) .tic path { animation-delay: 3.2s; }
+
+/* La última va aparte: es la que cubre las espaldas, y se anuncia distinto. */
+.despliegue li.bandera { color: var(--tinta); }
+.despliegue li.bandera .tic { color: var(--rojo); }
 
 .buscador { display: flex; gap: 10px; flex-wrap: wrap; }
 
@@ -214,6 +268,10 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
 .tira-pista {
   overflow: hidden;
+  /* Aire para que el chip quepa entero al levantarse: sin esto, overflow
+     hidden le corta los dos píxeles que sube al pasar el ratón. */
+  padding: 8px 0;
+  margin: -8px 0;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 92%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 5%, #000 92%, transparent);
 }
@@ -730,6 +788,7 @@ details.banderas summary::before {
 /* La cinta lleva la lista dos veces: al llegar a la mitad vuelve al origen y el
    salto es invisible. */
 @keyframes desfilar { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes trazar { to { stroke-dashoffset: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -765,16 +824,24 @@ details.banderas summary::before {
 <div class="barra">
   <div class="marca">
     <b>Fisio<span>IA</span></b>
-    <em>Asistente de tests</em>
+    <em>Exploración guiada</em>
   </div>
   <span class="estado-modelo" id="estado"></span>
 </div>
 
 <div class="marco">
   <section class="consulta">
-    <span class="rotulo">Razonamiento clínico</span>
-    <h1>¿Qué sospechas?</h1>
-    <p class="pie">Escríbelo en lenguaje clínico y te devuelvo con qué verificarlo, cómo se ejecuta cada test y qué te permite concluir según su precisión diagnóstica.</p>
+    <span class="rotulo">Tu copiloto a pie de camilla</span>
+
+    <p class="escena">
+      <span>Paciente en la camilla.</span>
+      <span>Sospechas algo.</span>
+      <span class="duda">No lo tienes del todo claro.</span>
+    </p>
+
+    <h1>Nadie se sabe 300 tests de memoria.<span>Ahora no hace falta.</span></h1>
+
+    <p class="pie">Escribe tu sospecha y tienes la exploración resuelta: qué hacer, cómo hacerlo, cuánto fiarte y qué concluir. Con la evidencia publicada delante, en segundos.</p>
 
     <form class="buscador" id="form">
       <input id="sospecha" type="text" autocomplete="off" placeholder="Ej.: tendinopatía rotuliana, radiculopatía cervical, rotura del LCA">
@@ -783,6 +850,32 @@ details.banderas summary::before {
     <div class="tira" id="tira">
       <span class="rotulo tira-rotulo">O prueba con una de estas</span>
       <div class="tira-pista"><div class="tira-cinta" id="tira-cinta"></div></div>
+    </div>
+
+    <div class="despliegue" id="despliegue">
+      <span class="rotulo">Esto es lo que tienes en cuanto pulsas</span>
+      <ul>
+        <li>
+          <svg class="tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          <span>Los <b>tests</b> con los que confirmar tu sospecha</span>
+        </li>
+        <li>
+          <svg class="tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          <span><b>Cómo se ejecuta</b> cada uno, paso a paso</span>
+        </li>
+        <li>
+          <svg class="tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          <span><b>Cuánto puedes fiarte</b> de cada resultado, con su artículo</span>
+        </li>
+        <li>
+          <svg class="tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          <span><b>Qué puedes concluir</b> con lo que te ha salido</span>
+        </li>
+        <li class="bandera">
+          <svg class="tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg>
+          <span>Y las <b>banderas rojas</b> que no puedes pasar por alto</span>
+        </li>
+      </ul>
     </div>
   </section>
 
@@ -953,6 +1046,8 @@ details.banderas summary::before {
     // moviéndose al lado del campo solo estorba.
     var tira = document.getElementById("tira");
     if (tira) tira.hidden = true;
+    var despliegue = document.getElementById("despliegue");
+    if (despliegue) despliegue.hidden = true;
     salida.innerHTML =
       '<div class="seccion"><div class="tarjeta">' +
         '<div class="cargando"><span class="girando"></span>Identificando la entidad y proponiendo la batería…</div>' +
