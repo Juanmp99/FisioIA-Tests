@@ -168,7 +168,6 @@ no puede serlo si no ve de dónde sale el número.
 ## Qué falta
 
 - Dar el resultado como rango a partir de los intervalos de confianza, no como cifra puntual.
-- Paralelizar la búsqueda y mostrar cada test según llega: la primera consulta tarda minutos.
 - Ordenar también por aportación real, para responder a «si solo puedo hacer un test, ¿cuál?».
 - Un botón para que el fisioterapeuta señale una cifra que no cuadra.
 - Una clave de NCBI para subir el límite de peticiones a PubMed de tres por segundo a diez.
