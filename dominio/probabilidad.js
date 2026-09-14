@@ -147,6 +147,89 @@ export function magnitud(lr) {
   return { nivel: "irrelevante", texto: "cambio mínimo: este resultado apenas modifica la sospecha" };
 }
 
+/**
+ * Lo máximo que puede aportar un resultado cuando la literatura solo ha
+ * publicado una de las dos cifras.
+ *
+ * Con media cifra no hay probabilidad post-test, y hasta ahora eso se traducía
+ * en un "tómalo como orientación" que no orienta nada. Pero sí se puede acotar,
+ * y la cota sale de que la cifra que falta no puede valer más de 1:
+ *
+ *   Solo sensibilidad, resultado negativo. La razón de verosimilitud negativa
+ *   es (1-Sn)/Sp, y como Sp vale a lo sumo 1, esa razón vale como mínimo
+ *   (1-Sn). Ese mínimo es lo más que ese negativo puede llegar a descartar.
+ *
+ *   Solo especificidad, resultado positivo. La razón positiva es Sn/(1-Sp), y
+ *   como Sn vale a lo sumo 1, vale como máximo 1/(1-Sp). Ese máximo es lo más
+ *   que ese positivo puede llegar a confirmar.
+ *
+ * Las otras dos combinaciones no se pueden acotar en la dirección que importa,
+ * y se dice. Son, casualmente, las dos que la enseñanza clásica resume en
+ * SnNout y SpPin: aquí es lo mismo, pero con el número del paciente delante en
+ * lugar del refrán.
+ *
+ * Lo que devuelve es un límite, nunca una estimación, y quien lo muestre tiene
+ * que decirlo: "en el mejor de los casos". La cifra real está entre la sospecha
+ * de partida y esta cota, y dónde exactamente no se sabe.
+ */
+export function acotarParcial({ nivelPreTest, sn, sp, resultado }) {
+  const base = PRE_TEST[nivelPreTest];
+  if (!base) throw new Error(`Nivel de sospecha desconocido: ${nivelPreTest}`);
+
+  const positivo = resultado === "positivo";
+  const haySn = esProporcion(sn);
+  const haySp = esProporcion(sp);
+
+  if (haySn === haySp) {
+    return { acotable: false, motivo: "Esta cota es solo para cuando consta una de las dos cifras." };
+  }
+
+  let lr = null;
+  let cual = null;
+
+  if (haySn && !positivo) {
+    lr = 1 - acotar(sn);
+    cual = "negativa";
+  } else if (haySp && positivo) {
+    lr = 1 / (1 - acotar(sp));
+    cual = "positiva";
+  } else {
+    return {
+      acotable: false,
+      motivo: haySn
+        ? "Con la sensibilidad sola no puede acotarse cuánto aporta un positivo: eso depende de la especificidad, que no consta."
+        : "Con la especificidad sola no puede acotarse cuánto aporta un negativo: eso depende de la sensibilidad, que no consta.",
+    };
+  }
+
+  const pre = base.valor;
+  const post = postTest(pre, lr);
+  const fuerza = magnitud(lr);
+
+  const lectura =
+    fuerza.nivel === "irrelevante"
+      ? `Ni en el mejor de los casos cambiaría gran cosa: se quedaría en torno al ${pct(post)}%.`
+      : `En el mejor de los casos dejaría tu sospecha en torno al ${pct(post)}%.`;
+
+  return {
+    acotable: true,
+    resultado,
+    lectura,
+    detalle: {
+      preTest: pre,
+      preTestTexto: `${base.etiqueta}, ${base.detalle}`,
+      razonDeVerosimilitud: lr,
+      cual,
+      postTest: post,
+      postTestTexto: `${pct(post)}%`,
+      magnitud: fuerza,
+      sensibilidad: haySn ? sn : null,
+      especificidad: haySp ? sp : null,
+      falta: haySn ? "especificidad" : "sensibilidad",
+    },
+  };
+}
+
 /** Umbrales a partir de los cuales hablamos de confirmar o descartar en la práctica. */
 const UMBRAL_CONFIRMA = 0.85;
 const UMBRAL_DESCARTA = 0.10;

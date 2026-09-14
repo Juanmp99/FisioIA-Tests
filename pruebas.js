@@ -2,7 +2,7 @@
 // conclusión clínica, y tiene que poder comprobarse en un segundo.
 
 import assert from "node:assert/strict";
-import { PRE_TEST, razonesDeVerosimilitud, validarPrecision, postTest, magnitud, interpretar, validarParcial, necesitaCorreccion, pctMostrado, CORRECCION } from "./dominio/probabilidad.js";
+import { PRE_TEST, razonesDeVerosimilitud, validarPrecision, postTest, magnitud, interpretar, validarParcial, necesitaCorreccion, pctMostrado, CORRECCION, acotarParcial } from "./dominio/probabilidad.js";
 import { semaforo } from "./dominio/calidad.js";
 import { banderasPara } from "./dominio/banderas.js";
 import { coincidencia } from "./ia/entidades.js";
@@ -350,6 +350,66 @@ prueba("el porcentaje mostrado nunca es 0 ni 100", () => {
   assert.equal(pctMostrado(0.9999), 99);
   assert.equal(pctMostrado(0.0001), 1);
   assert.equal(pctMostrado(0.46), 46);
+});
+
+console.log("\nCota del mejor caso con media cifra");
+
+// Seis de cada diez tests no tienen cifras, y de los que las tienen, muchos
+// solo publican una. Con media cifra no hay probabilidad, pero sí hay límite.
+
+prueba("un test sensible que sale negativo acota cuánto puede descartar", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: 0.91, sp: null, resultado: "negativo" });
+  assert.equal(r.acotable, true);
+  assert.equal(r.detalle.cual, "negativa");
+  // La razón mínima es (1 - Sn), que es lo que se consigue con Sp = 1.
+  assert.ok(Math.abs(r.detalle.razonDeVerosimilitud - 0.09) < 1e-9);
+  assert.ok(r.detalle.postTest < 0.45, "tiene que bajar la sospecha");
+});
+
+prueba("un test específico que sale positivo acota cuánto puede confirmar", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: null, sp: 0.98, resultado: "positivo" });
+  assert.equal(r.acotable, true);
+  assert.equal(r.detalle.cual, "positiva");
+  assert.ok(Math.abs(r.detalle.razonDeVerosimilitud - 50) < 1e-9);
+  assert.ok(r.detalle.postTest > 0.45, "tiene que subir la sospecha");
+});
+
+prueba("la cota es siempre lo más lejos que puede llegar, nunca más", () => {
+  // Con cualquier especificidad real, el resultado queda entre la sospecha
+  // previa y la cota: la cota no se puede superar.
+  const cota = acotarParcial({ nivelPreTest: "media", sn: 0.91, sp: null, resultado: "negativo" });
+  for (const sp of [0.1, 0.4, 0.7, 0.95, 1]) {
+    const real = interpretar({ nivelPreTest: "media", sn: 0.91, sp, resultado: "negativo" });
+    assert.ok(
+      real.detalle.postTest >= cota.detalle.postTest - 1e-9,
+      `con Sp ${sp} el real ${real.detalle.postTest} baja de la cota ${cota.detalle.postTest}`,
+    );
+  }
+});
+
+prueba("las dos combinaciones que no se pueden acotar lo dicen", () => {
+  const a = acotarParcial({ nivelPreTest: "media", sn: 0.91, sp: null, resultado: "positivo" });
+  const b = acotarParcial({ nivelPreTest: "media", sn: null, sp: 0.9, resultado: "negativo" });
+  assert.equal(a.acotable, false);
+  assert.equal(b.acotable, false);
+  assert.ok(a.motivo.length > 10 && b.motivo.length > 10);
+});
+
+prueba("con las dos cifras, o con ninguna, no es su sitio", () => {
+  assert.equal(acotarParcial({ nivelPreTest: "media", sn: 0.9, sp: 0.9, resultado: "positivo" }).acotable, false);
+  assert.equal(acotarParcial({ nivelPreTest: "media", sn: null, sp: null, resultado: "positivo" }).acotable, false);
+});
+
+prueba("una cifra pobre no promete lo que no puede dar", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: 0.38, sp: null, resultado: "negativo" });
+  assert.equal(r.detalle.magnitud.nivel, "irrelevante");
+  assert.ok(/[Nn]i en el mejor/.test(r.lectura));
+});
+
+prueba("una especificidad perfecta no da una razón infinita", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: null, sp: 1, resultado: "positivo" });
+  assert.ok(Number.isFinite(r.detalle.razonDeVerosimilitud));
+  assert.ok(r.detalle.postTest < 1);
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);

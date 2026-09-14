@@ -1838,13 +1838,6 @@ a { color: var(--azul); text-underline-offset: 3px; }
       return;
     }
 
-    if (ev.interpretable === false) {
-      hueco.innerHTML = veredictoSimple("nulo", "Resultado anotado",
-        "Solo consta " + (ev.sn != null ? "la sensibilidad" : "la especificidad") +
-        " de este test. Con una sola de las dos cifras no puede calcularse la probabilidad tras el test, así que tómalo como orientación.");
-      refrescarConclusion();
-      return;
-    }
 
     hueco.innerHTML = '<div class="veredicto"><div class="cargando"><span class="girando"></span>Calculando…</div></div>';
 
@@ -1852,6 +1845,33 @@ a { color: var(--azul); text-underline-offset: 3px; }
       nivelPreTest: estado.nivel, sn: ev.sn, sp: ev.sp, resultado: resultado
     }).then(function (d) {
       if (estado.resultados[nombre] !== resultado) return;
+
+      // Media cifra: no hay probabilidad, pero sí el techo de lo que puede dar.
+      if (d.parcial) {
+        if (!d.acotable) {
+          hueco.innerHTML = veredictoSimple("nulo", "Resultado anotado", d.motivo);
+          refrescarConclusion();
+          return;
+        }
+
+        var y = d.detalle;
+        var claseP = y.magnitud.nivel === "irrelevante" ? "nulo" : "mueve";
+        hueco.innerHTML =
+          '<div class="veredicto ' + claseP + '">' +
+            '<div class="veredicto-cab">' + icono(claseP) + "<b>Hasta aquí puede llegar</b></div>" +
+            '<p class="lectura">' + esc(d.lectura) + "</p>" +
+            medidor(y.preTest, y.postTest, claseP === "nulo" ? "nulo" : "") +
+            '<div class="calculo">' +
+              "solo consta " + (y.falta === "especificidad" ? "la sensibilidad" : "la especificidad") +
+              ", así que esto es un techo y no una cifra: la real queda entre tu sospecha de partida y ese " +
+              esc(y.postTestTexto) +
+            "</div>" +
+          "</div>";
+
+        animarCifras(hueco);
+        refrescarConclusion();
+        return;
+      }
 
       if (!d.interpretable) {
         hueco.innerHTML = veredictoSimple("nulo", "No interpretable", (d.problemas || []).join(" "));
@@ -2017,8 +2037,9 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
     if (s.parciales.length) {
       hitos.push('<div class="hito">' + icono("info") +
-        "<span><b>" + s.parciales.length + (s.parciales.length === 1 ? " resultado se queda" : " resultados se quedan") + " en orientación:</b> " +
-        listaNombres(s.parciales) + ". Solo consta una de las dos cifras, así que no puede calcularse la probabilidad tras el test.</span></div>");
+        "<span><b>" + s.parciales.length + (s.parciales.length === 1 ? " resultado da un techo" : " resultados dan un techo") + ", no una cifra:</b> " +
+        listaNombres(s.parciales) + ". Solo consta una de las dos precisiones, así que de esos sabemos lo más que pueden aportar, " +
+        "pero no cuánto aportan. No entran en la conclusión.</span></div>");
     }
 
     if (s.sinCifras.length) {
