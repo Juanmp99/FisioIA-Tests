@@ -300,10 +300,12 @@ a { color: var(--azul); text-underline-offset: 3px; }
   transition: border-color .2s;
 }
 .alerta-banderas:hover { border-color: var(--rojo); }
-.alerta-banderas::before {
-  content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%;
-  background: var(--rojo); box-shadow: 0 0 0 4px var(--brillo-rojo);
-  animation: latir 2.4s ease-in-out infinite;
+/* El icono sustituye al punto: con volumen propio llama más que un círculo,
+   y ya no hacen falta los dos. */
+.alerta-banderas img {
+  flex: none; width: 26px; height: 26px; margin: -4px 0;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,.45));
+  animation: ondear 3.4s ease-in-out infinite;
 }
 
 .pasos { list-style: none; margin: 0; padding: 0; position: relative; }
@@ -745,6 +747,26 @@ a { color: var(--azul); text-underline-offset: 3px; }
   margin-top: 10px; font-variant-numeric: tabular-nums; line-height: 1.7;
 }
 
+/* La bandera de verdad: un icono con volumen pesa más que un punto de color,
+   y esto es lo único de la herramienta que puede mandar a alguien a urgencias. */
+.hoja-cab-banderas {
+  display: flex; gap: 18px; align-items: flex-start;
+  padding-bottom: 20px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--borde);
+}
+.bandera-icono {
+  flex: none; width: 72px; height: 72px; margin-top: -6px;
+  filter: drop-shadow(0 6px 14px rgba(0,0,0,.5));
+  animation: entrarBandera .6s var(--curva) both, ondear 3.4s ease-in-out .6s infinite;
+}
+.hoja-cab-banderas h3 { margin: 4px 0 0; padding-right: 0; }
+.hoja-pie { margin: 8px 0 0; font-size: .875rem; color: var(--tinta-tenue); max-width: 46ch; }
+
+@media (max-width: 620px) {
+  .hoja-cab-banderas { gap: 13px; }
+  .bandera-icono { width: 52px; height: 52px; }
+}
+
 /* ============ ficha de ejecución ============ */
 
 /* Un panel flotante y no un acordeón: son cuatro pasos que se leen con el
@@ -963,6 +985,15 @@ a { color: var(--azul); text-underline-offset: 3px; }
    salto es invisible. */
 @keyframes desfilar { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @keyframes trazar { to { stroke-dashoffset: 0; } }
+/* Un balanceo mínimo: la bandera está viva, pero no baila. */
+@keyframes ondear {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-4deg); }
+}
+@keyframes entrarBandera {
+  from { opacity: 0; transform: scale(.6) rotate(-14deg); }
+  to { opacity: 1; transform: none; }
+}
 @keyframes aparecerTic {
   from { opacity: 0; transform: rotate(-45deg) scale(.4); }
   to { opacity: 1; transform: rotate(-45deg) scale(1); }
@@ -1450,8 +1481,14 @@ a { color: var(--azul); text-underline-offset: 3px; }
      a la vista y es rojo, así que se ven más que antes plegadas ahí abajo. */
   function abrirBanderas() {
     hojaCuerpo.innerHTML =
-      '<span class="rotulo hoja-rotulo">Antes de seguir explorando</span>' +
-      '<h3 id="hoja-titulo">Banderas rojas en ' + esc(estado.region) + "</h3>" +
+      '<div class="hoja-cab-banderas">' +
+        '<img class="bandera-icono" src="/bandera-roja.png" alt="" width="72" height="72">' +
+        "<div>" +
+          '<span class="rotulo hoja-rotulo">Antes de seguir explorando</span>' +
+          '<h3 id="hoja-titulo">Banderas rojas en ' + esc(estado.region) + "</h3>" +
+          '<p class="hoja-pie">Descártalas antes de seguir. Son lo único de esta herramienta que puede cambiar tu conducta hoy mismo.</p>' +
+        "</div>" +
+      "</div>" +
       estado.banderas.map(function (b) {
         return '<div class="bandera ' + esc(b.prioridad) + '">' +
           '<div class="bandera-cab">' +
@@ -2085,7 +2122,8 @@ a { color: var(--azul); text-underline-offset: 3px; }
     // acompaña toda la exploración.
     var alerta = estado.banderas.length
       ? '<button class="alerta-banderas" data-ir-banderas>' +
-          estado.banderas.length + " banderas rojas en " + esc(estado.region) +
+          '<img src="/bandera-roja.png" alt="" width="26" height="26">' +
+          "<span>" + estado.banderas.length + " banderas rojas en " + esc(estado.region) + "</span>" +
         "</button>"
       : "";
 
