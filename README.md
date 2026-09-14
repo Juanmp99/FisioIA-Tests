@@ -83,6 +83,7 @@ evidencia no respalda. Solo una agrupación validada como conjunto puede interpr
 | `ia/prompts.js` | Los dos prompts: proponer la batería y extraer cifras de un artículo. |
 | `ia/pubmed.js` | Búsqueda en PubMed con sinónimos y ensanchado progresivo. |
 | `ia/evidencia.js` | Caché de evidencia, extracción y validación. |
+| `ia/pmc.js` | Texto completo desde PubMed Central, cuando el resumen se queda corto. |
 | `ia/entidades.js` | Registro de entidades: garantiza que la misma sospecha dé siempre la misma respuesta. |
 | `lib/almacen.js` | Persistencia: archivos en local, Netlify Blobs en producción. |
 | `lib/asistente.js` | Los dos tiempos —batería y evidencia— sin nada de transporte. |
@@ -150,6 +151,16 @@ porque no existe revisión humana.
 comprueba que el test haya movido realmente la sospecha. Si no, se dice. Con una sospecha previa
 alta, un test inútil puede dejar la probabilidad por encima del umbral, y atribuirle ese mérito
 sería el peor error posible en esta herramienta.
+
+**Cuando el resumen no basta, se lee el artículo entero.** Un resumen de PubMed casi nunca publica los
+intervalos de confianza ni da detalle para juzgar el riesgo de sesgo, y el semáforo exige ambas cosas para
+dar verde. El resultado era que ninguna evidencia llegaba nunca a verde: no porque la literatura fuera mala,
+sino porque le pedíamos al modelo juzgar un estudio leyendo solo la contraportada.
+
+Ahora, cuando la primera pasada devuelve una revisión sistemática a la que solo le falta eso, se baja al
+texto completo en PubMed Central y se vuelve a extraer. Solo en ese caso: un estudio primario no puede
+llegar a verde por bien hecho que esté, así que leerlo entero sería gastar por gastar. Y solo si queda
+tiempo de sobra en la función, porque perder la respuesta por afinar una valoración sería mal negocio.
 
 **La cita siempre visible.** Sin revisor humano, el fisioterapeuta es la última línea de defensa y
 no puede serlo si no ve de dónde sale el número.
