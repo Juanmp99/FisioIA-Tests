@@ -799,6 +799,77 @@ details.banderas summary::before {
 
 /* ============ carga ============ */
 
+/* El halo de espera.
+   La espera de la primera consulta es larga —el modelo identifica la entidad y
+   propone la batería— y una barra gris no cuenta nada. Esto sí: gira mientras
+   piensa y narra los pasos que de verdad está dando, con la sospecha escrita
+   delante. Nada de lo que dice es inventado. */
+
+.espera {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 54px 20px 58px; text-align: center;
+  animation: entrar .5s var(--curva) both;
+}
+
+.halo { position: relative; width: 210px; height: 210px; }
+.halo svg { width: 100%; height: 100%; overflow: visible; }
+
+.anillo { fill: none; stroke-width: 2; transform-box: fill-box; transform-origin: center; }
+.anillo.pista { stroke: var(--borde); stroke-width: 1.5; }
+
+.anillo.arco {
+  stroke: url(#degradadoHalo); stroke-linecap: round;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--azul) 60%, transparent));
+}
+/* Tres arcos a distintas velocidades y sentidos: de ahí sale la sensación de
+   mecanismo, en lugar de la de una rueda dando vueltas. */
+.arco-1 { stroke-dasharray: 170 370; animation: girarHalo 3.4s linear infinite; }
+.arco-2 { stroke-dasharray: 90 330; animation: girarHalo 5.2s linear infinite reverse; opacity: .85; }
+.arco-3 { stroke-dasharray: 40 250; animation: girarHalo 2.6s linear infinite; opacity: .7; }
+
+.nucleo {
+  fill: url(#nucleoHalo);
+  transform-box: fill-box; transform-origin: center;
+  animation: latirNucleo 2.8s ease-in-out infinite;
+}
+.nucleo-borde { fill: none; stroke: color-mix(in srgb, var(--verde) 45%, transparent); stroke-width: 1.5; }
+
+.orbita { transform-box: fill-box; transform-origin: center; animation: girarHalo 4.4s linear infinite; }
+.chispa { fill: var(--verde); filter: drop-shadow(0 0 8px var(--verde)); }
+
+/* Cuando ya hay números reales, el mismo anillo deja de ser adorno y pasa a
+   medir: se llena con los tests resueltos. */
+.anillo.avance {
+  stroke: var(--verde); stroke-linecap: round;
+  transform: rotate(-90deg);
+  transition: stroke-dashoffset .6s var(--curva);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--verde) 60%, transparent));
+}
+
+.cuenta {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--mono); font-size: 1.5rem; font-weight: 700; color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+.cuenta small { font-size: .8125rem; color: var(--tinta-tenue); font-weight: 400; }
+
+.espera-sujeto {
+  margin: 30px 0 0; font-size: 1.375rem; font-weight: 700; letter-spacing: -.025em;
+  max-width: 22ch;
+}
+.espera-paso {
+  margin: 10px 0 0; font-size: .9375rem; color: var(--tinta-tenue);
+  min-height: 1.5em;
+}
+.espera-paso span { display: inline-block; animation: entrar .45s var(--curva) both; }
+
+@media (max-width: 620px) {
+  .halo { width: 160px; height: 160px; }
+  .espera { padding: 36px 16px 40px; }
+  .espera-sujeto { font-size: 1.125rem; }
+}
+
+
 .cargando { display: flex; align-items: center; gap: 11px; color: var(--tinta-tenue); font-size: .9375rem; }
 .girando {
   width: 15px; height: 15px; flex: none;
@@ -808,17 +879,14 @@ details.banderas summary::before {
 
 .progreso {
   display: flex; align-items: center; gap: 14px;
-  padding: 14px 18px; border-radius: var(--radio-s);
+  padding: 13px 18px; border-radius: var(--radio-s);
   background: var(--superficie); border: 1px solid var(--borde);
   margin-bottom: 14px;
 }
-.progreso-texto { font-size: .875rem; color: var(--tinta-media); white-space: nowrap; }
-.progreso-pista { flex: 1; height: 4px; border-radius: 999px; background: var(--superficie-viva); overflow: hidden; }
-.progreso-barra {
-  height: 100%; border-radius: 999px;
-  background: linear-gradient(90deg, var(--azul), var(--verde));
-  transition: width .5s var(--curva);
-}
+.mini-halo { flex: none; }
+.progreso-texto { font-size: .875rem; color: var(--tinta-media); line-height: 1.45; }
+.progreso-texto b { color: var(--tinta); font-variant-numeric: tabular-nums; }
+.progreso-texto small { font-size: .75rem; color: var(--tinta-tenue); }
 
 .esqueleto {
   height: 12px; border-radius: 6px;
@@ -837,6 +905,11 @@ details.banderas summary::before {
 /* ============ animaciones ============ */
 
 @keyframes girar { to { transform: rotate(360deg); } }
+@keyframes girarHalo { to { transform: rotate(360deg); } }
+@keyframes latirNucleo {
+  0%, 100% { transform: scale(1); opacity: .9; }
+  50% { transform: scale(1.09); opacity: 1; }
+}
 @keyframes latir { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 @keyframes respirar { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
 @keyframes brillar { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -1058,6 +1131,79 @@ details.banderas summary::before {
     cinta.innerHTML = EJEMPLOS.map(boton).join("") + EJEMPLOS.map(boton).join("");
   })();
 
+  /* ============ el halo de espera ============ */
+
+  /* Los pasos que se anuncian son los que el asistente da de verdad, y en este
+     orden: reconoce la entidad, elige los tests, los ordena de cribado a
+     confirmación y añade las banderas rojas de la región. Nada es de adorno;
+     si algún día cambia el proceso, cambia esta lista. */
+  var PASOS_ESPERA = [
+    "Identificando la entidad clínica…",
+    "Eligiendo los tests que la verifican…",
+    "Ordenando la exploración, de cribado a confirmación…",
+    "Comprobando las banderas rojas de la región…"
+  ];
+
+  function haloEspera(sospecha) {
+    return '<div class="espera">' +
+      '<div class="halo">' +
+        '<svg viewBox="0 0 200 200" aria-hidden="true">' +
+          "<defs>" +
+            '<linearGradient id="degradadoHalo" x1="0" y1="0" x2="1" y2="1">' +
+              '<stop offset="0%" stop-color="var(--azul)"/>' +
+              '<stop offset="100%" stop-color="var(--verde)"/>' +
+            "</linearGradient>" +
+            '<radialGradient id="nucleoHalo">' +
+              '<stop offset="0%" stop-color="var(--verde)" stop-opacity=".85"/>' +
+              '<stop offset="55%" stop-color="var(--azul)" stop-opacity=".35"/>' +
+              '<stop offset="100%" stop-color="var(--azul)" stop-opacity="0"/>' +
+            "</radialGradient>" +
+          "</defs>" +
+          '<circle class="anillo pista" cx="100" cy="100" r="86"/>' +
+          '<circle class="anillo pista" cx="100" cy="100" r="66"/>' +
+          '<circle class="anillo arco arco-1" cx="100" cy="100" r="86"/>' +
+          '<circle class="anillo arco arco-2" cx="100" cy="100" r="66"/>' +
+          '<circle class="anillo arco arco-3" cx="100" cy="100" r="46"/>' +
+          '<circle class="nucleo" cx="100" cy="100" r="36"/>' +
+          '<circle class="nucleo-borde" cx="100" cy="100" r="36"/>' +
+          '<g class="orbita"><circle class="chispa" cx="100" cy="14" r="4.5"/></g>' +
+        "</svg>" +
+      "</div>" +
+      '<p class="espera-sujeto">' + esc(sospecha) + "</p>" +
+      '<p class="espera-paso" id="espera-paso"></p>' +
+    "</div>";
+  }
+
+  var rotador = null;
+
+  function arrancarPasos() {
+    var i = 0;
+    var pintar1 = function () {
+      var el = document.getElementById("espera-paso");
+      if (!el) return;
+      el.innerHTML = "<span>" + PASOS_ESPERA[i % PASOS_ESPERA.length] + "</span>";
+      i++;
+    };
+    pintar1();
+    rotador = setInterval(pintar1, 2600);
+  }
+
+  function pararPasos() {
+    if (rotador) { clearInterval(rotador); rotador = null; }
+  }
+
+  /** El mismo anillo, ya midiendo: se llena con los tests resueltos. */
+  function anilloAvance(hechos, total) {
+    var vuelta = 2 * Math.PI * 18;
+    var recorrido = total ? (hechos / total) * vuelta : 0;
+    return '<svg class="mini-halo" viewBox="0 0 44 44" width="44" height="44" aria-hidden="true">' +
+      '<circle class="anillo pista" cx="22" cy="22" r="18"/>' +
+      '<circle class="anillo avance" cx="22" cy="22" r="18" stroke-width="3"' +
+        ' stroke-dasharray="' + vuelta.toFixed(1) + '"' +
+        ' stroke-dashoffset="' + (vuelta - recorrido).toFixed(1) + '"/>' +
+      "</svg>";
+  }
+
   /* ============ consulta ============ */
 
   Array.prototype.forEach.call(document.querySelectorAll("[data-ej]"), function (b) {
@@ -1089,15 +1235,8 @@ details.banderas summary::before {
     estado.tests = [];
     actualizarCarril();
 
-    salida.innerHTML =
-      '<div class="seccion"><div class="tarjeta">' +
-        '<div class="cargando"><span class="girando"></span>Preparando tu exploración…</div>' +
-        '<div style="display:grid;gap:10px;margin-top:18px">' +
-          '<div class="esqueleto" style="width:70%"></div>' +
-          '<div class="esqueleto" style="width:45%"></div>' +
-          '<div class="esqueleto" style="width:60%"></div>' +
-        "</div>" +
-      "</div></div>";
+    salida.innerHTML = haloEspera(sospecha);
+    arrancarPasos();
 
     pedir("/api/bateria", { sospecha: sospecha })
       .then(function (d) {
@@ -1122,7 +1261,7 @@ details.banderas summary::before {
         buscarEvidencia();
       })
       .catch(function (err) { pintarAviso(err.message, true); })
-      .finally(function () { enviar.disabled = false; });
+      .finally(function () { pararPasos(); enviar.disabled = false; });
   }
 
   function pintarAviso(texto, malo) {
@@ -1355,9 +1494,9 @@ details.banderas summary::before {
 
     var progreso = listos < total
       ? '<div class="progreso">' +
-          '<span class="girando"></span>' +
-          '<span class="progreso-texto">Rastreando PubMed · ' + listos + " de " + total + "</span>" +
-          '<span class="progreso-pista"><span class="progreso-barra" style="width:' + Math.round((listos / total) * 100) + '%"></span></span>' +
+          anilloAvance(listos, total) +
+          '<span class="progreso-texto">Rastreando PubMed · <b>' + listos + " de " + total + "</b><br>" +
+            '<small>Leyendo la precisión publicada de cada test</small></span>' +
         "</div>"
       : "";
 
