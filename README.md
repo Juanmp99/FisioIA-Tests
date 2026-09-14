@@ -56,6 +56,18 @@ Auditoría de la base de evidencia. Pone cada cifra publicada al lado de la fras
 la que dice venir y del enlace a PubMed, y marca las que no superan la comprobación automática.
 Con `--dudosas` muestra solo esas.
 
+```bash
+npm run limpiar
+```
+
+Vacía la base construida con el uso. Sin argumentos enseña qué almacenes hay y cuántos elementos
+tiene cada uno; con `-- evidencia registro --si` los borra. Existe porque lo guardado se congela con
+su cita a propósito —es lo que hace que la misma pregunta dé siempre la misma respuesta— y el precio
+es que una mejora en la forma de buscar no alcanza a lo que ya está dentro.
+
+El almacén de accesos está protegido y el comando se niega a tocarlo: ahí viven los enlaces de todo
+el que se ha registrado.
+
 **Lo que ninguna máquina puede comprobar** es si la frase citada se refiere de verdad a ese test
 y a esa patología. Eso hay que mirarlo a mano, y para eso existe el informe.
 
