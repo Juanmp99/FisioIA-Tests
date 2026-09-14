@@ -133,8 +133,8 @@ Variables de entorno que hay que configurar en el panel de Netlify:
 | `RESEND_API_KEY` | Solo si algún día se cambia de proveedor de correo. |
 | `URL_PUBLICA` | `https://asistente-tests.fisioia.app`, para componer el enlace del correo. |
 | `ANTHROPIC_MODEL` | Por defecto `claude-sonnet-5`. |
-| `LIMITE_DIARIO` | Consultas con coste por persona y día. Por defecto 40. |
-| `CUPO_DIARIO_GLOBAL` | Tope de toda la aplicación por día. Por defecto 2000. |
+| `LIMITE_DIARIO` | Consultas con coste por persona y día. Por defecto 200; con 0, sin límite. |
+| `CUPO_DIARIO_GLOBAL` | Tope de toda la aplicación por día. Por defecto 2000; con 0, sin límite. |
 
 ## La puerta
 
