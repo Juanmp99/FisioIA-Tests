@@ -95,7 +95,7 @@ const diasDesde = (iso) => (Date.now() - new Date(iso).getTime()) / 86400000;
  * Los resultados sin cifras también se guardan, para no repetir una búsqueda
  * infructuosa en cada consulta, pero caducan: la literatura crece.
  */
-export async function evidenciaDe({ test, busqueda, entidad, terminos, senal }) {
+export async function evidenciaDe({ test, busqueda, nombresTest, entidad, terminos, senal }) {
   const inicio = Date.now();
   const consulta = busqueda || test;
   const lista = (Array.isArray(terminos) && terminos.length ? terminos : [entidad]).filter(Boolean);
@@ -113,7 +113,7 @@ export async function evidenciaDe({ test, busqueda, entidad, terminos, senal }) 
   let articulos = [];
   let estrategia = "sin_resultados";
   try {
-    const hallazgo = await buscarPrecision({ test: consulta, terminos: lista, senal });
+    const hallazgo = await buscarPrecision({ test: consulta, nombresTest, terminos: lista, senal });
     articulos = hallazgo.articulos;
     estrategia = hallazgo.estrategia;
   } catch (e) {

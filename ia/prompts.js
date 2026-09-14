@@ -24,6 +24,8 @@ Reglas:
 
 6 bis. De cada test devuelve además nombreBusqueda: el nombre en inglés con el que buscarlo en PubMed, sin apóstrofes, sin paréntesis y sin la palabra "test" si no forma parte del nombre propio. Para maniobras descriptivas que no tienen epónimo, escribe la descripción en inglés: por ejemplo "resisted wrist extension" o "lateral epicondyle palpation". Nunca dejes este campo en español: la base de datos es inglesa y en español no encuentra nada.
 
+6 ter. Y devuelve nombresBusqueda: de uno a tres nombres MÁS con los que el mismo test aparece en la literatura inglesa, sin repetir el de nombreBusqueda. Es el mismo problema que con la entidad: un test se publica con varios nombres y buscándolo por uno solo se pierden artículos. "Jobe test", "empty can test" y "supraspinatus test" son el mismo test, y cada artículo elige uno. Solo nombres en inglés que se usen de verdad en publicaciones; si no conoces ninguno más, devuelve la lista vacía antes que inventarte uno.
+
 7. Devuelve entre tres y ocho tests. Ordénalos por la secuencia lógica de exploración: primero los de cribado, después los de confirmación.
 
 8. La región debe ser exactamente una de estas: ${REGIONES.join(", ")}.
@@ -87,6 +89,11 @@ export const ESQUEMA_BATERIA = {
         properties: {
           nombre: { type: "string" },
           nombreBusqueda: { type: "string", description: "Nombre en inglés para buscar en PubMed. Nunca en español." },
+          nombresBusqueda: {
+            type: "array",
+            description: "De cero a tres nombres más del mismo test en la literatura inglesa, para no perder artículos. Sin repetir nombreBusqueda.",
+            items: { type: "string" },
+          },
           otrosNombres: { type: "array", items: { type: "string" } },
           objetivo: { type: "string", description: "Qué estructura o mecanismo explora, en una línea." },
           posicionPaciente: { type: "string" },
@@ -94,7 +101,7 @@ export const ESQUEMA_BATERIA = {
           maniobra: { type: "string" },
           positivoSi: { type: "string" },
         },
-        required: ["nombre", "nombreBusqueda", "otrosNombres", "objetivo", "posicionPaciente", "posicionTerapeuta", "maniobra", "positivoSi"],
+        required: ["nombre", "nombreBusqueda", "nombresBusqueda", "otrosNombres", "objetivo", "posicionPaciente", "posicionTerapeuta", "maniobra", "positivoSi"],
         additionalProperties: false,
       },
     },

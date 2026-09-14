@@ -1765,7 +1765,14 @@ a { color: var(--azul); text-underline-offset: 3px; }
    */
   function buscarEvidencia() {
     var elementos = estado.agrupaciones.map(function (a) { return { nombre: a.nombre, busqueda: a.nombre, tipo: "agrupacion" }; })
-      .concat(estado.tests.map(function (t) { return { nombre: t.nombre, busqueda: t.nombreBusqueda || t.nombre, tipo: "test" }; }));
+      .concat(estado.tests.map(function (t) {
+        return {
+          nombre: t.nombre,
+          busqueda: t.nombreBusqueda || t.nombre,
+          nombresBusqueda: t.nombresBusqueda || [],
+          tipo: "test"
+        };
+      }));
 
     // Si el fisioterapeuta lanza otra sospecha mientras esta sigue en curso,
     // las respuestas que lleguen tarde no deben pintarse sobre la nueva.
