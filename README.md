@@ -167,8 +167,6 @@ no puede serlo si no ve de dónde sale el número.
 
 ## Qué falta
 
-- Leer el texto completo en PubMed Central cuando el resumen no traiga las cifras. Hoy más de la
-  mitad de los tests salen sin datos y en muchos casos el dato existe, pero está en una tabla.
 - Dar el resultado como rango a partir de los intervalos de confianza, no como cifra puntual.
 - Paralelizar la búsqueda y mostrar cada test según llega: la primera consulta tarda minutos.
 - Ordenar también por aportación real, para responder a «si solo puedo hacer un test, ¿cuál?».
