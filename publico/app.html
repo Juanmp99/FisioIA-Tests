@@ -426,22 +426,8 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
 /* ============ banderas rojas ============ */
 
-details.banderas {
-  border: 1px solid color-mix(in srgb, var(--rojo) 35%, var(--borde));
-  background: var(--brillo-rojo);
-  border-radius: var(--radio); padding: 4px 20px;
-}
-details.banderas summary {
-  cursor: pointer; padding: 14px 0; font-weight: 650; color: var(--tinta);
-  list-style: none; display: flex; align-items: center; gap: 10px;
-}
-details.banderas summary::-webkit-details-marker { display: none; }
-details.banderas summary::before {
-  content: ""; width: 9px; height: 9px; border-radius: 50%;
-  background: var(--rojo); box-shadow: 0 0 0 4px var(--brillo-rojo);
-  animation: latir 2.4s ease-in-out infinite;
-}
-.bandera { padding: 14px 0; border-top: 1px solid var(--borde); }
+.bandera { padding: 18px 0; border-top: 1px solid var(--borde); }
+.bandera:first-of-type { border-top: 0; padding-top: 4px; }
 .bandera h4 { margin: 0 0 6px; font-size: .9375rem; display: flex; align-items: center; gap: 10px; }
 .prioridad {
   font-size: .625rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 700;
@@ -811,31 +797,31 @@ details.banderas summary::before {
   animation: entrar .5s var(--curva) both;
 }
 
-.halo { position: relative; width: 210px; height: 210px; }
-.halo svg { width: 100%; height: 100%; overflow: visible; }
+.halo {
+  position: relative; width: 340px; height: 340px; max-width: 86vw;
+  display: grid; place-items: center;
+}
+.halo svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 
 .anillo { fill: none; stroke-width: 2; transform-box: fill-box; transform-origin: center; }
 .anillo.pista { stroke: var(--borde); stroke-width: 1.5; }
 
 .anillo.arco {
   stroke: url(#degradadoHalo); stroke-linecap: round;
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--azul) 60%, transparent));
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--azul) 60%, transparent));
 }
 /* Tres arcos a distintas velocidades y sentidos: de ahí sale la sensación de
    mecanismo, en lugar de la de una rueda dando vueltas. */
-.arco-1 { stroke-dasharray: 170 370; animation: girarHalo 3.4s linear infinite; }
-.arco-2 { stroke-dasharray: 90 330; animation: girarHalo 5.2s linear infinite reverse; opacity: .85; }
-.arco-3 { stroke-dasharray: 40 250; animation: girarHalo 2.6s linear infinite; opacity: .7; }
+.arco-1 { stroke-dasharray: 300 640; animation: girarHalo 3.6s linear infinite; }
+.arco-2 { stroke-dasharray: 150 560; animation: girarHalo 5.4s linear infinite reverse; opacity: .85; }
+.arco-3 { stroke-dasharray: 70 420; animation: girarHalo 2.8s linear infinite; opacity: .7; }
 
-.nucleo {
-  fill: url(#nucleoHalo);
-  transform-box: fill-box; transform-origin: center;
-  animation: latirNucleo 2.8s ease-in-out infinite;
-}
-.nucleo-borde { fill: none; stroke: color-mix(in srgb, var(--verde) 45%, transparent); stroke-width: 1.5; }
+/* El resplandor del centro va detrás del texto, no encima. */
+.nucleo { fill: url(#nucleoHalo); transform-box: fill-box; transform-origin: center;
+  animation: latirNucleo 3s ease-in-out infinite; }
 
-.orbita { transform-box: fill-box; transform-origin: center; animation: girarHalo 4.4s linear infinite; }
-.chispa { fill: var(--verde); filter: drop-shadow(0 0 8px var(--verde)); }
+.orbita { transform-box: fill-box; transform-origin: center; animation: girarHalo 4.6s linear infinite; }
+.chispa { fill: var(--verde); filter: drop-shadow(0 0 9px var(--verde)); }
 
 /* Cuando ya hay números reales, el mismo anillo deja de ser adorno y pasa a
    medir: se llena con los tests resueltos. */
@@ -846,27 +832,28 @@ details.banderas summary::before {
   filter: drop-shadow(0 0 10px color-mix(in srgb, var(--verde) 60%, transparent));
 }
 
-.cuenta {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  font-family: var(--mono); font-size: 1.5rem; font-weight: 700; color: var(--tinta);
-  font-variant-numeric: tabular-nums;
+/* El texto, dentro del halo. */
+.halo-dentro {
+  position: relative; z-index: 1;
+  width: 62%; text-align: center;
+  display: flex; flex-direction: column; gap: 10px; align-items: center;
 }
-.cuenta small { font-size: .8125rem; color: var(--tinta-tenue); font-weight: 400; }
 
 .espera-sujeto {
-  margin: 30px 0 0; font-size: 1.375rem; font-weight: 700; letter-spacing: -.025em;
-  max-width: 22ch;
+  margin: 0; font-size: 1.125rem; font-weight: 700; letter-spacing: -.02em;
+  line-height: 1.25;
 }
 .espera-paso {
-  margin: 10px 0 0; font-size: .9375rem; color: var(--tinta-tenue);
-  min-height: 1.5em;
+  margin: 0; font-size: .8125rem; color: var(--tinta-tenue); line-height: 1.4;
+  min-height: 2.8em;
 }
 .espera-paso span { display: inline-block; animation: entrar .45s var(--curva) both; }
 
 @media (max-width: 620px) {
-  .halo { width: 160px; height: 160px; }
-  .espera { padding: 36px 16px 40px; }
-  .espera-sujeto { font-size: 1.125rem; }
+  .halo { width: 290px; height: 290px; }
+  .espera { padding: 30px 16px 36px; }
+  .espera-sujeto { font-size: 1rem; }
+  .espera-paso { font-size: .75rem; }
 }
 
 
@@ -1154,23 +1141,24 @@ details.banderas summary::before {
               '<stop offset="100%" stop-color="var(--verde)"/>' +
             "</linearGradient>" +
             '<radialGradient id="nucleoHalo">' +
-              '<stop offset="0%" stop-color="var(--verde)" stop-opacity=".85"/>' +
-              '<stop offset="55%" stop-color="var(--azul)" stop-opacity=".35"/>' +
+              '<stop offset="0%" stop-color="var(--verde)" stop-opacity=".22"/>' +
+              '<stop offset="60%" stop-color="var(--azul)" stop-opacity=".12"/>' +
               '<stop offset="100%" stop-color="var(--azul)" stop-opacity="0"/>' +
             "</radialGradient>" +
           "</defs>" +
-          '<circle class="anillo pista" cx="100" cy="100" r="86"/>' +
-          '<circle class="anillo pista" cx="100" cy="100" r="66"/>' +
-          '<circle class="anillo arco arco-1" cx="100" cy="100" r="86"/>' +
-          '<circle class="anillo arco arco-2" cx="100" cy="100" r="66"/>' +
-          '<circle class="anillo arco arco-3" cx="100" cy="100" r="46"/>' +
-          '<circle class="nucleo" cx="100" cy="100" r="36"/>' +
-          '<circle class="nucleo-borde" cx="100" cy="100" r="36"/>' +
-          '<g class="orbita"><circle class="chispa" cx="100" cy="14" r="4.5"/></g>' +
+          '<circle class="nucleo" cx="100" cy="100" r="74"/>' +
+          '<circle class="anillo pista" cx="100" cy="100" r="96"/>' +
+          '<circle class="anillo pista" cx="100" cy="100" r="78"/>' +
+          '<circle class="anillo arco arco-1" cx="100" cy="100" r="96"/>' +
+          '<circle class="anillo arco arco-2" cx="100" cy="100" r="78"/>' +
+          '<circle class="anillo arco arco-3" cx="100" cy="100" r="62"/>' +
+          '<g class="orbita"><circle class="chispa" cx="100" cy="4" r="4.5"/></g>' +
         "</svg>" +
+        '<div class="halo-dentro">' +
+          '<p class="espera-sujeto">' + esc(sospecha) + "</p>" +
+          '<p class="espera-paso" id="espera-paso"></p>' +
+        "</div>" +
       "</div>" +
-      '<p class="espera-sujeto">' + esc(sospecha) + "</p>" +
-      '<p class="espera-paso" id="espera-paso"></p>' +
     "</div>";
   }
 
@@ -1345,7 +1333,6 @@ details.banderas summary::before {
 
   function pintar() {
     salida.innerHTML =
-      bloqueBanderas() +
       bloquePreTest() +
       bloqueTests() +
       '<div id="paso-3"><div id="conclusion"></div></div>';
@@ -1388,19 +1375,27 @@ details.banderas summary::before {
     actualizarCarril();
   }
 
-  function bloqueBanderas() {
-    if (!estado.banderas.length) return "";
-    return '<details class="seccion banderas">' +
-      "<summary>Banderas rojas a descartar en " + esc(estado.region) + " · " + estado.banderas.length + "</summary>" +
+  /* Las banderas ya no ocupan media pantalla en el listado: viven en el panel
+     flotante, al que se llega desde el aviso del carril. El aviso está siempre
+     a la vista y es rojo, así que se ven más que antes plegadas ahí abajo. */
+  function abrirBanderas() {
+    hojaCuerpo.innerHTML =
+      '<span class="rotulo hoja-rotulo">Antes de seguir explorando</span>' +
+      '<h3 id="hoja-titulo">Banderas rojas en ' + esc(estado.region) + "</h3>" +
       estado.banderas.map(function (b) {
         return '<div class="bandera">' +
           "<h4>" + esc(b.titulo) + '<span class="prioridad ' + esc(b.prioridad) + '">' + esc(b.prioridad) + "</span></h4>" +
-          "<ul>" + b.senales.map(function (s) { return "<li>" + esc(s) + "</li>"; }).join("") + "</ul>" +
+          "<ul>" + b.senales.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>" +
           "<p>" + esc(b.accion) + "</p>" +
         "</div>";
       }).join("") +
-      '<p class="advertencia">' + esc(estado.advertencia) + "</p>" +
-    "</details>";
+      '<p class="advertencia">' + esc(estado.advertencia) + "</p>";
+
+    devolverFoco = document.activeElement;
+    hoja.hidden = false;
+    document.body.style.overflow = "hidden";
+    var cerrar = hoja.querySelector(".hoja-cerrar");
+    if (cerrar) cerrar.focus();
   }
 
   function bloquePreTest() {
@@ -2045,10 +2040,7 @@ details.banderas summary::before {
 
     var aBanderas = carril.querySelector("[data-ir-banderas]");
     if (aBanderas) {
-      aBanderas.addEventListener("click", function () {
-        var det = salida.querySelector("details.banderas");
-        if (det) { det.open = true; det.scrollIntoView({ behavior: "smooth", block: "center" }); }
-      });
+      aBanderas.addEventListener("click", abrirBanderas);
     }
   }
 
