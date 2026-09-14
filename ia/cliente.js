@@ -16,7 +16,7 @@ try {
 export const hayCredencial = () => cliente !== null;
 
 /** Llamada con salida estructurada. Devuelve el objeto ya analizado más el uso. */
-export async function pedirJson({ sistema, mensaje, esquema, esfuerzo = "medium", maxTokens = 8000 }) {
+export async function pedirJson({ sistema, mensaje, esquema, esfuerzo = "medium", maxTokens = 8000, modelo = MODELO }) {
   if (!cliente) {
     const e = new Error("El servidor no tiene configurada la clave de API. Define ANTHROPIC_API_KEY y reinícialo.");
     e.status = 503;
@@ -24,7 +24,7 @@ export async function pedirJson({ sistema, mensaje, esquema, esfuerzo = "medium"
   }
 
   const respuesta = await cliente.messages.create({
-    model: MODELO,
+    model: modelo,
     max_tokens: maxTokens,
     system: sistema,
     output_config: { effort: esfuerzo, format: { type: "json_schema", schema: esquema } },

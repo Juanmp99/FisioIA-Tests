@@ -17,7 +17,7 @@ const RAIZ = path.dirname(fileURLToPath(import.meta.url));
 const PUBLICO = path.join(RAIZ, "publico");
 const PUERTO = Number(process.env.PORT) || 3200;
 
-const FUNCIONES = ["acceso", "verificar", "bateria", "evidencia", "interpretar", "estado"];
+const FUNCIONES = ["acceso", "verificar", "bateria", "evidencia", "interpretar", "estado", "aliento"];
 
 // Cada función declara su ruta en `config.path`; aquí se construye el mismo
 // mapa que arma Netlify al desplegar.

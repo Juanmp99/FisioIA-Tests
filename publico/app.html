@@ -426,18 +426,66 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
 /* ============ banderas rojas ============ */
 
-.bandera { padding: 18px 0; border-top: 1px solid var(--borde); }
-.bandera:first-of-type { border-top: 0; padding-top: 4px; }
-.bandera h4 { margin: 0 0 6px; font-size: .9375rem; display: flex; align-items: center; gap: 10px; }
-.prioridad {
-  font-size: .625rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 700;
-  padding: 3px 8px; border-radius: 999px;
-  background: var(--brillo-ambar); color: var(--ambar);
+/* Cada bandera es una tarjeta con el color de su urgencia. Aquí el color no
+   adorna: separa lo que manda a urgencias hoy de lo que exige derivar antes de
+   tratar. Es lo único de la herramienta con consecuencias inmediatas. */
+.bandera {
+  border-radius: 14px; padding: 18px 20px; margin-bottom: 14px;
+  border: 1px solid var(--borde); background: var(--superficie);
+  border-left-width: 4px;
 }
-.prioridad.urgente { background: var(--brillo-rojo); color: var(--rojo); }
-.bandera ul { margin: 0 0 8px; padding-left: 18px; color: var(--tinta-media); font-size: .875rem; }
-.bandera p { margin: 0; font-size: .875rem; color: var(--tinta); }
-.advertencia { font-size: .8125rem; color: var(--tinta-tenue); padding: 12px 0 16px; margin: 0; border-top: 1px solid var(--borde); }
+.bandera.urgente {
+  border-color: color-mix(in srgb, var(--rojo) 40%, var(--borde));
+  border-left-color: var(--rojo);
+  background: linear-gradient(100deg, var(--brillo-rojo), transparent 65%), var(--superficie);
+}
+.bandera.prioritaria {
+  border-color: color-mix(in srgb, var(--ambar) 38%, var(--borde));
+  border-left-color: var(--ambar);
+  background: linear-gradient(100deg, var(--brillo-ambar), transparent 65%), var(--superficie);
+}
+
+.bandera-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 11px; margin-bottom: 12px; }
+.bandera h4 {
+  margin: 0; font-size: 1.125rem; font-weight: 720; letter-spacing: -.02em; color: var(--tinta);
+}
+
+.prioridad {
+  font-size: .625rem; text-transform: uppercase; letter-spacing: .12em; font-weight: 800;
+  padding: 5px 10px; border-radius: 999px;
+  background: var(--brillo-ambar); color: var(--ambar);
+  border: 1px solid color-mix(in srgb, var(--ambar) 40%, transparent);
+}
+.prioridad.urgente {
+  background: var(--brillo-rojo); color: var(--rojo);
+  border-color: color-mix(in srgb, var(--rojo) 45%, transparent);
+  animation: latir 2.2s ease-in-out infinite;
+}
+
+.bandera ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.bandera li {
+  position: relative; padding-left: 20px;
+  font-size: .9375rem; color: var(--tinta-media);
+}
+.bandera li::before {
+  content: ""; position: absolute; left: 0; top: .6em;
+  width: 8px; height: 2px; border-radius: 2px; background: var(--ambar);
+}
+.bandera.urgente li::before { background: var(--rojo); }
+
+.bandera-accion {
+  margin: 14px 0 0; padding: 12px 14px;
+  border-radius: 10px; background: var(--superficie-viva);
+  font-size: .9375rem; font-weight: 600; color: var(--tinta);
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.bandera-accion::before { content: "→"; flex: none; color: var(--ambar); font-weight: 700; }
+.bandera.urgente .bandera-accion::before { color: var(--rojo); }
+
+.advertencia {
+  font-size: .8125rem; color: var(--tinta-tenue); padding: 16px 0 0; margin: 4px 0 0;
+  border-top: 1px solid var(--borde);
+}
 
 /* ============ sospecha previa ============ */
 
@@ -1163,17 +1211,38 @@ a { color: var(--azul); text-underline-offset: 3px; }
   }
 
   var rotador = null;
+  var pasosActuales = PASOS_ESPERA.slice();
 
   function arrancarPasos() {
+    pasosActuales = PASOS_ESPERA.slice();
     var i = 0;
-    var pintar1 = function () {
+    var siguiente = function () {
       var el = document.getElementById("espera-paso");
       if (!el) return;
-      el.innerHTML = "<span>" + PASOS_ESPERA[i % PASOS_ESPERA.length] + "</span>";
+      el.innerHTML = "<span>" + esc(pasosActuales[i % pasosActuales.length]) + "</span>";
       i++;
     };
-    pintar1();
-    rotador = setInterval(pintar1, 2600);
+    siguiente();
+    rotador = setInterval(siguiente, 2600);
+  }
+
+  /**
+   * Líneas escritas para esta sospecha concreta.
+   *
+   * Van por su cuenta y sin esperarlas: si tardan o fallan, la rotación sigue
+   * con las fijas y el fisioterapeuta no nota nada. Cuando llegan, se ponen las
+   * primeras y se ven al momento.
+   */
+  function pedirAliento(sospecha) {
+    pedir("/api/aliento", { sospecha: sospecha })
+      .then(function (d) {
+        var frases = d.frases || [];
+        if (!frases.length || !document.getElementById("espera-paso")) return;
+        pasosActuales = frases.concat(PASOS_ESPERA);
+        var el = document.getElementById("espera-paso");
+        el.innerHTML = "<span>" + esc(frases[0]) + "</span>";
+      })
+      .catch(function () {});
   }
 
   function pararPasos() {
@@ -1225,6 +1294,7 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
     salida.innerHTML = haloEspera(sospecha);
     arrancarPasos();
+    pedirAliento(sospecha);
 
     pedir("/api/bateria", { sospecha: sospecha })
       .then(function (d) {
@@ -1383,10 +1453,13 @@ a { color: var(--azul); text-underline-offset: 3px; }
       '<span class="rotulo hoja-rotulo">Antes de seguir explorando</span>' +
       '<h3 id="hoja-titulo">Banderas rojas en ' + esc(estado.region) + "</h3>" +
       estado.banderas.map(function (b) {
-        return '<div class="bandera">' +
-          "<h4>" + esc(b.titulo) + '<span class="prioridad ' + esc(b.prioridad) + '">' + esc(b.prioridad) + "</span></h4>" +
+        return '<div class="bandera ' + esc(b.prioridad) + '">' +
+          '<div class="bandera-cab">' +
+            "<h4>" + esc(b.titulo) + "</h4>" +
+            '<span class="prioridad ' + esc(b.prioridad) + '">' + esc(b.prioridad) + "</span>" +
+          "</div>" +
           "<ul>" + b.senales.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>" +
-          "<p>" + esc(b.accion) + "</p>" +
+          '<p class="bandera-accion">' + esc(b.accion) + "</p>" +
         "</div>";
       }).join("") +
       '<p class="advertencia">' + esc(estado.advertencia) + "</p>";
