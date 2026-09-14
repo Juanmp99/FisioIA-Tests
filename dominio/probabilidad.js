@@ -20,13 +20,38 @@ export const PRE_TEST = {
 /** Tolerancia relativa al comprobar la coherencia entre Sn, Sp y las razones de verosimilitud. */
 const TOLERANCIA = 0.15;
 
-const esProporcion = (x) => typeof x === "number" && Number.isFinite(x) && x > 0 && x < 1;
+const esProporcion = (x) => typeof x === "number" && Number.isFinite(x) && x > 0 && x <= 1;
+
+/**
+ * Corrección de continuidad para las precisiones perfectas.
+ *
+ * Una especificidad de 1,00 se publica a menudo, y con razón: hay tests muy
+ * específicos en los que ningún participante sano dio positivo. El
+ * apprehension test y el relocation test son dos.
+ *
+ * Tomarla al pie de la letra daría una razón de verosimilitud infinita y, con
+ * ella, una certeza absoluta tras un solo test. Ningún estudio sostiene eso:
+ * que no se vieran falsos positivos en una muestra no significa que no
+ * existan. Se recorta una milésima, que deja una razón de verosimilitud
+ * enorme pero finita y una conclusión que sigue siendo "confirma".
+ *
+ * Antes se rechazaba el dato entero por no ser "una proporción entre 0 y 1",
+ * que además de tirar información buena era falso: 1 sí lo es.
+ */
+export const CORRECCION = 0.999;
+
+const acotar = (x) => (x === 1 ? CORRECCION : x);
+
+/** ¿Hace falta recortar alguna de las dos cifras para no dar un infinito? */
+export const necesitaCorreccion = (sn, sp) => sn === 1 || sp === 1;
 
 /** Razones de verosimilitud derivadas de sensibilidad y especificidad. */
 export function razonesDeVerosimilitud(sn, sp) {
+  const s = acotar(sn);
+  const e = acotar(sp);
   return {
-    positiva: sn / (1 - sp),
-    negativa: (1 - sn) / sp,
+    positiva: s / (1 - e),
+    negativa: (1 - s) / e,
   };
 }
 
@@ -46,6 +71,19 @@ export function validarPrecision({ sn, sp, lrPositiva, lrNegativa }) {
   if (!esProporcion(sn)) problemas.push("La sensibilidad no es una proporción entre 0 y 1.");
   if (!esProporcion(sp)) problemas.push("La especificidad no es una proporción entre 0 y 1.");
   if (problemas.length) return { valido: false, problemas };
+
+  // Con una precisión perfecta la identidad degenera: la razón de verosimilitud
+  // que deduciríamos es la de la cifra recortada, no la del artículo, así que
+  // compararlas no diría nada.
+  if (necesitaCorreccion(sn, sp)) {
+    if (typeof lrPositiva === "number" && lrPositiva < 1) {
+      problemas.push("Una razón de verosimilitud positiva menor que 1 invertiría el significado del test.");
+    }
+    if (typeof lrNegativa === "number" && lrNegativa > 1) {
+      problemas.push("Una razón de verosimilitud negativa mayor que 1 invertiría el significado del test.");
+    }
+    return { valido: problemas.length === 0, problemas };
+  }
 
   const esperada = razonesDeVerosimilitud(sn, sp);
 
@@ -113,7 +151,17 @@ export function magnitud(lr) {
 const UMBRAL_CONFIRMA = 0.85;
 const UMBRAL_DESCARTA = 0.10;
 
-const pct = (p) => Math.round(p * 100);
+/**
+ * El porcentaje que se escribe en pantalla. Nunca 0 ni 100.
+ *
+ * Ninguna exploración física da certeza absoluta, y escribir "100%" la
+ * afirmaría. Aparece al redondear probabilidades muy altas, sobre todo desde
+ * que se admiten las precisiones perfectas con su corrección de continuidad.
+ * Un 99% dice lo mismo sin mentir.
+ */
+export const pctMostrado = (p) => Math.min(99, Math.max(1, Math.round(p * 100)));
+
+const pct = pctMostrado;
 
 /**
  * Interpreta un resultado concreto.
@@ -172,6 +220,9 @@ export function interpretar({ nivelPreTest, sn, sp, resultado }) {
       magnitud: fuerza,
       sensibilidad: sn,
       especificidad: sp,
+      // Para poder decirlo en pantalla: el número mostrado no es exactamente
+      // el que se ha usado para calcular.
+      corregida: necesitaCorreccion(sn, sp),
     },
   };
 }

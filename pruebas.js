@@ -2,15 +2,7 @@
 // conclusión clínica, y tiene que poder comprobarse en un segundo.
 
 import assert from "node:assert/strict";
-import {
-  PRE_TEST,
-  razonesDeVerosimilitud,
-  validarPrecision,
-  postTest,
-  magnitud,
-  interpretar,
-  validarParcial,
-} from "./dominio/probabilidad.js";
+import { PRE_TEST, razonesDeVerosimilitud, validarPrecision, postTest, magnitud, interpretar, validarParcial, necesitaCorreccion, pctMostrado, CORRECCION } from "./dominio/probabilidad.js";
 import { semaforo } from "./dominio/calidad.js";
 import { banderasPara } from "./dominio/banderas.js";
 import { coincidencia } from "./ia/entidades.js";
@@ -312,6 +304,52 @@ prueba("un estudio primario no se lee entero: no puede llegar a verde igualmente
 
 prueba("sin cifras encontradas no hay nada que afinar", () => {
   assert.equal(mereceTextoCompleto({ ...revision, encontrado: false }), false);
+});
+
+console.log("\nPrecisiones perfectas");
+
+// La literatura publica especificidades de 1,00 con frecuencia, y son justo
+// las de los tests más útiles para confirmar. Se rechazaban enteras.
+
+prueba("una especificidad de 1,00 es válida", () => {
+  assert.equal(validarPrecision({ sn: 0.72, sp: 1 }).valido, true);
+});
+
+prueba("una sensibilidad de 1,00 también", () => {
+  assert.equal(validarPrecision({ sn: 1, sp: 0.85 }).valido, true);
+});
+
+prueba("lo que está de verdad fuera de rango se sigue rechazando", () => {
+  assert.equal(validarPrecision({ sn: 0.7, sp: 1.3 }).valido, false);
+  assert.equal(validarPrecision({ sn: 0.7, sp: 0 }).valido, false);
+  assert.equal(validarPrecision({ sn: -0.1, sp: 0.8 }).valido, false);
+});
+
+prueba("la razón de verosimilitud nunca sale infinita", () => {
+  const a = razonesDeVerosimilitud(0.72, 1);
+  const b = razonesDeVerosimilitud(1, 0.85);
+  assert.ok(Number.isFinite(a.positiva) && Number.isFinite(a.negativa));
+  assert.ok(Number.isFinite(b.positiva) && Number.isFinite(b.negativa));
+});
+
+prueba("una especificidad perfecta confirma, pero sin prometer certeza", () => {
+  const r = interpretar({ nivelPreTest: "media", sn: 0.72, sp: 1, resultado: "positivo" });
+  assert.equal(r.interpretable, true);
+  assert.equal(r.detalle.corregida, true);
+  assert.ok(/[Cc]onfirma/.test(r.lectura));
+  assert.ok(r.detalle.postTest < 1, "la probabilidad nunca llega a 1");
+});
+
+prueba("se avisa solo cuando alguna cifra es exactamente 1", () => {
+  assert.equal(necesitaCorreccion(0.99, 0.99), false);
+  assert.equal(necesitaCorreccion(1, 0.5), true);
+  assert.equal(necesitaCorreccion(0.5, 1), true);
+});
+
+prueba("el porcentaje mostrado nunca es 0 ni 100", () => {
+  assert.equal(pctMostrado(0.9999), 99);
+  assert.equal(pctMostrado(0.0001), 1);
+  assert.equal(pctMostrado(0.46), 46);
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);
