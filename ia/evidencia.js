@@ -65,12 +65,18 @@ export function mereceTextoCompleto(datos) {
 }
 
 /**
- * Margen para la segunda pasada. Una función de Netlify muere a los 60 s, y
- * para entonces ya se han gastado la búsqueda y la primera extracción: si no
- * queda tiempo holgado, se entrega lo que hay en lugar de arriesgar la
- * respuesta entera.
+ * Hasta cuándo se puede empezar la segunda pasada.
+ *
+ * Una función de Netlify muere a los 60 s. Para cuando llega esta decisión ya
+ * se han gastado la búsqueda en PubMed y la primera extracción, que juntas
+ * suelen irse a la treintena de segundos. El primer valor que puse aquí fueron
+ * 25 s, medidos desde el principio de la función: el umbral quedaba por debajo
+ * de lo que ya se había consumido, así que la escalada no se disparó ni una
+ * sola vez. La auditoría lo cantó con un "leídas del texto completo: 0".
+ *
+ * Ahora son 32 s, que dejan 28 para bajar el artículo y volver a extraer.
  */
-const MARGEN_ESCALADA = 25000;
+const MARGEN_ESCALADA = 32000;
 
 /** Días tras los cuales se vuelve a intentar una búsqueda que no encontró nada. */
 const CADUCIDAD_NEGATIVOS = 30;
@@ -132,6 +138,14 @@ export async function evidenciaDe({ test, busqueda, entidad, terminos, senal }) 
   // Segunda pasada con el artículo entero, cuando el resumen se ha quedado
   // corto justo en lo que decide el color del semáforo.
   let pmcid = null;
+  if (mereceTextoCompleto(datos)) {
+    const gastado = Date.now() - inicio;
+    if (gastado >= MARGEN_ESCALADA) {
+      // Se deja constancia: sin esto, una escalada que nunca ocurre es
+      // indistinguible de una que ocurre y no cambia nada.
+      console.warn(`[pmc] ${test}: se salta el texto completo, ya van ${Math.round(gastado / 1000)} s`);
+    }
+  }
   if (mereceTextoCompleto(datos) && Date.now() - inicio < MARGEN_ESCALADA) {
     const fuente = articulos.find((a) => a.pmid === datos.pmid) || articulos[0];
     try {

@@ -14,8 +14,15 @@
 
 const BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";
 
-/** Tope de texto que se manda al modelo. Un artículo entero no cabe ni conviene. */
-const TOPE = 26000;
+/**
+ * Tope de texto que se manda al modelo.
+ *
+ * Un artículo entero no cabe ni conviene, y aquí el tamaño es tiempo: cuanto
+ * más largo, más tarda la segunda extracción, y esto ocurre dentro de una
+ * función que muere a los 60 segundos. Quince mil caracteres dan para las
+ * tablas y el método, que es lo que se viene a buscar.
+ */
+const TOPE = 15000;
 
 async function pedir(url, senal) {
   const respuesta = await fetch(url, { signal: senal });
