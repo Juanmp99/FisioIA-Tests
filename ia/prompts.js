@@ -178,6 +178,28 @@ export const ESQUEMA_EXTRACCION = {
   additionalProperties: false,
 };
 
+/**
+ * Segunda pasada, con el artículo entero delante.
+ *
+ * Se usa solo cuando la primera pasada dejó sin valorar el riesgo de sesgo o
+ * los intervalos de confianza: son los dos campos que un resumen casi nunca
+ * trae y los dos que impiden que una evidencia buena llegue a verde. En el
+ * texto completo suelen estar, y casi siempre en las tablas.
+ */
+export function mensajeExtraccionCompleta({ test, entidad, articulo, texto }) {
+  return (
+    `Test: ${test}\nEntidad clínica: ${entidad}\n\n` +
+    "Tienes el TEXTO COMPLETO de un solo artículo, no un resumen. Las tablas van primero.\n" +
+    "Aprovéchalo para lo que un resumen no permite: comprobar si constan intervalos de\n" +
+    "confianza y si son estrechos o amplios, y valorar con criterio el riesgo de sesgo\n" +
+    "(QUADAS-2) y la calidad de la revisión (AMSTAR-2). Las reglas sobre las cifras no\n" +
+    "cambian: solo vale lo que aparezca literalmente escrito.\n\n" +
+    `--- Artículo ---\nPMID: ${articulo.pmid}\nTítulo: ${articulo.titulo}\n` +
+    `Revista: ${articulo.revista} (${articulo.anio})\n` +
+    `Tipo de publicación: ${articulo.tipos?.join(", ") || "no consta"}\n\n${texto}`
+  );
+}
+
 export function mensajeExtraccion({ test, entidad, articulos }) {
   const textos = articulos
     .map(

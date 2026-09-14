@@ -7,8 +7,9 @@
 
 import { leer, escribir, cuantos } from "../lib/almacen.js";
 import { buscarPrecision, urlPubmed } from "./pubmed.js";
+import { textoCompleto } from "./pmc.js";
 import { pedirJson } from "./cliente.js";
-import { SISTEMA_EXTRACCION, ESQUEMA_EXTRACCION, mensajeExtraccion } from "./prompts.js";
+import { SISTEMA_EXTRACCION, ESQUEMA_EXTRACCION, mensajeExtraccion, mensajeExtraccionCompleta } from "./prompts.js";
 import { validarPrecision, validarParcial } from "../dominio/probabilidad.js";
 import { semaforo } from "../dominio/calidad.js";
 import { comprobarCita } from "../dominio/trazabilidad.js";
@@ -48,6 +49,29 @@ function sinDatos(motivo, articulos = []) {
   };
 }
 
+/**
+ * ¿Merece la pena leer el artículo entero?
+ *
+ * Solo si puede cambiar el veredicto. Un estudio primario no llega a verde
+ * jamás, por bien que esté hecho, así que leerlo entero sería gastar por
+ * gastar. En una revisión sistemática a la que solo le faltan los intervalos o
+ * la valoración del sesgo, en cambio, es exactamente lo que le falta.
+ */
+export function mereceTextoCompleto(datos) {
+  if (!datos.encontrado || datos.tipoEstudio !== "revision_sistematica") return false;
+  const sinIntervalos = datos.intervalos !== "estrecho" && datos.intervalos !== "amplio";
+  const sinSesgo = !datos.quadas2 || datos.quadas2 === "no_valorable";
+  return sinIntervalos || sinSesgo;
+}
+
+/**
+ * Margen para la segunda pasada. Una función de Netlify muere a los 60 s, y
+ * para entonces ya se han gastado la búsqueda y la primera extracción: si no
+ * queda tiempo holgado, se entrega lo que hay en lugar de arriesgar la
+ * respuesta entera.
+ */
+const MARGEN_ESCALADA = 25000;
+
 /** Días tras los cuales se vuelve a intentar una búsqueda que no encontró nada. */
 const CADUCIDAD_NEGATIVOS = 30;
 
@@ -66,6 +90,7 @@ const diasDesde = (iso) => (Date.now() - new Date(iso).getTime()) / 86400000;
  * infructuosa en cada consulta, pero caducan: la literatura crece.
  */
 export async function evidenciaDe({ test, busqueda, entidad, terminos, senal }) {
+  const inicio = Date.now();
   const consulta = busqueda || test;
   const lista = (Array.isArray(terminos) && terminos.length ? terminos : [entidad]).filter(Boolean);
   const termino = lista[0];
@@ -96,11 +121,38 @@ export async function evidenciaDe({ test, busqueda, entidad, terminos, senal }) 
     return vacio;
   }
 
-  const { datos } = await pedirJson({
+  const nombreEntidad = `${entidad} (${lista.join("; ")})`;
+
+  let { datos } = await pedirJson({
     sistema: SISTEMA_EXTRACCION,
-    mensaje: mensajeExtraccion({ test, entidad: `${entidad} (${lista.join("; ")})`, articulos }),
+    mensaje: mensajeExtraccion({ test, entidad: nombreEntidad, articulos }),
     esquema: ESQUEMA_EXTRACCION,
   });
+
+  // Segunda pasada con el artículo entero, cuando el resumen se ha quedado
+  // corto justo en lo que decide el color del semáforo.
+  let pmcid = null;
+  if (mereceTextoCompleto(datos) && Date.now() - inicio < MARGEN_ESCALADA) {
+    const fuente = articulos.find((a) => a.pmid === datos.pmid) || articulos[0];
+    try {
+      const completo = await textoCompleto(fuente.pmid, senal);
+      if (completo) {
+        const segunda = await pedirJson({
+          sistema: SISTEMA_EXTRACCION,
+          mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto }),
+          esquema: ESQUEMA_EXTRACCION,
+        });
+        // Solo se adopta si sigue encontrando el dato: el texto completo está
+        // para afinar la valoración, no para perder una cifra que ya teníamos.
+        if (segunda.datos?.encontrado) {
+          datos = segunda.datos;
+          pmcid = completo.pmcid;
+        }
+      }
+    } catch (e) {
+      console.warn(`[pmc] ${test}: ${e.message}`);
+    }
+  }
 
   // El modelo devuelve a veces la cifra en porcentaje pese a pedírsela como
   // proporción. Rechazarla sería tirar un dato bueno por un problema de unidades:
@@ -189,6 +241,10 @@ export async function evidenciaDe({ test, busqueda, entidad, terminos, senal }) 
       url: urlPubmed(fuente.pmid),
     },
     notas: datos.notas,
+    // Deja constancia de que la valoración salió del artículo entero y no del
+    // resumen: la auditoría necesita poder distinguirlo.
+    deTextoCompleto: Boolean(pmcid),
+    pmcid,
     citaLiteral: datos.citaLiteral || "",
     normalizadaDesdePorcentaje: normalizada,
     trazable: trazabilidad.verificada,

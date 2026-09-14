@@ -51,6 +51,34 @@ console.log(`  Sin cifras:                  ${sinCifras.length}`);
 console.log(`  Con cita comprobada:         ${limpias.length}`);
 console.log(`  Pendientes de revisar:       ${dudosas.length}`);
 
+// De dónde salió la valoración y en qué se queda el semáforo: es lo que dice
+// si merece la pena seguir bajando al texto completo.
+const completos = conCifras.filter((e) => e.deTextoCompleto).length;
+console.log(`  Leídas del texto completo:   ${completos}`);
+
+const porColor = {};
+for (const e of conCifras) {
+  const id = e.calidad?.id || "sin valorar";
+  porColor[id] = (porColor[id] || 0) + 1;
+}
+console.log("\n  Semáforo:");
+for (const [color, n] of Object.entries(porColor)) console.log(`    ${color.padEnd(12)} ${n}`);
+
+const frena = {};
+for (const e of conCifras) {
+  if (e.calidad?.id === "verde") continue;
+  if (e.tipoEstudio === "estudio_primario") frena["no es revisión sistemática"] = (frena["no es revisión sistemática"] || 0) + 1;
+  if (!e.intervalos || e.intervalos === "desconocido") frena["sin intervalos de confianza"] = (frena["sin intervalos de confianza"] || 0) + 1;
+  if (!e.quadas2 || e.quadas2 === "no_valorable") frena["sin valoración QUADAS-2"] = (frena["sin valoración QUADAS-2"] || 0) + 1;
+  if (e.consistencia === "desconocida") frena["consistencia desconocida"] = (frena["consistencia desconocida"] || 0) + 1;
+}
+if (Object.keys(frena).length) {
+  console.log("\n  Qué impide el verde:");
+  for (const [motivo, n] of Object.entries(frena).sort((a, b) => b[1] - a[1])) {
+    console.log(`    ${String(n).padStart(4)}  ${motivo}`);
+  }
+}
+
 function ficha(e) {
   console.log("\n" + "-".repeat(78));
   console.log(`${e.test.toUpperCase()}  ·  ${e.entidad}`);

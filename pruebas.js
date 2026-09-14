@@ -14,6 +14,7 @@ import {
 import { semaforo } from "./dominio/calidad.js";
 import { banderasPara } from "./dominio/banderas.js";
 import { coincidencia } from "./ia/entidades.js";
+import { mereceTextoCompleto } from "./ia/evidencia.js";
 
 let pasadas = 0;
 const cerca = (a, b, t = 0.01) => Math.abs(a - b) < t;
@@ -277,6 +278,40 @@ prueba("devuelve nulo cuando ningún término está registrado", () => {
 prueba("no se rompe sin términos", () => {
   assert.equal(coincidencia(undefined, {}), null);
   assert.equal(coincidencia([], {}), null);
+});
+
+console.log("\nEscalada al texto completo");
+
+// Leer el artículo entero cuesta dinero y tiempo. Estas reglas deciden cuándo
+// vale la pena, así que conviene que no se muevan sin darse cuenta.
+
+const revision = {
+  encontrado: true,
+  tipoEstudio: "revision_sistematica",
+  intervalos: "desconocido",
+  quadas2: "no_valorable",
+};
+
+prueba("una revisión sin intervalos ni valoración de sesgo merece el texto completo", () => {
+  assert.equal(mereceTextoCompleto(revision), true);
+});
+
+prueba("le basta con que falte una de las dos cosas", () => {
+  assert.equal(mereceTextoCompleto({ ...revision, quadas2: "bajo" }), true);
+  assert.equal(mereceTextoCompleto({ ...revision, intervalos: "estrecho" }), true);
+});
+
+prueba("una revisión ya completa no se vuelve a leer", () => {
+  assert.equal(mereceTextoCompleto({ ...revision, intervalos: "estrecho", quadas2: "bajo" }), false);
+  assert.equal(mereceTextoCompleto({ ...revision, intervalos: "amplio", quadas2: "alto" }), false);
+});
+
+prueba("un estudio primario no se lee entero: no puede llegar a verde igualmente", () => {
+  assert.equal(mereceTextoCompleto({ ...revision, tipoEstudio: "estudio_primario" }), false);
+});
+
+prueba("sin cifras encontradas no hay nada que afinar", () => {
+  assert.equal(mereceTextoCompleto({ ...revision, encontrado: false }), false);
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);
