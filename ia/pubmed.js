@@ -7,6 +7,8 @@
 // esquema de PubMed es estable y solo extraemos seis campos. Si algún día
 // hiciera falta más, toca traer un analizador de verdad.
 
+import { buscarCuerpoCompleto } from "./europepmc.js";
+
 const BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";
 const PAUSA = 350;
 
@@ -84,6 +86,16 @@ async function traer(ids, senal) {
 const ARTICULOS_MAX = 15;
 const REVISIONES_MAX = 6;
 
+/**
+ * Cuántos de esos quince puede ocupar la búsqueda en el cuerpo del artículo.
+ *
+ * Cinco, y no más, porque lo que aporta Europe PMC es cobertura y no criterio:
+ * su API no ordena por relevancia, solo por fecha, y lo que llega arriba hay
+ * que reordenarlo aquí. Cinco huecos bastan para colar el estudio que PubMed no
+ * ve sin arriesgar los diez primeros, que vienen ya ordenados por relevancia.
+ */
+const CUERPO_COMPLETO_MAX = 5;
+
 const ACCURACY = '(sensitivity OR specificity OR "diagnostic accuracy" OR "likelihood ratio")';
 const REVISIONES = '(systematic[sb] OR meta-analysis[pt] OR "systematic review"[pt])';
 
@@ -117,8 +129,22 @@ function clausulaOr(terminos) {
  * y en el semáforo. Aquí lo único que importa es no perder el artículo bueno.
  */
 export async function buscarPrecision({ test, nombresTest, terminos, senal }) {
-  const t = clausulaOr([test, ...(Array.isArray(nombresTest) ? nombresTest : [])]);
-  const entidad = clausulaOr(Array.isArray(terminos) ? terminos : [terminos]);
+  const nombres = [test, ...(Array.isArray(nombresTest) ? nombresTest : [])];
+  const lista = Array.isArray(terminos) ? terminos : [terminos];
+  const t = clausulaOr(nombres);
+  const entidad = clausulaOr(lista);
+
+  // Europe PMC busca dentro del cuerpo del artículo, que es donde vive la tabla
+  // de resultados con las cifras de cada test. Se lanza a la vez que la primera
+  // consulta a PubMed y se recoge al final, así que no cuesta tiempo. Sus
+  // hallazgos ocupan huecos que ya estaban pagados, no artículos de más: el
+  // total que se manda a extraer sigue siendo ARTICULOS_MAX.
+  const deCuerpoCompleto = buscarCuerpoCompleto({
+    nombresTest: nombres,
+    terminos: lista,
+    limite: CUERPO_COMPLETO_MAX,
+    senal,
+  });
 
   const estrategias = [
     { id: "especifica", termino: `${t} AND ${entidad} AND ${ACCURACY}` },
@@ -133,20 +159,42 @@ export async function buscarPrecision({ test, nombresTest, terminos, senal }) {
     const generales = (await buscarIds(estrategia.termino, ARTICULOS_MAX, senal)).filter((id) => !revisiones.includes(id));
     await esperar(PAUSA);
 
-    const ids = [...revisiones, ...generales].slice(0, ARTICULOS_MAX);
-    if (!ids.length) continue;
+    // El ensanchado se decide con lo que encuentra PubMed y solo con eso. Si
+    // contara también lo del cuerpo, una consulta demasiado estrecha que Europe
+    // PMC salvara por los pelos se daría por buena y la escalera no llegaría a
+    // soltar la restricción que sobraba.
+    if (!revisiones.length && !generales.length) continue;
+
+    const cuerpo = await deCuerpoCompleto;
+
+    // Las revisiones primero, porque son las únicas que pueden dar verde.
+    // Después lo que aportó la búsqueda en el cuerpo, que desplaza a los
+    // últimos resultados de PubMed y no a los primeros: si algo sobra de una
+    // lista ordenada por relevancia, es la cola.
+    const ids = [...new Set([...revisiones, ...cuerpo, ...generales])].slice(0, ARTICULOS_MAX);
 
     const articulos = await traer(ids, senal);
     const porId = new Map(articulos.map((a) => [a.pmid, a]));
+    const aportados = cuerpo.filter((id) => ids.includes(id) && !revisiones.includes(id) && !generales.includes(id));
 
-    // Se conserva el orden de la búsqueda: las revisiones primero.
     return {
       articulos: ids.map((id) => porId.get(id)).filter(Boolean),
       estrategia: estrategia.id,
+      deCuerpoCompleto: aportados.length,
     };
   }
 
-  return { articulos: [], estrategia: "sin_resultados" };
+  // Si PubMed no dio nada por ninguna de las tres vías, todavía queda lo que
+  // encontró la búsqueda en el cuerpo: es el caso para el que más falta hace.
+  const cuerpo = await deCuerpoCompleto;
+  if (cuerpo.length) {
+    const articulos = await traer(cuerpo, senal);
+    if (articulos.length) {
+      return { articulos, estrategia: "solo_cuerpo_completo", deCuerpoCompleto: articulos.length };
+    }
+  }
+
+  return { articulos: [], estrategia: "sin_resultados", deCuerpoCompleto: 0 };
 }
 
 export function urlPubmed(pmid) {

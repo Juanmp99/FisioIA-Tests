@@ -7,6 +7,7 @@ import { semaforo } from "./dominio/calidad.js";
 import { banderasPara } from "./dominio/banderas.js";
 import { coincidencia } from "./ia/entidades.js";
 import { mereceTextoCompleto } from "./ia/evidencia.js";
+import { promete } from "./ia/europepmc.js";
 
 let pasadas = 0;
 const cerca = (a, b, t = 0.01) => Math.abs(a - b) < t;
@@ -204,6 +205,56 @@ prueba("toda bandera trae señales y acción", () => {
       assert.ok(b.accion && b.accion.length > 10, `${b.id} sin acción`);
     }
   }
+});
+
+console.log("\nOrdenación de lo que encuentra Europe PMC");
+
+// Su API no ordena por relevancia, solo por fecha. Estas pruebas fijan el
+// criterio con el que se reordena, que es lo único que separa el estudio de
+// precisión del artículo quirúrgico reciente que nombra el test de pasada.
+
+prueba("un estudio de precisión diagnóstica puntúa alto", () => {
+  const p = promete({
+    title: "Diagnostic accuracy of clinical tests for rotator cuff tear",
+    abstractText: "Sensitivity and specificity were calculated against MRI.",
+  });
+  assert.ok(p >= 5, `esperaba 5 o más, salió ${p}`);
+});
+
+prueba("una técnica quirúrgica que nombra el test de pasada se queda fuera", () => {
+  const p = promete({
+    title: "Modified arthroscopic technique for repair of medial meniscus posterior root tears",
+    abstractText: "We describe a new repair technique and report outcomes at two years.",
+  });
+  assert.ok(p <= 0, `esperaba 0 o menos, salió ${p}`);
+});
+
+prueba("una revisión sistemática de precisión gana a un estudio primario igual", () => {
+  const comun = { abstractText: "Pooled sensitivity and specificity are reported." };
+  const revision = promete({ ...comun, title: "Diagnostic accuracy of provocative maneuvers: a systematic review" });
+  const primario = promete({ ...comun, title: "Diagnostic accuracy of provocative maneuvers" });
+  assert.ok(revision > primario);
+});
+
+prueba("no premia que el test aparezca en el título", () => {
+  // Es el punto entero de venir aquí: el artículo que interesa es el que
+  // estudia la exploración entera y publica el test en una tabla que el
+  // resumen no menciona. Premiar el título sería premiar lo que ya da PubMed.
+  const conNombre = promete({ title: "The Thessaly test: diagnostic accuracy", abstractText: "" });
+  const sinNombre = promete({ title: "Diagnostic accuracy of the knee examination", abstractText: "" });
+  assert.equal(conNombre, sinNombre);
+});
+
+prueba("un artículo de tratamiento que además mide precisión no se descarta", () => {
+  const p = promete({
+    title: "Diagnostic accuracy of physical examination before arthroscopic repair",
+    abstractText: "Sensitivity and specificity against arthroscopic findings.",
+  });
+  assert.ok(p > 0, `esperaba más de 0, salió ${p}`);
+});
+
+prueba("lo que no habla de diagnóstico ni de exploración no puntúa", () => {
+  assert.equal(promete({ title: "Epidemiology of knee pain in runners", abstractText: "A cohort study." }), 0);
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);

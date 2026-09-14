@@ -64,19 +64,47 @@ for (const e of conCifras) {
 console.log("\n  Semáforo:");
 for (const [color, n] of Object.entries(porColor)) console.log(`    ${color.padEnd(12)} ${n}`);
 
+// Por qué cada ficha se queda en ámbar. El semáforo exige los cinco criterios a
+// la vez, así que el color por sí solo no dice cuál falla, y sin eso no se sabe
+// si lo que falta es buscar mejor o si el listón está donde no se puede llegar.
+//
+// Cuenta sobre `valoracion`, que es la ficha que rellenó el modelo. Las entradas
+// guardadas antes de que eso se almacenase no la tienen, y se apartan en vez de
+// contarse como si les faltara todo.
 const frena = {};
+const sinFicha = [];
+const suma = (m) => (frena[m] = (frena[m] || 0) + 1);
+
 for (const e of conCifras) {
   if (e.calidad?.id === "verde") continue;
-  if (e.tipoEstudio === "estudio_primario") frena["no es revisión sistemática"] = (frena["no es revisión sistemática"] || 0) + 1;
-  if (!e.intervalos || e.intervalos === "desconocido") frena["sin intervalos de confianza"] = (frena["sin intervalos de confianza"] || 0) + 1;
-  if (!e.quadas2 || e.quadas2 === "no_valorable") frena["sin valoración QUADAS-2"] = (frena["sin valoración QUADAS-2"] || 0) + 1;
-  if (e.consistencia === "desconocida") frena["consistencia desconocida"] = (frena["consistencia desconocida"] || 0) + 1;
+  const v = e.valoracion;
+  if (!v) {
+    sinFicha.push(e);
+    continue;
+  }
+  if (e.parcial) suma("solo una de las dos cifras");
+  if (e.indirecta) suma("cifras medidas sobre otra entidad");
+  if (v.tipoEstudio !== "revision_sistematica") suma("no es revisión sistemática");
+  else if (v.amstar2 !== "alta" && v.amstar2 !== "moderada") suma("revisión sistemática de calidad insuficiente (AMSTAR-2)");
+  if (v.quadas2 !== "bajo") {
+    suma(v.quadas2 === "dudoso" ? "QUADAS-2 dudoso" : "QUADAS-2 no valorable con lo publicado");
+  }
+  if (v.consistencia !== "consistente") {
+    suma(v.consistencia === "discrepante" ? "los estudios discrepan" : "consistencia no valorable");
+  }
+  if (v.intervalos !== "estrecho") {
+    suma(v.intervalos === "amplio" ? "intervalos de confianza amplios" : "intervalos de confianza no publicados");
+  }
 }
+
 if (Object.keys(frena).length) {
   console.log("\n  Qué impide el verde:");
   for (const [motivo, n] of Object.entries(frena).sort((a, b) => b[1] - a[1])) {
     console.log(`    ${String(n).padStart(4)}  ${motivo}`);
   }
+}
+if (sinFicha.length) {
+  console.log(`\n    (${sinFicha.length} entradas anteriores al registro de la ficha de valoración: vacía la caché para recontarlas)`);
 }
 
 function ficha(e) {

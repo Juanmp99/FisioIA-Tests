@@ -225,6 +225,21 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   // aparecer en la frase que el modelo dice haber copiado del artículo.
   const trazabilidad = comprobarCita(datos.citaLiteral, { sn: datos.sn, sp: datos.sp });
 
+  // La ficha de valoración que rellena el modelo, tal cual, antes de que el
+  // semáforo la resuma en un color. Se guarda junto al resultado porque el
+  // color solo dice "no llega a verde", y la auditoría necesita saber por cuál
+  // de los cinco criterios se queda fuera. Mientras no se guardó, el apartado
+  // "qué impide el verde" contaba campos inexistentes y le salía el total en
+  // todas las filas.
+  const valoracion = {
+    tipoEstudio: datos.tipoEstudio,
+    amstar2: datos.amstar2,
+    quadas2: datos.quadas2,
+    consistencia: datos.consistencia,
+    intervalos: datos.intervalos,
+    numeroEstudios: datos.numeroEstudios || 1,
+  };
+
   const resultado = {
     hayCifras: true,
     // Solo se puede calcular probabilidad post-test con las dos cifras.
@@ -235,13 +250,9 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     sp: tieneSp ? datos.sp : null,
     indirecta,
     entidadDeLasCifras: indirecta ? datos.entidadDeLasCifras : null,
+    valoracion,
     calidad: semaforo({
-      tipoEstudio: datos.tipoEstudio,
-      amstar2: datos.amstar2,
-      quadas2: datos.quadas2,
-      consistencia: datos.consistencia,
-      intervalos: datos.intervalos,
-      numeroEstudios: datos.numeroEstudios || 1,
+      ...valoracion,
       indirecta,
       entidadDeLasCifras: datos.entidadDeLasCifras,
       parcial,
