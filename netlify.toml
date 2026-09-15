@@ -1,0 +1,33 @@
+# Configuración de despliegue en Netlify.
+#
+# El sitio es estático (publico/) más funciones sin servidor. No hay proceso
+# Node permanente: cada petición a /api/* arranca una función, la atiende y
+# muere. De ahí las dos consecuencias que gobiernan el resto del código:
+# nada puede guardarse en disco (va a Netlify Blobs) y nada puede tardar más
+# de 60 segundos (la batería de tests se pide test a test, en paralelo).
+
+[build]
+  publish = "publico"
+  functions = "netlify/functions"
+  command = "echo 'Sitio estatico: no hay paso de compilacion.'"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Las rutas de cada función se declaran en la propia función con
+# `export const config = { path: ... }`. Aquí solo queda la página de la
+# aplicación, para que /app funcione sin la extensión .html.
+[[redirects]]
+  from = "/app"
+  to = "/app.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

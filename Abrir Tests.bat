@@ -7,7 +7,11 @@ echo   Arrancando el asistente de tests. No cierres esta ventana mientras lo use
 echo   El navegador se abrira solo en unos segundos.
 echo.
 
-start "" powershell -NoProfile -Command "Start-Sleep -Seconds 4; Start-Process 'http://localhost:3200'"
+rem En local se salta la puerta del correo: el alta por correo es para la web
+rem publicada, no para trabajar aqui.
+set ACCESO_LIBRE=1
+
+start "" powershell -NoProfile -Command "Start-Sleep -Seconds 4; Start-Process 'http://localhost:3200/app'"
 npm start
 
 echo.

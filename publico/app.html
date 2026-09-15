@@ -1,0 +1,2225 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exploración guiada · FisioIA</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#070a11">
+
+<script>
+// Guardia de acceso. Va aquí arriba, antes de cualquier contenido, para que
+// quien llegue sin llave no llegue a ver la herramienta ni un instante.
+(function () {
+  var CLAVE = "fisioia.acceso";
+  var delEnlace = new URLSearchParams(location.search).get("acceso");
+  var guardado = null;
+  try { guardado = localStorage.getItem(CLAVE); } catch (e) {}
+
+  if (delEnlace) {
+    // Aún sin verificar contra el servidor: lo hace el script principal.
+    window.__accesoDelEnlace = delEnlace;
+  } else if (!guardado) {
+    location.replace("/?motivo=sin-acceso");
+  }
+})();
+</script>
+
+<style>
+/* ============================================================================
+   Sistema visual
+   ----------------------------------------------------------------------------
+   Una regla gobierna todo el color: aquí no decora, significa. El verde dice
+   que un resultado decide, el ámbar que mueve sin decidir, el gris que no
+   aporta nada. Si un color no significa algo, es gris.
+
+   La segunda regla es de jerarquía: lo que el fisioterapeuta tiene que leer
+   para decidir —qué cambia este resultado en su paciente— manda sobre todo lo
+   demás. El resto es contexto y se comporta como tal.
+   ============================================================================ */
+
+:root {
+  --fondo: #070a11;
+  --superficie: #0d1320;
+  --superficie-alta: #121a29;
+  --superficie-viva: #182234;
+  --borde: #1c2637;
+  --borde-vivo: #2b3a52;
+
+  --tinta: #e9eff8;
+  --tinta-media: #a3b2c9;
+  --tinta-tenue: #66758d;
+
+  --azul: #4d9fff;
+  --azul-hondo: #1f6fd6;
+  --verde: #2fd6a6;
+  --ambar: #f5b544;
+  --rojo: #ff6f61;
+  --violeta: #a78bfa;
+
+  --brillo-azul: rgba(77, 159, 255, .14);
+  --brillo-verde: rgba(47, 214, 166, .13);
+  --brillo-ambar: rgba(245, 181, 68, .12);
+  --brillo-rojo: rgba(255, 111, 97, .12);
+
+  --radio: 16px;
+  --radio-s: 10px;
+  --sombra: 0 1px 0 rgba(255,255,255,.04) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+  --curva: cubic-bezier(.16, 1, .3, 1);
+
+  --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+:root[data-tema="claro"],
+html:not([data-tema="oscuro"]) body.claro {
+  --fondo: #f4f7fc;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-tema="oscuro"]) {
+    --fondo: #f2f6fc;
+    --superficie: #ffffff;
+    --superficie-alta: #ffffff;
+    --superficie-viva: #f2f6fd;
+    --borde: #dde5f0;
+    --borde-vivo: #c4d2e6;
+
+    --tinta: #0c1626;
+    --tinta-media: #44566f;
+    --tinta-tenue: #6b7c94;
+
+    --azul: #1668d6;
+    --azul-hondo: #0d4ea8;
+    --verde: #0f9a74;
+    --ambar: #b57314;
+    --rojo: #c8382b;
+    --violeta: #7048d6;
+
+    --brillo-azul: rgba(22, 104, 214, .08);
+    --brillo-verde: rgba(15, 154, 116, .09);
+    --brillo-ambar: rgba(181, 115, 20, .09);
+    --brillo-rojo: rgba(200, 56, 43, .08);
+
+    --sombra: 0 1px 2px rgba(16, 34, 61, .05), 0 16px 36px -26px rgba(16, 34, 61, .4);
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--tinta);
+  font-family: var(--ui);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 40px;
+}
+
+/* Profundidad del fondo: dos focos de luz muy tenues que evitan que la pantalla
+   sea un plano liso. Fijos, para que no compitan con el contenido al desplazar. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(70% 50% at 15% -5%, var(--brillo-azul) 0%, transparent 70%),
+    radial-gradient(60% 45% at 100% 8%, rgba(167, 139, 250, .09) 0%, transparent 70%);
+}
+
+.marco { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 0 20px 60px; }
+
+a { color: var(--azul); text-underline-offset: 3px; }
+
+/* ============ barra superior ============ */
+
+.barra {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 24px;
+  background: color-mix(in srgb, var(--fondo) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border-bottom: 1px solid var(--borde);
+}
+
+.marca { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.marca b { font-size: 1.0625rem; font-weight: 800; letter-spacing: -.03em; }
+.marca b span { color: var(--verde); }
+.marca em {
+  font-style: normal; font-size: .8125rem; color: var(--tinta-tenue);
+  padding-left: 10px; border-left: 1px solid var(--borde-vivo);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.estado-modelo {
+  font-family: var(--mono); font-size: .6875rem; color: var(--tinta-tenue);
+  white-space: nowrap;
+}
+
+/* ============ consulta ============ */
+
+/* ============ el lanzador ============ */
+
+/* Aquí dentro ya no se vende nada: convencer es trabajo de la landing, y esta
+   pantalla se ve todas las veces mientras que aquella se ve una. Lo que queda
+   es el campo, centrado como un instrumento que se abre. */
+.consulta {
+  min-height: calc(100vh - 190px);
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 30px 0;
+  animation: entrar .6s var(--curva) both;
+}
+
+/* Al buscar deja de ser portada y se aparta: el trabajo pasa a ser lo de abajo. */
+.consulta.compacta {
+  min-height: 0; display: block; padding: 28px 0 6px;
+  animation: none;
+}
+.consulta.compacta h1 { font-size: 1.5rem; margin-bottom: 14px; }
+
+.consulta h1 {
+  margin: 0 0 20px;
+  font-size: clamp(2.2rem, 6vw, 3.25rem); line-height: 1.05;
+  letter-spacing: -.04em; font-weight: 800;
+  transition: font-size .4s var(--curva);
+}
+
+.rotulo {
+  display: inline-block;
+  font-size: .6875rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--tinta-tenue);
+}
+
+.buscador { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.buscador input {
+  flex: 1 1 320px; min-width: 0;
+  background: var(--superficie); color: var(--tinta);
+  border: 1px solid var(--borde-vivo); border-radius: 14px;
+  padding: 18px 20px; font: inherit; font-size: 1.0625rem;
+  transition: border-color .2s, box-shadow .2s;
+}
+.buscador input::placeholder { color: var(--tinta-tenue); }
+.buscador input:focus {
+  outline: 0; border-color: var(--azul);
+  box-shadow: 0 0 0 4px var(--brillo-azul);
+}
+
+.btn {
+  border: 0; border-radius: 14px; font: inherit; font-weight: 650;
+  padding: 18px 28px; cursor: pointer;
+  transition: transform .15s var(--curva), filter .2s, background .2s;
+}
+.btn:active { transform: scale(.98); }
+.btn-principal {
+  background: linear-gradient(180deg, var(--azul) 0%, var(--azul-hondo) 100%);
+  color: #fff; box-shadow: 0 6px 20px -8px var(--azul);
+}
+.btn-principal:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-principal:disabled { opacity: .55; cursor: default; }
+
+/* ============ últimas consultas ============ */
+
+/* Guardadas en el navegador y solo ahí. Saber qué patologías consulta un
+   fisioterapeuta es un dato con carga sanitaria, y no hay motivo para que salga
+   de su dispositivo: repetir una consulta suya sale además de la caché. */
+.recientes { margin-top: 26px; }
+.recientes-lista { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 10px; }
+.reciente {
+  background: none; border: 1px solid var(--borde); border-radius: 999px;
+  padding: 8px 15px; font: inherit; font-size: .875rem; color: var(--tinta-tenue);
+  cursor: pointer; transition: all .18s var(--curva);
+}
+.reciente:hover { color: var(--azul); border-color: var(--azul); background: var(--brillo-azul); }
+
+/* ============ tira de sugerencias ============ */
+
+/* Desfila como un panel de salidas, pero se para al acercarse y desaparece en
+   cuanto hay resultados en pantalla: es un elemento de bienvenida, no algo que
+   deba seguir moviéndose mientras se trabaja. */
+.tira { margin: 22px 0 0; }
+.tira-rotulo { display: block; margin-bottom: 10px; }
+
+.tira-pista {
+  overflow: hidden;
+  /* Aire para que el chip quepa entero al levantarse: sin esto, overflow
+     hidden le corta los dos píxeles que sube al pasar el ratón. */
+  padding: 8px 0;
+  margin: -8px 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 5%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 92%, transparent);
+}
+
+.tira-cinta {
+  display: flex; gap: 10px; width: max-content;
+  animation: desfilar 66s linear infinite;
+}
+.tira-pista:hover .tira-cinta,
+.tira-cinta:focus-within { animation-play-state: paused; }
+
+.sugerencia {
+  flex: none;
+  background: var(--superficie); border: 1px solid var(--borde);
+  border-radius: 999px; padding: 9px 17px;
+  font: inherit; font-size: .875rem; color: var(--tinta-media);
+  white-space: nowrap; cursor: pointer;
+  transition: color .18s, border-color .18s, background .18s, transform .18s var(--curva);
+}
+.sugerencia:hover {
+  color: var(--azul); border-color: var(--azul);
+  background: var(--brillo-azul); transform: translateY(-2px);
+}
+
+/* ============ el carril de pasos ============ */
+
+/* Los tres pasos no son un invento de diseño: son el razonamiento clínico.
+   Con cuánta sospecha llegas, qué encuentras, qué concluyes. Ponerlo a la vista
+   ordena la pantalla y, de paso, enseña a pensar.
+   Nunca bloquea: se puede marcar un resultado antes de fijar la sospecha
+   previa, y la herramienta lo permite a propósito. Esto informa, no cierra. */
+
+.trabajo { display: grid; grid-template-columns: 232px 1fr; gap: 38px; align-items: start; }
+/* Como en el panel de la ficha: el atributo hidden pone display:none desde la
+   hoja del navegador y cualquier display propio lo gana. */
+.trabajo[hidden] { display: none; }
+/* Mientras no hay batería —buscando, o una sospecha ambigua— no hay pasos que
+   enseñar, y el hueco del carril sobra. */
+.trabajo.sin-carril { grid-template-columns: 1fr; gap: 0; }
+.trabajo.sin-carril .carril { display: none; }
+
+.carril { position: sticky; top: 74px; }
+
+.alerta-banderas {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; text-align: left; font: inherit; font-size: .8125rem; font-weight: 600;
+  color: var(--rojo); background: var(--brillo-rojo);
+  border: 1px solid color-mix(in srgb, var(--rojo) 35%, transparent);
+  border-radius: 11px; padding: 11px 13px; margin-bottom: 18px; cursor: pointer;
+  transition: border-color .2s;
+}
+.alerta-banderas:hover { border-color: var(--rojo); }
+.alerta-banderas::before {
+  content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--rojo); box-shadow: 0 0 0 4px var(--brillo-rojo);
+  animation: latir 2.4s ease-in-out infinite;
+}
+
+.pasos { list-style: none; margin: 0; padding: 0; position: relative; }
+
+.paso-carril {
+  position: relative; display: flex; gap: 14px; align-items: flex-start;
+  padding: 0 0 26px; cursor: pointer;
+  background: none; border: 0; font: inherit; text-align: left; width: 100%;
+  color: var(--tinta-tenue);
+}
+.paso-carril:last-child { padding-bottom: 0; }
+
+/* El hilo que une los pasos. Se rellena a medida que se avanza. */
+.paso-carril:not(:last-child)::before {
+  content: ""; position: absolute; left: 15px; top: 32px; bottom: 6px; width: 2px;
+  background: var(--borde);
+}
+.paso-carril:not(:last-child).hecho::before {
+  background: linear-gradient(180deg, var(--verde), color-mix(in srgb, var(--verde) 30%, var(--borde)));
+}
+
+.paso-num {
+  flex: none; position: relative; z-index: 1;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--superficie); border: 2px solid var(--borde);
+  font-family: var(--mono); font-size: .8125rem; font-weight: 700;
+  transition: all .35s var(--curva);
+}
+
+.paso-carril.activo .paso-num {
+  border-color: var(--azul); color: var(--azul);
+  box-shadow: 0 0 0 5px var(--brillo-azul), 0 0 20px -4px var(--azul);
+}
+.paso-carril.hecho .paso-num {
+  border-color: var(--verde); background: var(--verde); color: var(--fondo);
+}
+.paso-carril.hecho .paso-num span { display: none; }
+.paso-carril.hecho .paso-num::after {
+  content: ""; width: 11px; height: 6px; margin-top: -3px;
+  border-left: 2.5px solid currentColor; border-bottom: 2.5px solid currentColor;
+  transform: rotate(-45deg);
+  /* Con la animación genérica de entrada se perdía la rotación: anima el
+     transform entero y se comía el rotate. Necesita la suya. */
+  animation: aparecerTic .35s var(--curva) both;
+}
+
+.paso-texto { padding-top: 4px; min-width: 0; }
+.paso-texto b { display: block; font-size: .9375rem; font-weight: 650; color: var(--tinta-media); transition: color .3s; }
+.paso-carril.activo .paso-texto b, .paso-carril.hecho .paso-texto b { color: var(--tinta); }
+.paso-valor {
+  display: block; font-family: var(--mono); font-size: .75rem; margin-top: 3px;
+  color: var(--tinta-tenue); font-variant-numeric: tabular-nums;
+}
+.paso-carril.hecho .paso-valor { color: var(--verde); }
+.paso-carril.activo .paso-valor { color: var(--azul); }
+
+/* Lo que falta por hacer, invitando en vez de alarmando. */
+.paso-carril.pendiente .paso-num { border-color: var(--azul); color: var(--azul); }
+.paso-carril.pendiente .paso-valor { color: var(--azul); animation: respirar 2.2s ease-in-out infinite; }
+
+.paso-detalle {
+  display: block; font-size: .75rem; margin-top: 3px; color: var(--tinta-tenue);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  /* En un móvil no hay ancho para un carril lateral: pasa a ser una barra fina
+     pegada arriba, con los tres pasos en horizontal. */
+  .trabajo { grid-template-columns: 1fr; gap: 0; }
+  .carril {
+    top: 58px; z-index: 30; margin: 0 -20px 18px; padding: 12px 20px;
+    background: color-mix(in srgb, var(--fondo) 90%, transparent);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--borde);
+  }
+  .pasos { display: flex; gap: 8px; }
+  .paso-carril { flex: 1; flex-direction: column; gap: 7px; padding: 0; align-items: flex-start; }
+  .paso-carril:not(:last-child)::before {
+    left: 34px; right: 8px; top: 15px; bottom: auto; width: auto; height: 2px;
+  }
+  .paso-num { width: 28px; height: 28px; font-size: .75rem; }
+  .paso-texto { padding-top: 0; }
+  .paso-texto b { font-size: .8125rem; }
+  .paso-valor { font-size: .6875rem; }
+  .paso-detalle { display: none; }
+  .alerta-banderas { margin-bottom: 12px; }
+}
+
+/* ============ piezas comunes ============ */
+
+.seccion { margin-top: 30px; animation: entrar .5s var(--curva) both; }
+
+.tarjeta {
+  background: linear-gradient(180deg, var(--superficie-alta) 0%, var(--superficie) 100%);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  padding: 22px 24px;
+}
+
+.aviso {
+  border-left: 3px solid var(--azul);
+  background: var(--brillo-azul);
+  border-radius: 0 var(--radio-s) var(--radio-s) 0;
+  padding: 14px 16px; color: var(--tinta-media);
+}
+.aviso.malo { border-left-color: var(--rojo); background: var(--brillo-rojo); }
+
+.opciones { display: grid; gap: 10px; }
+.opcion {
+  display: block; width: 100%; text-align: left;
+  background: var(--superficie-alta); border: 1px solid var(--borde);
+  border-radius: var(--radio-s); padding: 16px 18px; font: inherit; color: var(--tinta);
+  cursor: pointer; transition: border-color .2s, transform .15s var(--curva), background .2s;
+}
+.opcion:hover { border-color: var(--azul); transform: translateX(3px); background: var(--superficie-viva); }
+.opcion b { display: block; }
+.opcion span { display: block; font-size: .875rem; color: var(--tinta-tenue); margin-top: 3px; }
+
+/* ============ banderas rojas ============ */
+
+/* Cada bandera es una tarjeta con el color de su urgencia. Aquí el color no
+   adorna: separa lo que manda a urgencias hoy de lo que exige derivar antes de
+   tratar. Es lo único de la herramienta con consecuencias inmediatas. */
+.bandera {
+  border-radius: 14px; padding: 18px 20px; margin-bottom: 14px;
+  border: 1px solid var(--borde); background: var(--superficie);
+  border-left-width: 4px;
+}
+.bandera.urgente {
+  border-color: color-mix(in srgb, var(--rojo) 40%, var(--borde));
+  border-left-color: var(--rojo);
+  background: linear-gradient(100deg, var(--brillo-rojo), transparent 65%), var(--superficie);
+}
+.bandera.prioritaria {
+  border-color: color-mix(in srgb, var(--ambar) 38%, var(--borde));
+  border-left-color: var(--ambar);
+  background: linear-gradient(100deg, var(--brillo-ambar), transparent 65%), var(--superficie);
+}
+
+.bandera-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 11px; margin-bottom: 12px; }
+.bandera h4 {
+  margin: 0; font-size: 1.125rem; font-weight: 720; letter-spacing: -.02em; color: var(--tinta);
+}
+
+.prioridad {
+  font-size: .625rem; text-transform: uppercase; letter-spacing: .12em; font-weight: 800;
+  padding: 5px 10px; border-radius: 999px;
+  background: var(--brillo-ambar); color: var(--ambar);
+  border: 1px solid color-mix(in srgb, var(--ambar) 40%, transparent);
+}
+.prioridad.urgente {
+  background: var(--brillo-rojo); color: var(--rojo);
+  border-color: color-mix(in srgb, var(--rojo) 45%, transparent);
+  animation: latir 2.2s ease-in-out infinite;
+}
+
+.bandera ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.bandera li {
+  position: relative; padding-left: 20px;
+  font-size: .9375rem; color: var(--tinta-media);
+}
+.bandera li::before {
+  content: ""; position: absolute; left: 0; top: .6em;
+  width: 8px; height: 2px; border-radius: 2px; background: var(--ambar);
+}
+.bandera.urgente li::before { background: var(--rojo); }
+
+.bandera-accion {
+  margin: 14px 0 0; padding: 12px 14px;
+  border-radius: 10px; background: var(--superficie-viva);
+  font-size: .9375rem; font-weight: 600; color: var(--tinta);
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.bandera-accion::before { content: "→"; flex: none; color: var(--ambar); font-weight: 700; }
+.bandera.urgente .bandera-accion::before { color: var(--rojo); }
+
+.advertencia {
+  font-size: .8125rem; color: var(--tinta-tenue); padding: 16px 0 0; margin: 4px 0 0;
+  border-top: 1px solid var(--borde);
+}
+
+/* ============ sospecha previa ============ */
+
+.pretest h3 { margin: 0 0 6px; font-size: 1.0625rem; letter-spacing: -.01em; }
+.pretest p { margin: 0 0 18px; color: var(--tinta-media); font-size: .9375rem; max-width: 58ch; }
+
+.niveles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.nivel {
+  position: relative; overflow: hidden;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+  border-radius: var(--radio-s); padding: 14px 12px; cursor: pointer;
+  font: inherit; color: var(--tinta); text-align: left;
+  transition: border-color .2s, background .2s, transform .15s var(--curva);
+}
+.nivel:hover { border-color: var(--borde-vivo); transform: translateY(-2px); }
+.nivel b { display: block; font-size: .9375rem; }
+.nivel span { display: block; font-size: .75rem; color: var(--tinta-tenue); font-family: var(--mono); }
+.nivel[aria-pressed="true"] {
+  border-color: var(--azul); background: var(--brillo-azul);
+  box-shadow: 0 0 0 1px var(--azul) inset;
+}
+.nivel[aria-pressed="true"] span { color: var(--azul); }
+
+/* ============ medidor de probabilidad ============ */
+
+.medidor { margin: 14px 0 2px; }
+
+.pista {
+  position: relative; height: 10px; border-radius: 999px;
+  background: var(--superficie-viva);
+  border: 1px solid var(--borde);
+  overflow: visible;
+}
+
+.zona { position: absolute; top: 0; bottom: 0; }
+.zona-descarta { left: 0; width: 10%; background: linear-gradient(90deg, var(--brillo-verde), transparent); border-radius: 999px 0 0 999px; }
+.zona-confirma { right: 0; width: 15%; background: linear-gradient(270deg, var(--brillo-verde), transparent); border-radius: 0 999px 999px 0; }
+
+.recorrido {
+  position: absolute; top: 0; bottom: 0; border-radius: 999px;
+  animation: barrer .85s var(--curva) both;
+}
+.recorrido.sube { background: linear-gradient(90deg, transparent, var(--verde)); transform-origin: left center; }
+.recorrido.baja { background: linear-gradient(270deg, transparent, var(--azul)); transform-origin: right center; }
+.recorrido.nula { background: var(--tinta-tenue); opacity: .35; }
+
+.aguja { position: absolute; top: 50%; width: 2px; height: 20px; margin-top: -10px; border-radius: 2px; }
+.aguja-pre { background: var(--tinta-tenue); opacity: .8; }
+.aguja-post {
+  width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
+  background: var(--tinta); border: 3px solid var(--fondo);
+  animation: deslizar .85s var(--curva) both;
+  left: var(--hasta);
+}
+.aguja-post.sube { background: var(--verde); box-shadow: 0 0 14px var(--verde); }
+.aguja-post.baja { background: var(--azul); box-shadow: 0 0 14px var(--azul); }
+.aguja-post.nula { background: var(--tinta-tenue); box-shadow: none; }
+
+.medidor-pies {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: 10px; font-family: var(--mono); font-size: .75rem; color: var(--tinta-tenue);
+  font-variant-numeric: tabular-nums;
+}
+.destino { font-size: 1.25rem; font-weight: 700; color: var(--tinta); }
+.destino.sube { color: var(--verde); }
+.destino.baja { color: var(--azul); }
+
+/* ============ agrupaciones ============ */
+
+.cluster-nota {
+  display: flex; gap: 12px; align-items: flex-start;
+  font-size: .875rem; color: var(--tinta-tenue);
+  border: 1px dashed var(--borde-vivo); border-radius: var(--radio-s);
+  padding: 13px 16px;
+}
+.cluster-nota b { color: var(--tinta-media); font-weight: 600; }
+
+.tarjeta.cluster { border-color: color-mix(in srgb, var(--violeta) 40%, var(--borde)); }
+.tarjeta.cluster .rotulo { color: var(--violeta); }
+.tarjeta.cluster h3 { margin: 8px 0 4px; font-size: 1.0625rem; }
+.tarjeta.cluster .criterio { margin: 0 0 12px; color: var(--tinta-media); font-size: .9375rem; }
+.tarjeta.cluster ol { margin: 0; padding-left: 20px; color: var(--tinta-media); font-size: .9375rem; }
+
+/* ============ leyenda ============ */
+
+.leyenda {
+  border: 1px solid var(--borde); border-radius: var(--radio);
+  background: var(--superficie); padding: 2px 20px; margin-bottom: 16px;
+}
+.leyenda summary {
+  cursor: pointer; padding: 14px 0; font-weight: 600; font-size: .9375rem;
+  color: var(--tinta-media);
+}
+.leyenda dl { margin: 0; padding-bottom: 6px; }
+.leyenda dt { font-family: var(--mono); font-size: .8125rem; color: var(--azul); margin-top: 14px; }
+.leyenda dd { margin: 4px 0 0; font-size: .875rem; color: var(--tinta-media); }
+.leyenda > p { font-size: .8125rem; color: var(--tinta-tenue); padding: 14px 0 16px; margin: 14px 0 0; border-top: 1px solid var(--borde); }
+
+/* ============ tarjeta de test ============ */
+
+.tests { display: grid; gap: 14px; }
+
+.test {
+  background: linear-gradient(180deg, var(--superficie-alta) 0%, var(--superficie) 100%);
+  border: 1px solid var(--borde); border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+  animation: entrarCine .65s var(--curva) both;
+  transition: border-color .25s, box-shadow .25s;
+}
+.test.marcado { border-color: var(--borde-vivo); }
+
+/* El tono de cada tarjeta. No es decoración: sale de la calidad de la evidencia
+   de ese test, así que un vistazo al listado ya dice dónde hay literatura
+   sólida y dónde se pisa terreno flojo. Se queda deliberadamente tenue: los
+   colores saturados están reservados al veredicto, que es lo que debe saltar. */
+.test {
+  position: relative;
+  --tono: var(--tinta-tenue);
+  background:
+    radial-gradient(120% 70% at 0% 0%, color-mix(in srgb, var(--tono) 9%, transparent) 0%, transparent 62%),
+    linear-gradient(180deg, var(--superficie-alta) 0%, var(--superficie) 100%);
+}
+.test.tono-verde { --tono: var(--verde); }
+.test.tono-ambar { --tono: var(--ambar); }
+.test.tono-rojo { --tono: var(--tinta-tenue); }
+.test.tono-espera { --tono: var(--azul); }
+
+.test::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--tono), transparent 75%);
+  opacity: .6;
+}
+
+/* La cabecera es lo primero que se lee de cada test y ahora se comporta como
+   tal: el número entra deslizándose y el título tiene el peso de un titular. */
+.test-cab {
+  position: relative;
+  display: flex; gap: 18px; align-items: flex-start;
+  padding: 26px 24px 16px;
+}
+.test-cab::after {
+  content: ""; position: absolute; left: 24px; right: 24px; bottom: 0; height: 1px;
+  background: linear-gradient(90deg, var(--borde-vivo), transparent 70%);
+}
+
+.orden {
+  flex: none;
+  font-family: var(--mono); font-size: 2.5rem; font-weight: 800; line-height: .9;
+  letter-spacing: -.05em; font-variant-numeric: tabular-nums;
+  background: linear-gradient(155deg, var(--tono) 0%, color-mix(in srgb, var(--tono) 45%, var(--tinta-tenue)) 50%, transparent 125%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 20px color-mix(in srgb, var(--tono) 28%, transparent));
+  animation: entrarOrden .6s var(--curva) both;
+  animation-delay: inherit;
+  padding-top: 2px;
+  transition: filter .4s var(--curva);
+}
+
+.test-titulo { flex: 1; min-width: 0; }
+.test-titulo h3 {
+  margin: 0; font-size: clamp(1.3rem, 3.4vw, 1.6rem);
+  letter-spacing: -.035em; line-height: 1.15; font-weight: 750;
+  background: linear-gradient(120deg, var(--tinta) 20%, color-mix(in srgb, var(--azul) 55%, var(--tinta)) 120%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.objetivo { font-size: .9375rem; color: var(--tinta-tenue); margin-top: 6px; max-width: 62ch; }
+
+/* La franja de cifras y calidad. Antes estaba escondida dentro del desplegable:
+   la valoración de la evidencia se calculaba y no se veía. */
+.franja { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 0 20px 14px; }
+
+.cifra {
+  font-family: var(--mono); font-size: .8125rem; font-variant-numeric: tabular-nums;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+  border-radius: 8px; padding: 5px 10px; color: var(--tinta);
+}
+.cifra i { font-style: normal; color: var(--tinta-tenue); }
+.cifra.vacia { color: var(--tinta-tenue); }
+
+.sello {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: .8125rem; font-weight: 600; border-radius: 999px;
+  padding: 6px 13px 6px 11px; border: 1px solid transparent;
+}
+.sello i {
+  font-style: normal; font-size: .6875rem; text-transform: uppercase;
+  letter-spacing: .07em; font-weight: 700; opacity: .7;
+}
+.sello::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.sello.verde { color: var(--verde); background: var(--brillo-verde); border-color: color-mix(in srgb, var(--verde) 30%, transparent); }
+.sello.ambar { color: var(--ambar); background: var(--brillo-ambar); border-color: color-mix(in srgb, var(--ambar) 30%, transparent); }
+.sello.rojo { color: var(--tinta-tenue); background: var(--superficie-viva); border-color: var(--borde); }
+.sello.espera { color: var(--tinta-tenue); background: var(--superficie-viva); border-color: var(--borde); }
+.sello.espera::before { animation: latir 1.3s ease-in-out infinite; }
+
+.marbete {
+  font-size: .6875rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 700;
+  padding: 4px 9px; border-radius: 6px;
+  background: var(--brillo-ambar); color: var(--ambar);
+}
+
+/* ============ acciones del test ============ */
+
+.test-acciones {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 0 20px 18px;
+}
+.test-acciones .rotulo { margin-right: 4px; }
+
+.btn-res {
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+  border-radius: 10px; padding: 9px 18px; font: inherit; font-weight: 600;
+  color: var(--tinta-media); cursor: pointer;
+  transition: all .18s var(--curva);
+}
+.btn-res:hover { border-color: var(--borde-vivo); color: var(--tinta); }
+.btn-res[data-valor="positivo"][aria-pressed="true"] {
+  background: var(--brillo-verde); border-color: var(--verde); color: var(--verde);
+  box-shadow: 0 0 18px -6px var(--verde);
+}
+.btn-res[data-valor="negativo"][aria-pressed="true"] {
+  background: var(--brillo-azul); border-color: var(--azul); color: var(--azul);
+  box-shadow: 0 0 18px -6px var(--azul);
+}
+
+.btn-ficha {
+  margin-left: auto;
+  background: var(--superficie-viva); border: 1px solid var(--borde-vivo);
+  border-radius: 10px; font: inherit; font-size: .9375rem; font-weight: 600;
+  color: var(--tinta-media); cursor: pointer; padding: 9px 16px;
+  display: inline-flex; align-items: center; gap: 8px;
+  transition: all .18s var(--curva);
+}
+.btn-ficha:hover { color: var(--azul); border-color: var(--azul); background: var(--brillo-azul); }
+.btn-ficha::after { content: "›"; font-size: 1.15rem; line-height: 1; transition: transform .2s var(--curva); }
+.btn-ficha:hover::after { transform: translateX(3px); }
+
+/* ============ veredicto de un resultado ============ */
+
+.veredicto {
+  margin: 0 20px 18px; padding: 16px 18px;
+  border-radius: 12px; border: 1px solid var(--borde);
+  background: var(--superficie-viva);
+  animation: subir .4s var(--curva) both;
+}
+.veredicto.decide { border-color: color-mix(in srgb, var(--verde) 45%, transparent); background: var(--brillo-verde); }
+.veredicto.mueve { border-color: color-mix(in srgb, var(--azul) 40%, transparent); background: var(--brillo-azul); }
+.veredicto.nulo { border-color: color-mix(in srgb, var(--ambar) 40%, transparent); background: var(--brillo-ambar); }
+
+.veredicto-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.icono { flex: none; width: 20px; height: 20px; }
+.veredicto b { font-size: 1rem; letter-spacing: -.01em; }
+.veredicto .lectura { margin: 0; font-size: .9375rem; color: var(--tinta); }
+.calculo {
+  font-family: var(--mono); font-size: .75rem; color: var(--tinta-tenue);
+  margin-top: 10px; font-variant-numeric: tabular-nums; line-height: 1.7;
+}
+
+.hoja-pie {
+  margin: -12px 0 22px; font-size: .875rem; color: var(--tinta-tenue); max-width: 46ch;
+  padding-bottom: 20px; border-bottom: 1px solid var(--borde);
+}
+
+/* ============ ficha de ejecución ============ */
+
+/* Un panel flotante y no un acordeón: son cuatro pasos que se leen con el
+   paciente delante, y en un móvil una ventana a pantalla casi completa se lee
+   mucho mejor que un desplegable perdido en mitad del listado. */
+.hoja { position: fixed; inset: 0; z-index: 80; display: grid; }
+/* El atributo hidden pone display:none desde la hoja del navegador, y cualquier
+   display propio lo gana. Sin esta línea el panel se queda siempre abierto. */
+.hoja[hidden] { display: none; }
+.hoja-fondo {
+  position: absolute; inset: 0;
+  background: rgba(4, 7, 13, .72);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  animation: aparecer .28s ease both;
+}
+.hoja-panel {
+  position: relative; z-index: 1;
+  width: min(620px, 100%); max-height: 88vh; overflow-y: auto;
+  margin: auto auto 0; padding: 28px 26px calc(30px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, var(--superficie-alta), var(--superficie));
+  border: 1px solid var(--borde-vivo); border-bottom: 0;
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -20px 60px -20px rgba(0,0,0,.8);
+  animation: subirHoja .42s var(--curva) both;
+}
+@media (min-width: 700px) {
+  .hoja-panel { margin: auto; border-radius: 22px; border-bottom: 1px solid var(--borde-vivo); }
+}
+.hoja-cerrar {
+  position: absolute; top: 16px; right: 16px;
+  width: 34px; height: 34px; border-radius: 10px;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+  color: var(--tinta-media); font-size: 1.25rem; line-height: 1; cursor: pointer;
+}
+.hoja-cerrar:hover { color: var(--tinta); border-color: var(--borde-vivo); }
+.hoja-rotulo { display: block; margin-bottom: 8px; }
+.hoja h3 { margin: 0 0 22px; font-size: 1.5rem; letter-spacing: -.03em; padding-right: 40px; }
+
+.hoja dl { margin: 0; display: grid; gap: 16px; }
+.paso { display: grid; grid-template-columns: 108px 1fr; gap: 16px; align-items: start; }
+.paso dt { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--azul); font-weight: 700; padding-top: 3px; }
+.paso dd { margin: 0; font-size: 1rem; color: var(--tinta); }
+
+/* La cita nunca se esconde: sin revisor humano, el fisioterapeuta es la última
+   línea de defensa y no puede serlo si no ve de dónde sale el número. */
+.fuente {
+  margin: 0 20px 18px; padding: 12px 14px;
+  border-radius: 10px; border: 1px solid var(--borde);
+  background: var(--superficie); font-size: .8125rem; color: var(--tinta-tenue);
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.fuente a { color: var(--tinta-media); }
+.fuente a:hover { color: var(--azul); }
+
+.motivos { margin: 10px 0 0; padding-left: 18px; font-size: .8125rem; color: var(--tinta-tenue); }
+.motivos li { margin-bottom: 4px; }
+
+/* ============ conclusión final ============ */
+
+.conclusion {
+  margin-top: 34px;
+  border-radius: 20px; padding: 1px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--azul) 45%, transparent), transparent 55%, color-mix(in srgb, var(--verde) 30%, transparent));
+  animation: entrar .5s var(--curva) both;
+}
+.conclusion-dentro {
+  background: linear-gradient(180deg, var(--superficie-alta), var(--superficie));
+  border-radius: 19px; padding: 26px 26px 24px;
+}
+.conclusion h2 { margin: 10px 0 4px; font-size: 1.375rem; letter-spacing: -.025em; }
+.conclusion .sumario { margin: 0; color: var(--tinta-media); }
+
+.conclusion-medidor { margin: 22px 0 4px; }
+
+.hitos { display: grid; gap: 10px; margin-top: 22px; }
+.hito {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 13px 15px; border-radius: 11px;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+  font-size: .9375rem; color: var(--tinta-media);
+}
+.hito.alerta { border-color: color-mix(in srgb, var(--ambar) 45%, transparent); background: var(--brillo-ambar); color: var(--tinta); }
+.hito b { color: var(--tinta); font-weight: 650; }
+
+.nota-cadena { font-size: .8125rem; color: var(--tinta-tenue); margin: 18px 0 0; max-width: 64ch; }
+
+/* ============ carga ============ */
+
+/* El halo de espera.
+   La espera de la primera consulta es larga —el modelo identifica la entidad y
+   propone la batería— y una barra gris no cuenta nada. Esto sí: gira mientras
+   piensa y narra los pasos que de verdad está dando, con la sospecha escrita
+   delante. Nada de lo que dice es inventado. */
+
+.espera {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 54px 20px 58px; text-align: center;
+  animation: entrar .5s var(--curva) both;
+}
+
+.halo {
+  position: relative; width: 340px; height: 340px; max-width: 86vw;
+  display: grid; place-items: center;
+}
+.halo svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+
+.anillo { fill: none; stroke-width: 2; transform-box: fill-box; transform-origin: center; }
+.anillo.pista { stroke: var(--borde); stroke-width: 1.5; }
+
+.anillo.arco {
+  stroke: url(#degradadoHalo); stroke-linecap: round;
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--azul) 60%, transparent));
+}
+/* Tres arcos a distintas velocidades y sentidos: de ahí sale la sensación de
+   mecanismo, en lugar de la de una rueda dando vueltas. */
+.arco-1 { stroke-dasharray: 300 640; animation: girarHalo 3.6s linear infinite; }
+.arco-2 { stroke-dasharray: 150 560; animation: girarHalo 5.4s linear infinite reverse; opacity: .85; }
+.arco-3 { stroke-dasharray: 70 420; animation: girarHalo 2.8s linear infinite; opacity: .7; }
+
+/* El resplandor del centro va detrás del texto, no encima. */
+.nucleo { fill: url(#nucleoHalo); transform-box: fill-box; transform-origin: center;
+  animation: latirNucleo 3s ease-in-out infinite; }
+
+.orbita { transform-box: fill-box; transform-origin: center; animation: girarHalo 4.6s linear infinite; }
+.chispa { fill: var(--verde); filter: drop-shadow(0 0 9px var(--verde)); }
+
+/* Cuando ya hay números reales, el mismo anillo deja de ser adorno y pasa a
+   medir: se llena con los tests resueltos. */
+.anillo.avance {
+  stroke: var(--verde); stroke-linecap: round;
+  transform: rotate(-90deg);
+  transition: stroke-dashoffset .6s var(--curva);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--verde) 60%, transparent));
+}
+
+/* El texto, dentro del halo. */
+.halo-dentro {
+  position: relative; z-index: 1;
+  width: 62%; text-align: center;
+  display: flex; flex-direction: column; gap: 10px; align-items: center;
+}
+
+.espera-sujeto {
+  margin: 0; font-size: 1.125rem; font-weight: 700; letter-spacing: -.02em;
+  line-height: 1.25;
+}
+.espera-paso {
+  margin: 0; font-size: .8125rem; color: var(--tinta-tenue); line-height: 1.4;
+  min-height: 2.8em;
+}
+.espera-paso span { display: inline-block; animation: entrar .45s var(--curva) both; }
+
+@media (max-width: 620px) {
+  .halo { width: 290px; height: 290px; }
+  .espera { padding: 30px 16px 36px; }
+  .espera-sujeto { font-size: 1rem; }
+  .espera-paso { font-size: .75rem; }
+}
+
+
+.cargando { display: flex; align-items: center; gap: 11px; color: var(--tinta-tenue); font-size: .9375rem; }
+.girando {
+  width: 15px; height: 15px; flex: none;
+  border: 2px solid var(--borde-vivo); border-top-color: var(--azul);
+  border-radius: 50%; animation: girar .7s linear infinite;
+}
+
+.progreso {
+  display: flex; align-items: center; gap: 14px;
+  padding: 13px 18px; border-radius: var(--radio-s);
+  background: var(--superficie); border: 1px solid var(--borde);
+  margin-bottom: 14px;
+}
+.mini-halo { flex: none; }
+.progreso-texto { font-size: .875rem; color: var(--tinta-media); line-height: 1.45; }
+.progreso-texto b { color: var(--tinta); font-variant-numeric: tabular-nums; }
+.progreso-texto small { font-size: .75rem; color: var(--tinta-tenue); }
+
+.esqueleto {
+  height: 12px; border-radius: 6px;
+  background: linear-gradient(90deg, var(--superficie-viva) 25%, var(--borde) 50%, var(--superficie-viva) 75%);
+  background-size: 200% 100%;
+  animation: brillar 1.4s ease-in-out infinite;
+}
+
+/* ============ pie ============ */
+
+.pie-legal {
+  margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--borde);
+  font-size: .8125rem; color: var(--tinta-tenue); max-width: 66ch;
+}
+
+/* ============ animaciones ============ */
+
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes girarHalo { to { transform: rotate(360deg); } }
+@keyframes latirNucleo {
+  0%, 100% { transform: scale(1); opacity: .9; }
+  50% { transform: scale(1.09); opacity: 1; }
+}
+@keyframes latir { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes respirar { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+@keyframes brillar { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes entrar { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes entrarCine {
+  from { opacity: 0; transform: translateY(26px) scale(.985); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes entrarOrden { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+@keyframes subir { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes barrer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
+@keyframes subirHoja { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+@keyframes deslizar { from { left: var(--desde); } to { left: var(--hasta); } }
+/* La cinta lleva la lista dos veces: al llegar a la mitad vuelve al origen y el
+   salto es invisible. */
+@keyframes desfilar { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes trazar { to { stroke-dashoffset: 0; } }
+@keyframes aparecerTic {
+  from { opacity: 0; transform: rotate(-45deg) scale(.4); }
+  to { opacity: 1; transform: rotate(-45deg) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .aguja-post { left: var(--hasta); }
+  .recorrido { transform: none; }
+  .tira-pista { overflow-x: auto; }
+}
+
+@media (max-width: 620px) {
+  .paso { grid-template-columns: 1fr; gap: 2px; }
+  .niveles { grid-template-columns: 1fr; }
+  .btn-ficha { margin-left: 0; width: 100%; justify-content: center; }
+  .conclusion-dentro { padding: 22px 18px; }
+
+  /* En un móvil no cabe el nombre largo junto al estado del modelo, y el que
+     sobra es el subtítulo: la marca ya dice dónde estás. */
+  .marca em { display: none; }
+
+}
+</style>
+
+<div class="barra">
+  <div class="marca">
+    <b>Fisio<span>IA</span></b>
+    <em>Exploración guiada</em>
+  </div>
+  <span class="estado-modelo" id="estado"></span>
+</div>
+
+<div class="marco">
+  <section class="consulta" id="consulta">
+    <h1>¿Qué sospechas?</h1>
+
+    <form class="buscador" id="form">
+      <input id="sospecha" type="text" autocomplete="off" placeholder="Ej.: tendinopatía rotuliana, radiculopatía cervical, rotura del LCA">
+      <button class="btn btn-principal" id="enviar" type="submit">Buscar tests</button>
+    </form>
+
+    <div class="tira" id="tira">
+      <span class="rotulo tira-rotulo">O prueba con una de estas</span>
+      <div class="tira-pista"><div class="tira-cinta" id="tira-cinta"></div></div>
+    </div>
+
+    <div class="recientes" id="recientes" hidden>
+      <span class="rotulo">Tus últimas</span>
+      <div class="recientes-lista" id="recientes-lista"></div>
+    </div>
+  </section>
+
+  <div class="trabajo" id="trabajo" hidden>
+    <aside class="carril" id="carril"></aside>
+    <div id="salida"></div>
+  </div>
+
+  <p class="pie-legal">
+    Herramienta de apoyo al razonamiento clínico. No emite diagnósticos ni sustituye el juicio del
+    profesional: la decisión y la responsabilidad clínica son siempre del fisioterapeuta.
+  </p>
+</div>
+
+<div class="hoja" id="hoja" hidden>
+  <div class="hoja-fondo" data-cerrar-hoja></div>
+  <div class="hoja-panel" role="dialog" aria-modal="true" aria-labelledby="hoja-titulo">
+    <button class="hoja-cerrar" data-cerrar-hoja aria-label="Cerrar">&times;</button>
+    <div id="hoja-cuerpo"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============ acceso ============ */
+
+  var CLAVE_ACCESO = "fisioia.acceso";
+
+  function acceso() {
+    try { return localStorage.getItem(CLAVE_ACCESO) || ""; } catch (e) { return ""; }
+  }
+
+  function aLaEntrada(motivo) {
+    try { localStorage.removeItem(CLAVE_ACCESO); } catch (e) {}
+    location.replace("/?motivo=" + encodeURIComponent(motivo || "sin-acceso"));
+  }
+
+  // Quien llega desde el enlace del correo canjea el token una sola vez: se
+  // comprueba contra el servidor, se guarda y se limpia de la barra de
+  // direcciones para que no acabe pegado en un chat por descuido.
+  if (window.__accesoDelEnlace) {
+    var recibido = window.__accesoDelEnlace;
+    fetch("/api/verificar?acceso=" + encodeURIComponent(recibido))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) return aLaEntrada("enlace-invalido");
+        try { localStorage.setItem(CLAVE_ACCESO, recibido); } catch (e) {}
+        history.replaceState(null, "", "/app");
+      })
+      .catch(function () {});
+  }
+
+  var NIVELES = [
+    { id: "baja", nombre: "Baja", detalle: "en torno al 15%", corto: "Baja · 15%" },
+    { id: "media", nombre: "Media", detalle: "en torno al 45%", corto: "Media · 45%" },
+    { id: "alta", nombre: "Alta", detalle: "en torno al 75%", corto: "Alta · 75%" }
+  ];
+
+  var estado = {
+    entidad: "", terminos: [], region: "",
+    tests: [], agrupaciones: [], banderas: [], advertencia: "",
+    nivel: null,
+    evidencias: {},
+    resultados: {},
+    // Interpretaciones que ha devuelto el servidor, por nombre de test. De aquí
+    // sale la conclusión final: se reutiliza el cálculo del dominio en lugar de
+    // rehacer la aritmética en el navegador, que acabaría divergiendo.
+    interpretaciones: {}
+  };
+
+  var salida = document.getElementById("salida");
+  var form = document.getElementById("form");
+  var campo = document.getElementById("sospecha");
+  var enviar = document.getElementById("enviar");
+  var consulta = document.getElementById("consulta");
+  var trabajo = document.getElementById("trabajo");
+  var carril = document.getElementById("carril");
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function pedir(ruta, cuerpo) {
+    return fetch(ruta, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-acceso": acceso() },
+      body: JSON.stringify(cuerpo)
+    }).then(function (r) {
+      return r.json().then(function (d) {
+        if (r.status === 401) {
+          aLaEntrada("caducado");
+          throw new Error(d.error || "Tu acceso ya no es válido.");
+        }
+        if (typeof d.restantes === "number") mostrarRestantes(d.restantes);
+        if (!r.ok) throw new Error(d.error || "El servidor ha devuelto un error.");
+        return d;
+      });
+    });
+  }
+
+  var baseEstado = "";
+
+  function mostrarRestantes(n) {
+    var caja = document.getElementById("estado");
+    if (caja) caja.textContent = baseEstado + " · " + n + " consultas hoy";
+  }
+
+  fetch("/api/estado").then(function (r) { return r.json(); }).then(function (d) {
+    baseEstado = d.modelo + " · " + d.enCache + " en caché" + (d.credencial ? "" : " · sin clave");
+    document.getElementById("estado").textContent = baseEstado;
+  }).catch(function () {});
+
+  /* ============ iconos ============ */
+
+  function icono(tipo) {
+    var trazo = '<svg class="icono" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+    if (tipo === "decide") return trazo + '<path d="M20 6 9 17l-5-5"/></svg>';
+    if (tipo === "mueve") return trazo + '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
+    if (tipo === "nulo") return trazo + '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>';
+    if (tipo === "alerta") return trazo + '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>';
+    if (tipo === "libro") return trazo + '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
+    return trazo + '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
+  }
+
+  /* ============ tira de sugerencias ============ */
+
+  // Entidades concretas a propósito: un síndrome como "hombro doloroso" hace
+  // que la herramienta pida que concretes, y como carta de presentación
+  // conviene que la primera consulta de alguien salga bien a la primera.
+  var EJEMPLOS = [
+    "rotura del manguito rotador", "tendinopatía del supraespinoso", "capsulitis adhesiva",
+    "inestabilidad glenohumeral anterior", "epicondilalgia lateral", "epitrocleítis",
+    "síndrome del túnel carpiano", "tenosinovitis de De Quervain", "rizartrosis",
+    "pinzamiento femoroacetabular", "tendinopatía glútea", "rotura del labrum acetabular",
+    "rotura del ligamento cruzado anterior", "rotura de menisco medial", "tendinopatía rotuliana",
+    "condromalacia rotuliana", "esguince del ligamento peroneoastragalino anterior",
+    "fascitis plantar", "tendinopatía aquílea", "radiculopatía cervical",
+    "hernia discal lumbar", "estenosis de canal lumbar"
+  ];
+
+  (function pintarTira() {
+    var cinta = document.getElementById("tira-cinta");
+    var boton = function (texto) {
+      return '<button type="button" class="sugerencia" data-ej="' + esc(texto) + '">' + esc(texto) + "</button>";
+    };
+    // Dos vueltas de la misma lista: es lo que hace que el bucle no se note.
+    cinta.innerHTML = EJEMPLOS.map(boton).join("") + EJEMPLOS.map(boton).join("");
+  })();
+
+  /* ============ el halo de espera ============ */
+
+  /* Los pasos que se anuncian son los que el asistente da de verdad, y en este
+     orden: reconoce la entidad, elige los tests, los ordena de cribado a
+     confirmación y añade las banderas rojas de la región. Nada es de adorno;
+     si algún día cambia el proceso, cambia esta lista. */
+  var PASOS_ESPERA = [
+    "Identificando la entidad clínica…",
+    "Eligiendo los tests que la verifican…",
+    "Ordenando la exploración, de cribado a confirmación…",
+    "Comprobando las banderas rojas de la región…"
+  ];
+
+  function haloEspera(sospecha) {
+    return '<div class="espera">' +
+      '<div class="halo">' +
+        '<svg viewBox="0 0 200 200" aria-hidden="true">' +
+          "<defs>" +
+            '<linearGradient id="degradadoHalo" x1="0" y1="0" x2="1" y2="1">' +
+              '<stop offset="0%" stop-color="var(--azul)"/>' +
+              '<stop offset="100%" stop-color="var(--verde)"/>' +
+            "</linearGradient>" +
+            '<radialGradient id="nucleoHalo">' +
+              '<stop offset="0%" stop-color="var(--verde)" stop-opacity=".22"/>' +
+              '<stop offset="60%" stop-color="var(--azul)" stop-opacity=".12"/>' +
+              '<stop offset="100%" stop-color="var(--azul)" stop-opacity="0"/>' +
+            "</radialGradient>" +
+          "</defs>" +
+          '<circle class="nucleo" cx="100" cy="100" r="74"/>' +
+          '<circle class="anillo pista" cx="100" cy="100" r="96"/>' +
+          '<circle class="anillo pista" cx="100" cy="100" r="78"/>' +
+          '<circle class="anillo arco arco-1" cx="100" cy="100" r="96"/>' +
+          '<circle class="anillo arco arco-2" cx="100" cy="100" r="78"/>' +
+          '<circle class="anillo arco arco-3" cx="100" cy="100" r="62"/>' +
+          '<g class="orbita"><circle class="chispa" cx="100" cy="4" r="4.5"/></g>' +
+        "</svg>" +
+        '<div class="halo-dentro">' +
+          '<p class="espera-sujeto">' + esc(sospecha) + "</p>" +
+          '<p class="espera-paso" id="espera-paso"></p>' +
+        "</div>" +
+      "</div>" +
+    "</div>";
+  }
+
+  var rotador = null;
+  var pasosActuales = PASOS_ESPERA.slice();
+
+  function arrancarPasos() {
+    pasosActuales = PASOS_ESPERA.slice();
+    var i = 0;
+    var siguiente = function () {
+      var el = document.getElementById("espera-paso");
+      if (!el) return;
+      el.innerHTML = "<span>" + esc(pasosActuales[i % pasosActuales.length]) + "</span>";
+      i++;
+    };
+    siguiente();
+    rotador = setInterval(siguiente, 2600);
+  }
+
+  /**
+   * Líneas escritas para esta sospecha concreta.
+   *
+   * Van por su cuenta y sin esperarlas: si tardan o fallan, la rotación sigue
+   * con las fijas y el fisioterapeuta no nota nada. Cuando llegan, se ponen las
+   * primeras y se ven al momento.
+   */
+  function pedirAliento(sospecha) {
+    pedir("/api/aliento", { sospecha: sospecha })
+      .then(function (d) {
+        var frases = d.frases || [];
+        if (!frases.length || !document.getElementById("espera-paso")) return;
+        pasosActuales = frases.concat(PASOS_ESPERA);
+        var el = document.getElementById("espera-paso");
+        el.innerHTML = "<span>" + esc(frases[0]) + "</span>";
+      })
+      .catch(function () {});
+  }
+
+  function pararPasos() {
+    if (rotador) { clearInterval(rotador); rotador = null; }
+  }
+
+  /** El mismo anillo, ya midiendo: se llena con los tests resueltos. */
+  function anilloAvance(hechos, total) {
+    var vuelta = 2 * Math.PI * 18;
+    var recorrido = total ? (hechos / total) * vuelta : 0;
+    return '<svg class="mini-halo" viewBox="0 0 44 44" width="44" height="44" aria-hidden="true">' +
+      '<circle class="anillo pista" cx="22" cy="22" r="18"/>' +
+      '<circle class="anillo avance" cx="22" cy="22" r="18" stroke-width="3"' +
+        ' stroke-dasharray="' + vuelta.toFixed(1) + '"' +
+        ' stroke-dashoffset="' + (vuelta - recorrido).toFixed(1) + '"/>' +
+      "</svg>";
+  }
+
+  /* ============ consulta ============ */
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-ej]"), function (b) {
+    b.addEventListener("click", function () {
+      campo.value = b.getAttribute("data-ej");
+      form.dispatchEvent(new Event("submit", { cancelable: true }));
+    });
+  });
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    consultar(campo.value.trim());
+  });
+
+  function consultar(sospecha) {
+    if (sospecha.length < 3) return;
+    enviar.disabled = true;
+
+    // La portada deja de ser portada: el campo se aparta arriba y la tira y el
+    // historial desaparecen. Con la batería en pantalla solo estorban.
+    consulta.classList.add("compacta");
+    var tira = document.getElementById("tira");
+    if (tira) tira.hidden = true;
+    var caja = document.getElementById("recientes");
+    if (caja) caja.hidden = true;
+
+    trabajo.hidden = false;
+    trabajo.classList.add("sin-carril");
+    estado.tests = [];
+    actualizarCarril();
+
+    salida.innerHTML = haloEspera(sospecha);
+    arrancarPasos();
+    pedirAliento(sospecha);
+
+    pedir("/api/bateria", { sospecha: sospecha })
+      .then(function (d) {
+        if (d.estado === "no_reconocida") return pintarAviso(d.mensaje, true);
+        if (d.estado === "ambigua") return pintarAmbigua(d);
+
+        estado.entidad = d.entidad;
+        estado.terminos = d.terminosBusqueda || [];
+        estado.region = d.region;
+        estado.tests = d.tests;
+        estado.agrupaciones = d.agrupaciones || [];
+        estado.banderas = d.banderas || [];
+        estado.advertencia = d.advertenciaBanderas || "";
+        estado.nivel = null;
+        estado.evidencias = {};
+        estado.resultados = {};
+        estado.interpretaciones = {};
+
+        recordar(sospecha);
+        pasoActivo = 1;
+        pintar();
+        buscarEvidencia();
+      })
+      .catch(function (err) { pintarAviso(err.message, true); })
+      .finally(function () { pararPasos(); enviar.disabled = false; });
+  }
+
+  function pintarAviso(texto, malo) {
+    salida.innerHTML = '<div class="seccion"><div class="aviso' + (malo ? " malo" : "") + '">' + esc(texto) + "</div></div>";
+  }
+
+  function pintarAmbigua(d) {
+    salida.innerHTML =
+      '<div class="seccion">' +
+        '<span class="rotulo">Concreta la sospecha</span>' +
+        '<div class="aviso" style="margin:12px 0 16px">' + esc(d.mensaje) + "</div>" +
+        '<div class="opciones">' +
+          d.alternativas.map(function (a) {
+            return '<button class="opcion" data-alt="' + esc(a.entidad) + '">' +
+              "<b>" + esc(a.entidad) + "</b><span>" + esc(a.matiz) + "</span></button>";
+          }).join("") +
+        "</div>" +
+      "</div>";
+
+    Array.prototype.forEach.call(salida.querySelectorAll("[data-alt]"), function (b) {
+      b.addEventListener("click", function () {
+        campo.value = b.getAttribute("data-alt");
+        consultar(b.getAttribute("data-alt"));
+      });
+    });
+  }
+
+  /* ============ medidor de probabilidad ============ */
+
+  var pct = function (x) { return Math.round(x * 100); };
+
+  /**
+   * La pieza que hace tangible lo abstracto: dónde estaba tu sospecha y a dónde
+   * la lleva este resultado. Las zonas de los extremos son los umbrales a
+   * partir de los cuales se habla de confirmar o descartar en la práctica.
+   */
+  function medidor(pre, post, sentido) {
+    var a = Math.max(0, Math.min(100, pct(pre)));
+    var b = Math.max(0, Math.min(100, pct(post)));
+    var izq = Math.min(a, b);
+    var ancho = Math.abs(b - a);
+    var clase = sentido === "nulo" ? "nula" : (b >= a ? "sube" : "baja");
+
+    return '<div class="medidor">' +
+        '<div class="pista">' +
+          '<span class="zona zona-descarta"></span>' +
+          '<span class="zona zona-confirma"></span>' +
+          '<span class="recorrido ' + clase + '" style="left:' + izq + '%;width:' + ancho + '%"></span>' +
+          '<span class="aguja aguja-pre" style="left:' + a + '%"></span>' +
+          '<span class="aguja aguja-post ' + clase + '" style="--desde:' + a + '%;--hasta:' + b + '%"></span>' +
+        "</div>" +
+        '<div class="medidor-pies">' +
+          "<span>partías del " + a + "%</span>" +
+          '<span class="destino ' + clase + '" data-desde="' + a + '" data-hasta="' + b + '">' + a + "%</span>" +
+        "</div>" +
+      "</div>";
+  }
+
+  /** Cuenta el porcentaje hasta su valor, para que el cambio se vea ocurrir. */
+  function animarCifras(raiz) {
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    Array.prototype.forEach.call((raiz || document).querySelectorAll("[data-hasta]"), function (el) {
+      var desde = Number(el.getAttribute("data-desde"));
+      var hasta = Number(el.getAttribute("data-hasta"));
+      if (reduce || desde === hasta) { el.textContent = hasta + "%"; return; }
+
+      var inicio = null;
+      var duracion = 850;
+      function paso(t) {
+        if (inicio === null) inicio = t;
+        var avance = Math.min(1, (t - inicio) / duracion);
+        var suave = 1 - Math.pow(1 - avance, 3);
+        el.textContent = Math.round(desde + (hasta - desde) * suave) + "%";
+        if (avance < 1) requestAnimationFrame(paso);
+      }
+      requestAnimationFrame(paso);
+    });
+  }
+
+  /* ============ pintado principal ============ */
+
+  function pintar() {
+    salida.innerHTML =
+      bloquePreTest() +
+      bloqueTests() +
+      '<div id="paso-3"><div id="conclusion"></div></div>';
+
+    Array.prototype.forEach.call(salida.querySelectorAll("[data-nivel]"), function (b) {
+      b.addEventListener("click", function () {
+        estado.nivel = b.getAttribute("data-nivel");
+        pintar();
+      });
+    });
+
+    var ley = document.getElementById("leyenda");
+    if (ley) {
+      ley.addEventListener("toggle", function () {
+        try { localStorage.setItem("fisioia.leyenda", ley.open ? "abierta" : "vista"); } catch (e) {}
+      });
+    }
+
+    Array.prototype.forEach.call(salida.querySelectorAll("[data-ficha]"), function (b) {
+      b.addEventListener("click", function () { abrirFicha(b.getAttribute("data-ficha")); });
+    });
+
+    Array.prototype.forEach.call(salida.querySelectorAll("[data-marcar]"), function (b) {
+      b.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        var nombre = b.getAttribute("data-marcar");
+        var valor = b.getAttribute("data-valor");
+        estado.resultados[nombre] = estado.resultados[nombre] === valor ? null : valor;
+        if (!estado.resultados[nombre]) delete estado.interpretaciones[nombre];
+        interpretarTest(nombre);
+      });
+    });
+
+    Object.keys(estado.resultados).forEach(function (nombre) {
+      if (estado.resultados[nombre]) interpretarTest(nombre);
+    });
+
+    animarCifras(salida);
+    refrescarConclusion();
+    actualizarCarril();
+  }
+
+  /* Las banderas ya no ocupan media pantalla en el listado: viven en el panel
+     flotante, al que se llega desde el aviso del carril. El aviso está siempre
+     a la vista y es rojo, así que se ven más que antes plegadas ahí abajo. */
+  function abrirBanderas() {
+    hojaCuerpo.innerHTML =
+      '<span class="rotulo hoja-rotulo">Antes de seguir explorando</span>' +
+      '<h3 id="hoja-titulo">Banderas rojas en ' + esc(estado.region) + "</h3>" +
+      '<p class="hoja-pie">Descártalas antes de seguir. Son lo único de esta herramienta que puede cambiar tu conducta hoy mismo.</p>' +
+      estado.banderas.map(function (b) {
+        return '<div class="bandera ' + esc(b.prioridad) + '">' +
+          '<div class="bandera-cab">' +
+            "<h4>" + esc(b.titulo) + "</h4>" +
+            '<span class="prioridad ' + esc(b.prioridad) + '">' + esc(b.prioridad) + "</span>" +
+          "</div>" +
+          "<ul>" + b.senales.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>" +
+          '<p class="bandera-accion">' + esc(b.accion) + "</p>" +
+        "</div>";
+      }).join("") +
+      '<p class="advertencia">' + esc(estado.advertencia) + "</p>";
+
+    devolverFoco = document.activeElement;
+    hoja.hidden = false;
+    document.body.style.overflow = "hidden";
+    var cerrar = hoja.querySelector(".hoja-cerrar");
+    if (cerrar) cerrar.focus();
+  }
+
+  function bloquePreTest() {
+    var niveles = NIVELES;
+
+    return '<div class="seccion" id="paso-1"><div class="tarjeta pretest">' +
+      "<h3>Antes de explorar: ¿cómo de fuerte es tu sospecha de " + esc(estado.entidad) + "?</h3>" +
+      "<p>La conclusión de cada test depende de con cuánta sospecha llegas a él. Se pregunta una sola vez y se aplica a toda la batería.</p>" +
+      '<div class="niveles">' +
+        niveles.map(function (n) {
+          return '<button class="nivel" data-nivel="' + n.id + '" aria-pressed="' + (estado.nivel === n.id) + '">' +
+            "<b>" + n.nombre + "</b><span>" + n.detalle + "</span></button>";
+        }).join("") +
+      "</div></div></div>";
+  }
+
+  /**
+   * Agrupaciones.
+   *
+   * Solo merecen protagonismo cuando la literatura publica su precisión como
+   * conjunto: son la única forma legítima de combinar varios tests. Mientras no
+   * esté verificado, ocupar dos tarjetas grandes para acabar diciendo "no me
+   * hagas caso" era ruido, y encima ruido destacado. Se queda en una línea.
+   */
+  function bloqueAgrupaciones() {
+    if (!estado.agrupaciones.length) return "";
+
+    var validadas = estado.agrupaciones.filter(function (a) {
+      var ev = estado.evidencias[a.nombre];
+      return ev && ev.hayCifras;
+    });
+
+    var html = validadas.map(function (a) {
+      var ev = estado.evidencias[a.nombre];
+      return '<div class="tarjeta cluster" style="margin-bottom:14px">' +
+        '<span class="rotulo">Agrupación validada</span>' +
+        "<h3>" + esc(a.nombre) + "</h3>" +
+        '<p class="criterio">' + esc(a.criterio) + "</p>" +
+        "<ol>" + a.tests.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ol>" +
+        '<div class="franja" style="padding:14px 0 0">' + chipsCifras(ev) + selloCalidad(ev) + "</div>" +
+        fuente(ev) +
+      "</div>";
+    }).join("");
+
+    var pendientes = estado.agrupaciones.filter(function (a) {
+      var ev = estado.evidencias[a.nombre];
+      return !ev || !ev.hayCifras;
+    });
+
+    if (pendientes.length) {
+      var buscando = pendientes.some(function (a) { return !estado.evidencias[a.nombre]; });
+      html += '<div class="cluster-nota">' + icono("info") +
+        "<span>" + (buscando
+          ? "Comprobando si hay agrupaciones validadas para esta patología…"
+          : "<b>" + pendientes.length + (pendientes.length === 1 ? " agrupación descrita" : " agrupaciones descritas") +
+            "</b> para esta patología (" + esc(pendientes.map(function (a) { return a.nombre; }).join(", ")) +
+            "), pero sin precisión diagnóstica publicada del conjunto. Interpreta cada test por separado.") +
+        "</span></div>";
+    }
+
+    return html;
+  }
+
+  // La leyenda se abre sola la primera vez y luego se recuerda plegada. Quien no
+  // sabe qué es una sensibilidad tampoco sabe que tiene que preguntarlo, así que
+  // la primera vez no puede estar escondida.
+  function leyenda() {
+    var vista = false;
+    try { vista = localStorage.getItem("fisioia.leyenda") === "vista"; } catch (e) {}
+
+    return '<details class="leyenda" id="leyenda"' + (vista ? "" : " open") + ">" +
+      "<summary>Qué significan Sn y Sp</summary>" +
+      "<dl>" +
+        "<div><dt>Sn · Sensibilidad</dt><dd>De cada 100 personas que <b>sí</b> tienen la lesión, " +
+          "a cuántas las detecta el test. Un test muy sensible que sale <b>negativo</b> ayuda a <b>descartar</b>.</dd></div>" +
+        "<div><dt>Sp · Especificidad</dt><dd>De cada 100 personas que <b>no</b> la tienen, " +
+          "a cuántas el test da negativo. Un test muy específico que sale <b>positivo</b> ayuda a <b>confirmar</b>.</dd></div>" +
+        "<div><dt>Sin cifras</dt><dd>Hemos buscado en la literatura y nadie ha publicado estos datos " +
+          "para ese test en esta patología. <b>No significa que el test no sirva</b>: muchas patologías se " +
+          "diagnostican por clínica y sus estudios no incluyen personas sanas, así que no puede calcularse " +
+          "la especificidad. Puedes usar el test; lo que no podemos decirte es cuánto cambia tu sospecha.</dd></div>" +
+      "</dl>" +
+      "<p>Ambas van de 0 a 1. Pero lo que significa un resultado depende también de con cuánta " +
+      "sospecha llegabas al test: por eso te preguntamos antes de explorar.</p>" +
+    "</details>";
+  }
+
+  function bloqueTests() {
+    var listos = estado.tests.filter(function (t) { return estado.evidencias[t.nombre]; }).length;
+    var total = estado.tests.length;
+
+    var progreso = listos < total
+      ? '<div class="progreso">' +
+          anilloAvance(listos, total) +
+          '<span class="progreso-texto">Rastreando PubMed · <b>' + listos + " de " + total + "</b><br>" +
+            '<small>Leyendo la precisión publicada de cada test</small></span>' +
+        "</div>"
+      : "";
+
+    return '<div class="seccion" id="paso-2">' +
+      '<span class="rotulo">Batería · ' + total + " tests, de cribado a confirmación</span>" +
+      '<div style="height:12px"></div>' +
+      bloqueAgrupaciones() +
+      leyenda() +
+      progreso +
+      '<div class="tests">' + estado.tests.map(tarjetaTest).join("") + "</div>" +
+      '<p class="nota-cadena">Cada test se interpreta contra tu sospecha inicial, de forma independiente. Los resultados de varios tests sueltos no se encadenan: hacerlo daría una certeza que la evidencia no respalda, porque tests que exploran la misma estructura no aportan información independiente.</p>' +
+    "</div>";
+  }
+
+  function tarjetaTest(t, i) {
+    var ev = estado.evidencias[t.nombre];
+    var marcado = estado.resultados[t.nombre];
+    var id = esc(t.nombre);
+    // Mientras se busca, el tono es el azul de "trabajando"; al llegar la
+    // evidencia lo fija su semáforo de calidad.
+    var tono = ev && ev.calidad ? esc(ev.calidad.id) : "espera";
+
+    return '<div class="test tono-' + tono + (marcado ? " marcado" : "") + '" style="animation-delay:' + Math.min(i * 55, 400) + 'ms">' +
+      '<div class="test-cab">' +
+        '<span class="orden">' + String(i + 1).padStart(2, "0") + "</span>" +
+        '<div class="test-titulo">' +
+          "<h3>" + esc(t.nombre) + "</h3>" +
+          '<div class="objetivo">' + esc(t.objetivo) + "</div>" +
+        "</div>" +
+      "</div>" +
+      '<div class="franja">' + chipsCifras(ev) + selloCalidad(ev) + marbetes(ev) + "</div>" +
+      '<div class="test-acciones">' +
+        '<span class="rotulo">Resultado</span>' +
+        '<button class="btn-res" data-marcar="' + id + '" data-valor="positivo" aria-pressed="' + (marcado === "positivo") + '">Positivo</button>' +
+        '<button class="btn-res" data-marcar="' + id + '" data-valor="negativo" aria-pressed="' + (marcado === "negativo") + '">Negativo</button>' +
+        '<button class="btn-ficha" data-ficha="' + id + '">¿Cómo se hace?</button>' +
+      "</div>" +
+      '<div class="hueco" data-hueco="' + id + '"></div>' +
+      fuente(ev) +
+    "</div>";
+  }
+
+  function paso(etiqueta, texto) {
+    return '<div class="paso"><dt>' + etiqueta + "</dt><dd>" + esc(texto) + "</dd></div>";
+  }
+
+  /* ============ ficha de ejecución ============ */
+
+  var hoja = document.getElementById("hoja");
+  var hojaCuerpo = document.getElementById("hoja-cuerpo");
+  var devolverFoco = null;
+
+  function abrirFicha(nombre) {
+    var t = null;
+    estado.tests.forEach(function (x) { if (x.nombre === nombre) t = x; });
+    if (!t) return;
+
+    var ev = estado.evidencias[nombre];
+
+    hojaCuerpo.innerHTML =
+      '<span class="rotulo hoja-rotulo">Cómo se ejecuta</span>' +
+      '<h3 id="hoja-titulo">' + esc(t.nombre) + "</h3>" +
+      "<dl>" +
+        paso("Paciente", t.posicionPaciente) +
+        paso("Terapeuta", t.posicionTerapeuta) +
+        paso("Maniobra", t.maniobra) +
+        paso("Positivo si", t.positivoSi) +
+      "</dl>" +
+      (t.otrosNombres && t.otrosNombres.length
+        ? '<p class="nota-cadena">También conocido como: ' + esc(t.otrosNombres.join(", ")) + ".</p>"
+        : "") +
+      (ev && ev.calidad && ev.calidad.motivos && ev.calidad.motivos.length
+        ? '<p class="nota-cadena" style="margin-top:20px"><b>Sobre la evidencia de este test</b></p>' +
+          '<ul class="motivos">' + ev.calidad.motivos.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>"
+        : "");
+
+    devolverFoco = document.activeElement;
+    hoja.hidden = false;
+    document.body.style.overflow = "hidden";
+    var cerrar = hoja.querySelector(".hoja-cerrar");
+    if (cerrar) cerrar.focus();
+  }
+
+  function cerrarFicha() {
+    hoja.hidden = true;
+    document.body.style.overflow = "";
+    if (devolverFoco && devolverFoco.focus) devolverFoco.focus();
+    devolverFoco = null;
+  }
+
+  Array.prototype.forEach.call(hoja.querySelectorAll("[data-cerrar-hoja]"), function (b) {
+    b.addEventListener("click", cerrarFicha);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !hoja.hidden) cerrarFicha();
+  });
+
+  /** Las cifras como piezas propias, no como un texto gris al margen. */
+  function chipsCifras(ev) {
+    if (!ev) return '<span class="cifra vacia"><span class="esqueleto" style="width:88px;display:inline-block;vertical-align:-2px"></span></span>';
+    if (!ev.hayCifras) return '<span class="cifra vacia">sin cifras publicadas</span>';
+
+    // Con el nombre entero y no con la abreviatura: "Sn" obliga a traducir
+    // mentalmente antes de entender, y esto lo usa gente que no vive en la
+    // medicina basada en la evidencia. La abreviatura se queda en la línea del
+    // cálculo, donde el espacio manda y la leyenda ya la explica.
+    var trozos = "";
+    trozos += ev.sn != null
+      ? '<span class="cifra"><i>Sensibilidad</i> ' + num(ev.sn, true) + "</span>"
+      : '<span class="cifra vacia"><i>Sensibilidad</i> no publicada</span>';
+    trozos += ev.sp != null
+      ? '<span class="cifra"><i>Especificidad</i> ' + num(ev.sp, true) + "</span>"
+      : '<span class="cifra vacia"><i>Especificidad</i> no publicada</span>';
+    return trozos;
+  }
+
+  /**
+   * El semáforo de calidad, por fin en pantalla.
+   *
+   * El dominio valora cada artículo con QUADAS-2, AMSTAR-2 y GRADE y produce un
+   * color. Hasta ahora ese color se calculaba y no se pintaba en ninguna parte:
+   * la valoración de la evidencia estaba escondida dentro de un desplegable.
+   */
+  function selloCalidad(ev) {
+    if (!ev) return '<span class="sello espera">buscando evidencia</span>';
+    if (!ev.calidad) return "";
+
+    // El sello valora el artículo, no la utilidad del test: un estudio
+    // impecable puede medir un test que no sirve para nada. Decirlo en la
+    // etiqueta evita la confusión de verlo en verde junto a un "no aporta".
+    var adjetivos = { verde: "sólida", ambar: "limitada", rojo: "insuficiente" };
+    var c = ev.calidad;
+    return '<span class="sello ' + esc(c.id) + '" title="' + esc(c.etiqueta) + '">' +
+      "<i>Calidad del estudio</i>" + esc(adjetivos[c.id] || c.etiqueta) + "</span>";
+  }
+
+  function marbetes(ev) {
+    if (!ev || !ev.hayCifras) return "";
+    var m = "";
+    if (ev.indirecta) m += '<span class="marbete">evidencia indirecta</span>';
+    if (ev.parcial) m += '<span class="marbete">cifra parcial</span>';
+    if (ev.deCache) m += "";
+    return m;
+  }
+
+  /** Coma decimal. Las proporciones siempre con dos decimales: 0,80 y no 0,8. */
+  function num(x, proporcion) {
+    var opciones = proporcion
+      ? { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+      : { maximumFractionDigits: 2 };
+    return Number(x).toLocaleString("es-ES", opciones);
+  }
+
+  /** La cita, siempre visible. Es lo que permite comprobar el número. */
+  function fuente(ev) {
+    if (!ev) return "";
+
+    if (!ev.hayCifras) {
+      var consultados = (ev.consultados || []).slice(0, 2);
+      return '<div class="fuente">' + icono("libro") + "<span>" +
+        esc(ev.motivo || ev.error || "No se han localizado cifras de precisión.") +
+        (consultados.length
+          ? " Se consultó: " + consultados.map(function (c) {
+              return '<a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.titulo) + "</a>";
+            }).join(" · ")
+          : "") +
+      "</span></div>";
+    }
+
+    if (!ev.cita) return "";
+    return '<div class="fuente">' + icono("libro") + "<span>" +
+      '<a href="' + esc(ev.cita.url) + '" target="_blank" rel="noopener">' + esc(ev.cita.titulo) + "</a> · " +
+      esc(ev.cita.revista) + " " + esc(ev.cita.anio) +
+      (ev.trazable === false ? " · <b>cifra no localizada en la frase citada, compruébala</b>" : "") +
+    "</span></div>";
+  }
+
+  /* ============ evidencia ============ */
+
+  // Peticiones simultáneas. Cada una hace varias consultas a PubMed, que
+  // limita a unas tres por segundo, y cada función corre por su cuenta sin
+  // saber de las demás: con tres frentes se va rápido sin que nos cierre la
+  // puerta por exceso de peticiones.
+  var SIMULTANEAS = 3;
+
+  /**
+   * Un test por petición, en paralelo, pintando cada uno en cuanto llega.
+   *
+   * Antes se pedían todos de golpe y se resolvían en serie en el servidor: la
+   * primera consulta de una entidad nueva tardaba minutos con la pantalla
+   * quieta, y no cabía en el límite de tiempo de una función de Netlify.
+   */
+  function buscarEvidencia() {
+    var elementos = estado.agrupaciones.map(function (a) { return { nombre: a.nombre, busqueda: a.nombre, tipo: "agrupacion" }; })
+      .concat(estado.tests.map(function (t) {
+        return {
+          nombre: t.nombre,
+          busqueda: t.nombreBusqueda || t.nombre,
+          nombresBusqueda: t.nombresBusqueda || [],
+          tipo: "test"
+        };
+      }));
+
+    // Si el fisioterapeuta lanza otra sospecha mientras esta sigue en curso,
+    // las respuestas que lleguen tarde no deben pintarse sobre la nueva.
+    var enCurso = estado.entidad;
+    var siguiente = 0;
+
+    function tomarUno() {
+      if (siguiente >= elementos.length) return Promise.resolve();
+      var el = elementos[siguiente++];
+
+      return pedir("/api/evidencia", {
+        entidad: estado.entidad,
+        terminosBusqueda: estado.terminos,
+        elemento: el
+      }).then(function (d) {
+        if (estado.entidad !== enCurso) return;
+        estado.evidencias[el.nombre] = d.evidencia;
+        pintar();
+      }).catch(function (err) {
+        if (estado.entidad !== enCurso) return;
+        estado.evidencias[el.nombre] = { hayCifras: false, error: err.message };
+        pintar();
+      }).then(tomarUno);
+    }
+
+    var frentes = [];
+    for (var i = 0; i < Math.min(SIMULTANEAS, elementos.length); i++) frentes.push(tomarUno());
+    return Promise.all(frentes);
+  }
+
+  /* ============ interpretación de un resultado ============ */
+
+  /**
+   * Clasifica el resultado para elegir color e icono. La frase clínica la
+   * escribe siempre el servidor: aquí solo se decide cómo se presenta.
+   */
+  function claseVeredicto(d) {
+    if (!d || !d.interpretable) return "nulo";
+    if (d.detalle.magnitud.nivel === "irrelevante") return "nulo";
+    var p = d.detalle.postTest;
+    if (d.resultado === "positivo" && p >= 0.85) return "decide";
+    if (d.resultado === "negativo" && p <= 0.10) return "decide";
+    return "mueve";
+  }
+
+  function interpretarTest(nombre) {
+    var hueco = salida.querySelector('[data-hueco="' + nombre.replace(/"/g, '\\"') + '"]');
+    var ev = estado.evidencias[nombre];
+    var resultado = estado.resultados[nombre];
+
+    Array.prototype.forEach.call(salida.querySelectorAll('[data-marcar="' + nombre.replace(/"/g, '\\"') + '"]'), function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-valor") === resultado));
+    });
+
+    if (!hueco) return;
+    if (!resultado) { hueco.innerHTML = ""; refrescarConclusion(); return; }
+
+    // Marcar siempre vale. Lo que cambia es cuánto podemos decirte del resultado.
+    if (!estado.nivel) {
+      hueco.innerHTML = veredictoSimple("nulo", "Resultado anotado",
+        "Dinos arriba con cuánta sospecha llegabas y verás qué significa este resultado, y de paso el de todos los tests que ya hayas marcado.");
+      refrescarConclusion();
+      return;
+    }
+
+    if (!ev || !ev.hayCifras) {
+      hueco.innerHTML = veredictoSimple("nulo", "Resultado anotado",
+        "Nadie ha publicado la precisión de este test para esta patología, así que no puede decirse cuánto cambia tu sospecha.");
+      refrescarConclusion();
+      return;
+    }
+
+
+    hueco.innerHTML = '<div class="veredicto"><div class="cargando"><span class="girando"></span>Calculando…</div></div>';
+
+    pedir("/api/interpretar", {
+      nivelPreTest: estado.nivel, sn: ev.sn, sp: ev.sp, resultado: resultado
+    }).then(function (d) {
+      if (estado.resultados[nombre] !== resultado) return;
+
+      // Media cifra: no hay probabilidad, pero sí el techo de lo que puede dar.
+      if (d.parcial) {
+        if (!d.acotable) {
+          hueco.innerHTML = veredictoSimple("nulo", "Resultado anotado", d.motivo);
+          refrescarConclusion();
+          return;
+        }
+
+        var y = d.detalle;
+        var claseP = y.magnitud.nivel === "irrelevante" ? "nulo" : "mueve";
+        hueco.innerHTML =
+          '<div class="veredicto ' + claseP + '">' +
+            '<div class="veredicto-cab">' + icono(claseP) + "<b>Hasta aquí puede llegar</b></div>" +
+            '<p class="lectura">' + esc(d.lectura) + "</p>" +
+            medidor(y.preTest, y.postTest, claseP === "nulo" ? "nulo" : "") +
+            '<div class="calculo">' +
+              "solo consta " + (y.falta === "especificidad" ? "la sensibilidad" : "la especificidad") +
+              ", así que esto es un techo y no una cifra: la real queda entre tu sospecha de partida y ese " +
+              esc(y.postTestTexto) +
+            "</div>" +
+          "</div>";
+
+        animarCifras(hueco);
+        refrescarConclusion();
+        return;
+      }
+
+      if (!d.interpretable) {
+        hueco.innerHTML = veredictoSimple("nulo", "No interpretable", (d.problemas || []).join(" "));
+        return;
+      }
+
+      estado.interpretaciones[nombre] = d;
+
+      var x = d.detalle;
+      var clase = claseVeredicto(d);
+      var titulos = { decide: "Decide", mueve: "Mueve tu sospecha", nulo: "No aporta" };
+
+      hueco.innerHTML =
+        '<div class="veredicto ' + clase + '">' +
+          '<div class="veredicto-cab">' + icono(clase) + "<b>" + titulos[clase] + "</b></div>" +
+          '<p class="lectura">' + esc(d.lectura) + "</p>" +
+          medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") +
+          '<div class="calculo">' +
+            esc(x.preTestTexto) + "  →  RV " + esc(x.cual) + " " + num(x.razonDeVerosimilitud) +
+            "  ·  " + esc(x.magnitud.texto) +
+            (x.corregida
+              ? "<br>precisión publicada del 100%: se calcula con 0,999 para no dar una certeza absoluta"
+              : "") +
+          "</div>" +
+        "</div>";
+
+      animarCifras(hueco);
+      refrescarConclusion();
+    }).catch(function (err) {
+      hueco.innerHTML = veredictoSimple("nulo", "No se ha podido calcular", err.message);
+    });
+  }
+
+  function veredictoSimple(clase, titulo, texto) {
+    return '<div class="veredicto ' + clase + '">' +
+      '<div class="veredicto-cab">' + icono(clase) + "<b>" + esc(titulo) + "</b></div>" +
+      '<p class="lectura">' + esc(texto) + "</p>" +
+    "</div>";
+  }
+
+  /* ============ conclusión final ============ */
+
+  /**
+   * La síntesis de la exploración.
+   *
+   * Lo que NO hace, y es deliberado: encadenar los resultados para dar una
+   * probabilidad final. Tests que exploran la misma estructura no aportan
+   * información independiente, y multiplicar sus razones de verosimilitud daría
+   * una certeza que la evidencia no respalda. Sería el peor error posible aquí.
+   *
+   * Lo que sí hace: señalar cuál de los resultados que has obtenido es el que
+   * de verdad decide, decirte cuáles has marcado sin que aporten nada, y
+   * avisarte cuando tu propia exploración se contradice.
+   */
+  function sintesis() {
+    var marcados = Object.keys(estado.resultados).filter(function (n) { return estado.resultados[n]; });
+    if (!marcados.length) return { fase: "sin_marcar" };
+    if (!estado.nivel) return { fase: "sin_nivel", marcados: marcados.length };
+
+    var conCalculo = [];
+    var sinCifras = [];
+    var parciales = [];
+
+    marcados.forEach(function (n) {
+      var ev = estado.evidencias[n];
+      var d = estado.interpretaciones[n];
+      if (d && d.interpretable) conCalculo.push({ nombre: n, d: d });
+      else if (ev && ev.hayCifras && ev.interpretable === false) parciales.push(n);
+      else if (ev && !ev.hayCifras) sinCifras.push(n);
+    });
+
+    // Fuerza de un resultado: cuánto se aleja de 1 su razón de verosimilitud,
+    // en cualquiera de las dos direcciones.
+    function fuerza(d) {
+      var lr = d.detalle.razonDeVerosimilitud;
+      return lr >= 1 ? lr : 1 / lr;
+    }
+
+    var utiles = conCalculo.filter(function (x) { return x.d.detalle.magnitud.nivel !== "irrelevante"; });
+    var nulos = conCalculo.filter(function (x) { return x.d.detalle.magnitud.nivel === "irrelevante"; });
+
+    var decisivo = null;
+    utiles.forEach(function (x) { if (!decisivo || fuerza(x.d) > fuerza(decisivo.d)) decisivo = x; });
+
+    // Discordancia: unos empujan hacia arriba y otros hacia abajo.
+    var suben = utiles.filter(function (x) { return x.d.detalle.postTest > x.d.detalle.preTest; });
+    var bajan = utiles.filter(function (x) { return x.d.detalle.postTest < x.d.detalle.preTest; });
+
+    return {
+      fase: "listo",
+      marcados: marcados.length,
+      decisivo: decisivo,
+      utiles: utiles,
+      nulos: nulos,
+      sinCifras: sinCifras,
+      parciales: parciales,
+      discordante: suben.length > 0 && bajan.length > 0,
+      suben: suben,
+      bajan: bajan
+    };
+  }
+
+  function listaNombres(ns) {
+    return ns.map(function (n) { return esc(n); }).join(", ");
+  }
+
+  function refrescarConclusion() {
+    var caja = document.getElementById("conclusion");
+    if (!caja) return;
+
+    var s = sintesis();
+
+    if (s.fase === "sin_marcar") { caja.innerHTML = ""; actualizarCarril(); return; }
+
+    if (s.fase === "sin_nivel") {
+      caja.innerHTML = '<div class="conclusion"><div class="conclusion-dentro">' +
+        '<span class="rotulo">Conclusión</span>' +
+        "<h2>Falta tu sospecha inicial</h2>" +
+        '<p class="sumario">Has marcado ' + s.marcados + (s.marcados === 1 ? " resultado" : " resultados") +
+        ", pero sin saber con cuánta sospecha llegabas no puede calcularse qué significan. " +
+        "Márcala arriba y se interpretan todos de golpe.</p>" +
+      "</div></div>";
+      actualizarCarril();
+      return;
+    }
+
+    var partes = [];
+
+    if (!s.decisivo) {
+      partes.push('<span class="rotulo">Conclusión</span>');
+      partes.push("<h2>Nada de lo explorado decide</h2>");
+      partes.push('<p class="sumario">Has marcado ' + s.marcados +
+        (s.marcados === 1 ? " resultado" : " resultados") +
+        ", pero ninguno mueve tu sospecha lo suficiente como para cambiar tu decisión. " +
+        "Sigues donde estabas.</p>");
+    } else {
+      var x = s.decisivo.d.detalle;
+      var clase = claseVeredicto(s.decisivo.d);
+      partes.push('<span class="rotulo">Conclusión</span>');
+      partes.push("<h2>" + esc(s.decisivo.d.lectura) + "</h2>");
+      partes.push('<p class="sumario">De todo lo que has explorado, el resultado que más pesa es ' +
+        "<b>" + esc(s.decisivo.nombre) + " " + esc(s.decisivo.d.resultado) + "</b>. " +
+        "Es el que más mueve tu sospecha, y esto es lo que hace con ella:</p>");
+      partes.push('<div class="conclusion-medidor">' + medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") + "</div>");
+    }
+
+    var hitos = [];
+
+    if (s.discordante) {
+      hitos.push('<div class="hito alerta">' + icono("alerta") +
+        "<span><b>Tus resultados no van en la misma dirección.</b> " +
+        listaNombres(s.suben.map(function (x) { return x.nombre; })) + " apunta" + (s.suben.length > 1 ? "n" : "") + " a confirmar, " +
+        "mientras que " + listaNombres(s.bajan.map(function (x) { return x.nombre; })) + " apunta" + (s.bajan.length > 1 ? "n" : "") + " a descartar. " +
+        "Merece una segunda mirada antes de decidir.</span></div>");
+    }
+
+    if (s.nulos.length) {
+      hitos.push('<div class="hito">' + icono("nulo") +
+        "<span><b>" + s.nulos.length + (s.nulos.length === 1 ? " resultado no aporta" : " resultados no aportan") + " nada:</b> " +
+        listaNombres(s.nulos.map(function (x) { return x.nombre; })) + ". " +
+        "Su precisión publicada es tan pobre que salen igual con lesión y sin ella.</span></div>");
+    }
+
+    if (s.parciales.length) {
+      hitos.push('<div class="hito">' + icono("info") +
+        "<span><b>" + s.parciales.length + (s.parciales.length === 1 ? " resultado da un techo" : " resultados dan un techo") + ", no una cifra:</b> " +
+        listaNombres(s.parciales) + ". Solo consta una de las dos precisiones, así que de esos sabemos lo más que pueden aportar, " +
+        "pero no cuánto aportan. No entran en la conclusión.</span></div>");
+    }
+
+    if (s.sinCifras.length) {
+      hitos.push('<div class="hito">' + icono("info") +
+        "<span><b>" + s.sinCifras.length + (s.sinCifras.length === 1 ? " resultado no cuenta" : " resultados no cuentan") + ":</b> " +
+        listaNombres(s.sinCifras) + ". Nadie ha publicado su precisión para esta patología.</span></div>");
+    }
+
+    if (hitos.length) partes.push('<div class="hitos">' + hitos.join("") + "</div>");
+
+    partes.push('<p class="nota-cadena">Esta conclusión no encadena los resultados entre sí. ' +
+      "Tests que exploran la misma estructura no aportan información independiente, y multiplicar " +
+      "sus razones de verosimilitud daría una certeza que la evidencia no respalda. Lo que ves es " +
+      "el resultado que más mueve tu sospecha, interpretado contra la sospecha con la que llegaste.</p>");
+
+    caja.innerHTML = '<div class="conclusion"><div class="conclusion-dentro">' + partes.join("") + "</div></div>";
+    animarCifras(caja);
+    actualizarCarril();
+  }
+
+  /* ============ el carril de pasos ============ */
+
+  /* Informa, nunca bloquea. Se puede marcar un resultado antes de fijar la
+     sospecha previa, y la herramienta lo permite a propósito. */
+
+  var pasoActivo = 1;
+
+  function estadoPasos() {
+    var marcados = Object.keys(estado.resultados).filter(function (n) { return estado.resultados[n]; }).length;
+    var s = sintesis();
+    var post = s.fase === "listo" && s.decisivo ? pct(s.decisivo.d.detalle.postTest) + "%" : null;
+
+    var nivel = null;
+    NIVELES.forEach(function (n) { if (n.id === estado.nivel) nivel = n; });
+
+    return [
+      {
+        titulo: "Tu sospecha",
+        // Es el paso que más gente se salta, y sin él no puede concluirse nada.
+        // Mientras falte, pide que lo marquen en lugar de limitarse a informar.
+        valor: nivel ? nivel.corto : "empieza aquí",
+        hecho: Boolean(nivel),
+        pendiente: !nivel
+      },
+      {
+        titulo: "La exploración",
+        valor: marcados ? marcados + " de " + estado.tests.length + " marcados" : estado.tests.length + " tests",
+        hecho: marcados > 0
+      },
+      {
+        titulo: "La conclusión",
+        valor: post || (marcados ? "en curso" : "—"),
+        // El nombre del test que decide: era la mitad útil de la barra fija que
+        // quitamos, y en el carril cabe sin estorbar.
+        detalle: post && s.decisivo ? "lo decide " + s.decisivo.nombre : null,
+        hecho: Boolean(post)
+      }
+    ];
+  }
+
+  function actualizarCarril() {
+    if (!carril) return;
+
+    if (!estado.tests.length) {
+      carril.innerHTML = "";
+      trabajo.classList.add("sin-carril");
+      return;
+    }
+    trabajo.classList.remove("sin-carril");
+
+    // Las banderas rojas quedan fuera de los números a propósito: un paso es
+    // algo que se completa y se deja atrás, y esto es una vigilancia que
+    // acompaña toda la exploración.
+    var alerta = estado.banderas.length
+      ? '<button class="alerta-banderas" data-ir-banderas>' +
+          estado.banderas.length + " banderas rojas en " + esc(estado.region) +
+        "</button>"
+      : "";
+
+    carril.innerHTML = alerta +
+      '<ol class="pasos">' +
+        estadoPasos().map(function (p, i) {
+          return "<li>" +
+            '<button class="paso-carril' + (p.hecho ? " hecho" : "") +
+            (p.pendiente ? " pendiente" : "") +
+            (pasoActivo === i + 1 ? " activo" : "") + '" data-paso="' + (i + 1) + '">' +
+            '<span class="paso-num"><span>' + (i + 1) + "</span></span>" +
+            '<span class="paso-texto"><b>' + p.titulo + "</b>" +
+            '<span class="paso-valor">' + esc(p.valor) + "</span>" +
+            (p.detalle ? '<span class="paso-detalle" title="' + esc(p.detalle) + '">' + esc(p.detalle) + "</span>" : "") +
+            "</span></button></li>";
+        }).join("") +
+      "</ol>";
+
+    Array.prototype.forEach.call(carril.querySelectorAll("[data-paso]"), function (b) {
+      b.addEventListener("click", function () {
+        var destino = document.getElementById("paso-" + b.getAttribute("data-paso"));
+        if (destino) destino.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+
+    var aBanderas = carril.querySelector("[data-ir-banderas]");
+    if (aBanderas) {
+      aBanderas.addEventListener("click", abrirBanderas);
+    }
+  }
+
+  /** Qué paso mira el fisioterapeuta ahora mismo, según por dónde va la página. */
+  function pasoSegunScroll() {
+    var referencia = window.innerHeight * 0.35;
+    var actual = 1;
+    for (var n = 1; n <= 3; n++) {
+      var el = document.getElementById("paso-" + n);
+      if (el && el.getBoundingClientRect().top <= referencia) actual = n;
+    }
+    return actual;
+  }
+
+  function marcarPasoActivo() {
+    Array.prototype.forEach.call(carril.querySelectorAll("[data-paso]"), function (b) {
+      b.classList.toggle("activo", Number(b.getAttribute("data-paso")) === pasoActivo);
+    });
+  }
+
+  var pendiente = false;
+  window.addEventListener("scroll", function () {
+    if (pendiente || !estado.tests.length) return;
+    pendiente = true;
+    requestAnimationFrame(function () {
+      pendiente = false;
+      var ahora = pasoSegunScroll();
+      if (ahora !== pasoActivo) { pasoActivo = ahora; marcarPasoActivo(); }
+    });
+  }, { passive: true });
+
+  /* ============ últimas consultas ============ */
+
+  /* Solo en el navegador del fisioterapeuta. Qué patologías consulta es un dato
+     con carga sanitaria y no hay razón para que salga de su dispositivo.
+     De regalo, repetir una suya sale de la caché: instantánea y sin coste. */
+
+  var CLAVE_RECIENTES = "fisioia.recientes";
+  var MAX_RECIENTES = 6;
+
+  function recientes() {
+    try { return JSON.parse(localStorage.getItem(CLAVE_RECIENTES)) || []; } catch (e) { return []; }
+  }
+
+  function recordar(sospecha) {
+    var lista = recientes().filter(function (x) { return x.toLowerCase() !== sospecha.toLowerCase(); });
+    lista.unshift(sospecha);
+    try { localStorage.setItem(CLAVE_RECIENTES, JSON.stringify(lista.slice(0, MAX_RECIENTES))); } catch (e) {}
+  }
+
+  function pintarRecientes() {
+    var caja = document.getElementById("recientes");
+    var lista = recientes();
+    if (!caja || !lista.length) { if (caja) caja.hidden = true; return; }
+
+    document.getElementById("recientes-lista").innerHTML = lista.map(function (x) {
+      return '<button class="reciente" data-ej="' + esc(x) + '">' + esc(x) + "</button>";
+    }).join("");
+    caja.hidden = false;
+
+    Array.prototype.forEach.call(caja.querySelectorAll("[data-ej]"), function (b) {
+      b.addEventListener("click", function () {
+        campo.value = b.getAttribute("data-ej");
+        consultar(campo.value);
+      });
+    });
+  }
+
+  pintarRecientes();
+
+})();
+</script>

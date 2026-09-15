@@ -20,13 +20,38 @@ export const PRE_TEST = {
 /** Tolerancia relativa al comprobar la coherencia entre Sn, Sp y las razones de verosimilitud. */
 const TOLERANCIA = 0.15;
 
-const esProporcion = (x) => typeof x === "number" && Number.isFinite(x) && x > 0 && x < 1;
+const esProporcion = (x) => typeof x === "number" && Number.isFinite(x) && x > 0 && x <= 1;
+
+/**
+ * Corrección de continuidad para las precisiones perfectas.
+ *
+ * Una especificidad de 1,00 se publica a menudo, y con razón: hay tests muy
+ * específicos en los que ningún participante sano dio positivo. El
+ * apprehension test y el relocation test son dos.
+ *
+ * Tomarla al pie de la letra daría una razón de verosimilitud infinita y, con
+ * ella, una certeza absoluta tras un solo test. Ningún estudio sostiene eso:
+ * que no se vieran falsos positivos en una muestra no significa que no
+ * existan. Se recorta una milésima, que deja una razón de verosimilitud
+ * enorme pero finita y una conclusión que sigue siendo "confirma".
+ *
+ * Antes se rechazaba el dato entero por no ser "una proporción entre 0 y 1",
+ * que además de tirar información buena era falso: 1 sí lo es.
+ */
+export const CORRECCION = 0.999;
+
+const acotar = (x) => (x === 1 ? CORRECCION : x);
+
+/** ¿Hace falta recortar alguna de las dos cifras para no dar un infinito? */
+export const necesitaCorreccion = (sn, sp) => sn === 1 || sp === 1;
 
 /** Razones de verosimilitud derivadas de sensibilidad y especificidad. */
 export function razonesDeVerosimilitud(sn, sp) {
+  const s = acotar(sn);
+  const e = acotar(sp);
   return {
-    positiva: sn / (1 - sp),
-    negativa: (1 - sn) / sp,
+    positiva: s / (1 - e),
+    negativa: (1 - s) / e,
   };
 }
 
@@ -46,6 +71,19 @@ export function validarPrecision({ sn, sp, lrPositiva, lrNegativa }) {
   if (!esProporcion(sn)) problemas.push("La sensibilidad no es una proporción entre 0 y 1.");
   if (!esProporcion(sp)) problemas.push("La especificidad no es una proporción entre 0 y 1.");
   if (problemas.length) return { valido: false, problemas };
+
+  // Con una precisión perfecta la identidad degenera: la razón de verosimilitud
+  // que deduciríamos es la de la cifra recortada, no la del artículo, así que
+  // compararlas no diría nada.
+  if (necesitaCorreccion(sn, sp)) {
+    if (typeof lrPositiva === "number" && lrPositiva < 1) {
+      problemas.push("Una razón de verosimilitud positiva menor que 1 invertiría el significado del test.");
+    }
+    if (typeof lrNegativa === "number" && lrNegativa > 1) {
+      problemas.push("Una razón de verosimilitud negativa mayor que 1 invertiría el significado del test.");
+    }
+    return { valido: problemas.length === 0, problemas };
+  }
 
   const esperada = razonesDeVerosimilitud(sn, sp);
 
@@ -109,11 +147,104 @@ export function magnitud(lr) {
   return { nivel: "irrelevante", texto: "cambio mínimo: este resultado apenas modifica la sospecha" };
 }
 
+/**
+ * Lo máximo que puede aportar un resultado cuando la literatura solo ha
+ * publicado una de las dos cifras.
+ *
+ * Con media cifra no hay probabilidad post-test, y hasta ahora eso se traducía
+ * en un "tómalo como orientación" que no orienta nada. Pero sí se puede acotar,
+ * y la cota sale de que la cifra que falta no puede valer más de 1:
+ *
+ *   Solo sensibilidad, resultado negativo. La razón de verosimilitud negativa
+ *   es (1-Sn)/Sp, y como Sp vale a lo sumo 1, esa razón vale como mínimo
+ *   (1-Sn). Ese mínimo es lo más que ese negativo puede llegar a descartar.
+ *
+ *   Solo especificidad, resultado positivo. La razón positiva es Sn/(1-Sp), y
+ *   como Sn vale a lo sumo 1, vale como máximo 1/(1-Sp). Ese máximo es lo más
+ *   que ese positivo puede llegar a confirmar.
+ *
+ * Las otras dos combinaciones no se pueden acotar en la dirección que importa,
+ * y se dice. Son, casualmente, las dos que la enseñanza clásica resume en
+ * SnNout y SpPin: aquí es lo mismo, pero con el número del paciente delante en
+ * lugar del refrán.
+ *
+ * Lo que devuelve es un límite, nunca una estimación, y quien lo muestre tiene
+ * que decirlo: "en el mejor de los casos". La cifra real está entre la sospecha
+ * de partida y esta cota, y dónde exactamente no se sabe.
+ */
+export function acotarParcial({ nivelPreTest, sn, sp, resultado }) {
+  const base = PRE_TEST[nivelPreTest];
+  if (!base) throw new Error(`Nivel de sospecha desconocido: ${nivelPreTest}`);
+
+  const positivo = resultado === "positivo";
+  const haySn = esProporcion(sn);
+  const haySp = esProporcion(sp);
+
+  if (haySn === haySp) {
+    return { acotable: false, motivo: "Esta cota es solo para cuando consta una de las dos cifras." };
+  }
+
+  let lr = null;
+  let cual = null;
+
+  if (haySn && !positivo) {
+    lr = 1 - acotar(sn);
+    cual = "negativa";
+  } else if (haySp && positivo) {
+    lr = 1 / (1 - acotar(sp));
+    cual = "positiva";
+  } else {
+    return {
+      acotable: false,
+      motivo: haySn
+        ? "Con la sensibilidad sola no puede acotarse cuánto aporta un positivo: eso depende de la especificidad, que no consta."
+        : "Con la especificidad sola no puede acotarse cuánto aporta un negativo: eso depende de la sensibilidad, que no consta.",
+    };
+  }
+
+  const pre = base.valor;
+  const post = postTest(pre, lr);
+  const fuerza = magnitud(lr);
+
+  const lectura =
+    fuerza.nivel === "irrelevante"
+      ? `Ni en el mejor de los casos cambiaría gran cosa: se quedaría en torno al ${pct(post)}%.`
+      : `En el mejor de los casos dejaría tu sospecha en torno al ${pct(post)}%.`;
+
+  return {
+    acotable: true,
+    resultado,
+    lectura,
+    detalle: {
+      preTest: pre,
+      preTestTexto: `${base.etiqueta}, ${base.detalle}`,
+      razonDeVerosimilitud: lr,
+      cual,
+      postTest: post,
+      postTestTexto: `${pct(post)}%`,
+      magnitud: fuerza,
+      sensibilidad: haySn ? sn : null,
+      especificidad: haySp ? sp : null,
+      falta: haySn ? "especificidad" : "sensibilidad",
+    },
+  };
+}
+
 /** Umbrales a partir de los cuales hablamos de confirmar o descartar en la práctica. */
 const UMBRAL_CONFIRMA = 0.85;
 const UMBRAL_DESCARTA = 0.10;
 
-const pct = (p) => Math.round(p * 100);
+/**
+ * El porcentaje que se escribe en pantalla. Nunca 0 ni 100.
+ *
+ * Ninguna exploración física da certeza absoluta, y escribir "100%" la
+ * afirmaría. Aparece al redondear probabilidades muy altas, sobre todo desde
+ * que se admiten las precisiones perfectas con su corrección de continuidad.
+ * Un 99% dice lo mismo sin mentir.
+ */
+export const pctMostrado = (p) => Math.min(99, Math.max(1, Math.round(p * 100)));
+
+const pct = pctMostrado;
 
 /**
  * Interpreta un resultado concreto.
@@ -172,6 +303,9 @@ export function interpretar({ nivelPreTest, sn, sp, resultado }) {
       magnitud: fuerza,
       sensibilidad: sn,
       especificidad: sp,
+      // Para poder decirlo en pantalla: el número mostrado no es exactamente
+      // el que se ha usado para calcular.
+      corregida: necesitaCorreccion(sn, sp),
     },
   };
 }

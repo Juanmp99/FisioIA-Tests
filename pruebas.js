@@ -2,18 +2,12 @@
 // conclusión clínica, y tiene que poder comprobarse en un segundo.
 
 import assert from "node:assert/strict";
-import {
-  PRE_TEST,
-  razonesDeVerosimilitud,
-  validarPrecision,
-  postTest,
-  magnitud,
-  interpretar,
-  validarParcial,
-} from "./dominio/probabilidad.js";
+import { PRE_TEST, razonesDeVerosimilitud, validarPrecision, postTest, magnitud, interpretar, validarParcial, necesitaCorreccion, pctMostrado, CORRECCION, acotarParcial } from "./dominio/probabilidad.js";
 import { semaforo } from "./dominio/calidad.js";
 import { banderasPara } from "./dominio/banderas.js";
 import { coincidencia } from "./ia/entidades.js";
+import { mereceTextoCompleto } from "./ia/evidencia.js";
+import { promete } from "./ia/europepmc.js";
 
 let pasadas = 0;
 const cerca = (a, b, t = 0.01) => Math.abs(a - b) < t;
@@ -213,6 +207,56 @@ prueba("toda bandera trae señales y acción", () => {
   }
 });
 
+console.log("\nOrdenación de lo que encuentra Europe PMC");
+
+// Su API no ordena por relevancia, solo por fecha. Estas pruebas fijan el
+// criterio con el que se reordena, que es lo único que separa el estudio de
+// precisión del artículo quirúrgico reciente que nombra el test de pasada.
+
+prueba("un estudio de precisión diagnóstica puntúa alto", () => {
+  const p = promete({
+    title: "Diagnostic accuracy of clinical tests for rotator cuff tear",
+    abstractText: "Sensitivity and specificity were calculated against MRI.",
+  });
+  assert.ok(p >= 5, `esperaba 5 o más, salió ${p}`);
+});
+
+prueba("una técnica quirúrgica que nombra el test de pasada se queda fuera", () => {
+  const p = promete({
+    title: "Modified arthroscopic technique for repair of medial meniscus posterior root tears",
+    abstractText: "We describe a new repair technique and report outcomes at two years.",
+  });
+  assert.ok(p <= 0, `esperaba 0 o menos, salió ${p}`);
+});
+
+prueba("una revisión sistemática de precisión gana a un estudio primario igual", () => {
+  const comun = { abstractText: "Pooled sensitivity and specificity are reported." };
+  const revision = promete({ ...comun, title: "Diagnostic accuracy of provocative maneuvers: a systematic review" });
+  const primario = promete({ ...comun, title: "Diagnostic accuracy of provocative maneuvers" });
+  assert.ok(revision > primario);
+});
+
+prueba("no premia que el test aparezca en el título", () => {
+  // Es el punto entero de venir aquí: el artículo que interesa es el que
+  // estudia la exploración entera y publica el test en una tabla que el
+  // resumen no menciona. Premiar el título sería premiar lo que ya da PubMed.
+  const conNombre = promete({ title: "The Thessaly test: diagnostic accuracy", abstractText: "" });
+  const sinNombre = promete({ title: "Diagnostic accuracy of the knee examination", abstractText: "" });
+  assert.equal(conNombre, sinNombre);
+});
+
+prueba("un artículo de tratamiento que además mide precisión no se descarta", () => {
+  const p = promete({
+    title: "Diagnostic accuracy of physical examination before arthroscopic repair",
+    abstractText: "Sensitivity and specificity against arthroscopic findings.",
+  });
+  assert.ok(p > 0, `esperaba más de 0, salió ${p}`);
+});
+
+prueba("lo que no habla de diagnóstico ni de exploración no puntúa", () => {
+  assert.equal(promete({ title: "Epidemiology of knee pain in runners", abstractText: "A cohort study." }), 0);
+});
+
 console.log(`\n${pasadas} pruebas correctas.\n`);
 
 console.log("\nCifras parciales");
@@ -277,6 +321,146 @@ prueba("devuelve nulo cuando ningún término está registrado", () => {
 prueba("no se rompe sin términos", () => {
   assert.equal(coincidencia(undefined, {}), null);
   assert.equal(coincidencia([], {}), null);
+});
+
+console.log("\nEscalada al texto completo");
+
+// Leer el artículo entero cuesta dinero y tiempo. Estas reglas deciden cuándo
+// vale la pena, así que conviene que no se muevan sin darse cuenta.
+
+const revision = {
+  encontrado: true,
+  tipoEstudio: "revision_sistematica",
+  intervalos: "desconocido",
+  quadas2: "no_valorable",
+};
+
+prueba("una revisión sin intervalos ni valoración de sesgo merece el texto completo", () => {
+  assert.equal(mereceTextoCompleto(revision), true);
+});
+
+prueba("le basta con que falte una de las dos cosas", () => {
+  assert.equal(mereceTextoCompleto({ ...revision, quadas2: "bajo" }), true);
+  assert.equal(mereceTextoCompleto({ ...revision, intervalos: "estrecho" }), true);
+});
+
+prueba("una revisión ya completa no se vuelve a leer", () => {
+  assert.equal(mereceTextoCompleto({ ...revision, intervalos: "estrecho", quadas2: "bajo" }), false);
+  assert.equal(mereceTextoCompleto({ ...revision, intervalos: "amplio", quadas2: "alto" }), false);
+});
+
+prueba("un estudio primario no se lee entero: no puede llegar a verde igualmente", () => {
+  assert.equal(mereceTextoCompleto({ ...revision, tipoEstudio: "estudio_primario" }), false);
+});
+
+prueba("sin cifras encontradas no hay nada que afinar", () => {
+  assert.equal(mereceTextoCompleto({ ...revision, encontrado: false }), false);
+});
+
+console.log("\nPrecisiones perfectas");
+
+// La literatura publica especificidades de 1,00 con frecuencia, y son justo
+// las de los tests más útiles para confirmar. Se rechazaban enteras.
+
+prueba("una especificidad de 1,00 es válida", () => {
+  assert.equal(validarPrecision({ sn: 0.72, sp: 1 }).valido, true);
+});
+
+prueba("una sensibilidad de 1,00 también", () => {
+  assert.equal(validarPrecision({ sn: 1, sp: 0.85 }).valido, true);
+});
+
+prueba("lo que está de verdad fuera de rango se sigue rechazando", () => {
+  assert.equal(validarPrecision({ sn: 0.7, sp: 1.3 }).valido, false);
+  assert.equal(validarPrecision({ sn: 0.7, sp: 0 }).valido, false);
+  assert.equal(validarPrecision({ sn: -0.1, sp: 0.8 }).valido, false);
+});
+
+prueba("la razón de verosimilitud nunca sale infinita", () => {
+  const a = razonesDeVerosimilitud(0.72, 1);
+  const b = razonesDeVerosimilitud(1, 0.85);
+  assert.ok(Number.isFinite(a.positiva) && Number.isFinite(a.negativa));
+  assert.ok(Number.isFinite(b.positiva) && Number.isFinite(b.negativa));
+});
+
+prueba("una especificidad perfecta confirma, pero sin prometer certeza", () => {
+  const r = interpretar({ nivelPreTest: "media", sn: 0.72, sp: 1, resultado: "positivo" });
+  assert.equal(r.interpretable, true);
+  assert.equal(r.detalle.corregida, true);
+  assert.ok(/[Cc]onfirma/.test(r.lectura));
+  assert.ok(r.detalle.postTest < 1, "la probabilidad nunca llega a 1");
+});
+
+prueba("se avisa solo cuando alguna cifra es exactamente 1", () => {
+  assert.equal(necesitaCorreccion(0.99, 0.99), false);
+  assert.equal(necesitaCorreccion(1, 0.5), true);
+  assert.equal(necesitaCorreccion(0.5, 1), true);
+});
+
+prueba("el porcentaje mostrado nunca es 0 ni 100", () => {
+  assert.equal(pctMostrado(0.9999), 99);
+  assert.equal(pctMostrado(0.0001), 1);
+  assert.equal(pctMostrado(0.46), 46);
+});
+
+console.log("\nCota del mejor caso con media cifra");
+
+// Seis de cada diez tests no tienen cifras, y de los que las tienen, muchos
+// solo publican una. Con media cifra no hay probabilidad, pero sí hay límite.
+
+prueba("un test sensible que sale negativo acota cuánto puede descartar", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: 0.91, sp: null, resultado: "negativo" });
+  assert.equal(r.acotable, true);
+  assert.equal(r.detalle.cual, "negativa");
+  // La razón mínima es (1 - Sn), que es lo que se consigue con Sp = 1.
+  assert.ok(Math.abs(r.detalle.razonDeVerosimilitud - 0.09) < 1e-9);
+  assert.ok(r.detalle.postTest < 0.45, "tiene que bajar la sospecha");
+});
+
+prueba("un test específico que sale positivo acota cuánto puede confirmar", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: null, sp: 0.98, resultado: "positivo" });
+  assert.equal(r.acotable, true);
+  assert.equal(r.detalle.cual, "positiva");
+  assert.ok(Math.abs(r.detalle.razonDeVerosimilitud - 50) < 1e-9);
+  assert.ok(r.detalle.postTest > 0.45, "tiene que subir la sospecha");
+});
+
+prueba("la cota es siempre lo más lejos que puede llegar, nunca más", () => {
+  // Con cualquier especificidad real, el resultado queda entre la sospecha
+  // previa y la cota: la cota no se puede superar.
+  const cota = acotarParcial({ nivelPreTest: "media", sn: 0.91, sp: null, resultado: "negativo" });
+  for (const sp of [0.1, 0.4, 0.7, 0.95, 1]) {
+    const real = interpretar({ nivelPreTest: "media", sn: 0.91, sp, resultado: "negativo" });
+    assert.ok(
+      real.detalle.postTest >= cota.detalle.postTest - 1e-9,
+      `con Sp ${sp} el real ${real.detalle.postTest} baja de la cota ${cota.detalle.postTest}`,
+    );
+  }
+});
+
+prueba("las dos combinaciones que no se pueden acotar lo dicen", () => {
+  const a = acotarParcial({ nivelPreTest: "media", sn: 0.91, sp: null, resultado: "positivo" });
+  const b = acotarParcial({ nivelPreTest: "media", sn: null, sp: 0.9, resultado: "negativo" });
+  assert.equal(a.acotable, false);
+  assert.equal(b.acotable, false);
+  assert.ok(a.motivo.length > 10 && b.motivo.length > 10);
+});
+
+prueba("con las dos cifras, o con ninguna, no es su sitio", () => {
+  assert.equal(acotarParcial({ nivelPreTest: "media", sn: 0.9, sp: 0.9, resultado: "positivo" }).acotable, false);
+  assert.equal(acotarParcial({ nivelPreTest: "media", sn: null, sp: null, resultado: "positivo" }).acotable, false);
+});
+
+prueba("una cifra pobre no promete lo que no puede dar", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: 0.38, sp: null, resultado: "negativo" });
+  assert.equal(r.detalle.magnitud.nivel, "irrelevante");
+  assert.ok(/[Nn]i en el mejor/.test(r.lectura));
+});
+
+prueba("una especificidad perfecta no da una razón infinita", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: null, sp: 1, resultado: "positivo" });
+  assert.ok(Number.isFinite(r.detalle.razonDeVerosimilitud));
+  assert.ok(r.detalle.postTest < 1);
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);

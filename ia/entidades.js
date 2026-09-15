@@ -16,17 +16,19 @@
 //      términos ya identifica una entidad registrada, se adopta la entidad
 //      canónica en lugar de crear una variante nueva. Así "epicondilitis" y
 //      "codo de tenista" acaban en el mismo sitio.
+//
+// Cada entrada se guarda por separado en el almacén. La batería se repite bajo
+// cada sinónimo en lugar de guardar un puntero: son unos pocos kilobytes, y
+// como una entidad registrada no se sobrescribe nunca, las copias no pueden
+// divergir.
 
-import fs from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { leer, escribir, cuantos } from "../lib/almacen.js";
 
-const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const ARCHIVO = path.join(RAIZ, "datos", "entidades.json");
+const ALMACEN = "registro";
 
 // Al cambiar los prompts, lo registrado deja de ser comparable. Subir este
-// número invalida el registro sin tener que borrar el archivo a mano.
-export const VERSION = 1;
+// número invalida el registro sin tener que borrar nada a mano.
+export const VERSION = 2;
 
 export const normalizar = (s) =>
   String(s || "")
@@ -37,46 +39,45 @@ export const normalizar = (s) =>
     .trim();
 
 /**
+ * Claves normalizadas de una lista de términos, en el orden en que deben
+ * probarse. Es la parte con lógica —normalización y prioridad— y la
+ * comparten la búsqueda en memoria y la que va contra el almacén.
+ */
+export function clavesDeBusqueda(terminos) {
+  return (terminos || []).map(normalizar).filter(Boolean);
+}
+
+/**
  * Primer término registrado que coincida con alguno de los buscados.
- * Función pura: es la parte con lógica y la que conviene poder probar.
+ * Función pura sobre un mapa: es la que conviene poder probar.
  */
 export function coincidencia(terminos, canonicas) {
-  for (const t of terminos || []) {
-    const clave = normalizar(t);
-    if (clave && canonicas[clave]) return canonicas[clave];
+  for (const clave of clavesDeBusqueda(terminos)) {
+    if (canonicas[clave]) return canonicas[clave];
   }
   return null;
 }
 
-let memoria = null;
+const vigente = (entrada) => (entrada && entrada.version === VERSION ? entrada : null);
 
-async function cargar() {
-  if (memoria) return memoria;
-  try {
-    const leido = JSON.parse(await fs.readFile(ARCHIVO, "utf8"));
-    memoria = leido.version === VERSION ? leido : { version: VERSION, consultas: {}, canonicas: {} };
-  } catch {
-    memoria = { version: VERSION, consultas: {}, canonicas: {} };
-  }
-  return memoria;
-}
-
-async function volcar() {
-  await fs.mkdir(path.dirname(ARCHIVO), { recursive: true });
-  await fs.writeFile(ARCHIVO, JSON.stringify(memoria, null, 2), "utf8");
+async function entidadPorClave(clave) {
+  const entrada = vigente(await leer(ALMACEN, `entidad:${clave}`));
+  return entrada ? entrada.bateria : null;
 }
 
 /** Capa 1: ¿se ha consultado ya esta misma frase? */
 export async function porTexto(sospecha) {
-  const base = await cargar();
-  const clave = base.consultas[normalizar(sospecha)];
-  return clave ? base.canonicas[clave] || null : null;
+  const entrada = vigente(await leer(ALMACEN, `consulta:${normalizar(sospecha)}`));
+  return entrada ? entidadPorClave(entrada.principal) : null;
 }
 
 /** Capa 2: ¿alguno de estos términos ingleses ya identifica una entidad registrada? */
 export async function porTerminos(terminos) {
-  const base = await cargar();
-  return coincidencia(terminos, base.canonicas);
+  for (const clave of clavesDeBusqueda(terminos)) {
+    const hallada = await entidadPorClave(clave);
+    if (hallada) return hallada;
+  }
+  return null;
 }
 
 /**
@@ -85,26 +86,24 @@ export async function porTerminos(terminos) {
  * la primera respuesta es la buena, porque es la que ya vio alguien.
  */
 export async function registrar(sospecha, bateria) {
-  const base = await cargar();
   const terminos = bateria.terminosBusqueda || [];
   const principal = normalizar(terminos[0] || bateria.entidad);
   if (!principal) return bateria;
 
-  if (!base.canonicas[principal]) {
-    base.canonicas[principal] = { ...bateria, fecha: new Date().toISOString() };
-    // Todos los sinónimos apuntan a la misma entrada.
-    for (const t of terminos) {
-      const alias = normalizar(t);
-      if (alias && alias !== principal) base.canonicas[alias] = base.canonicas[principal];
-    }
+  const yaRegistrada = await entidadPorClave(principal);
+  const definitiva = yaRegistrada || { ...bateria, fecha: new Date().toISOString() };
+
+  if (!yaRegistrada) {
+    const entrada = { version: VERSION, bateria: definitiva };
+    // Todos los sinónimos llevan a la misma respuesta.
+    const claves = new Set([principal, ...clavesDeBusqueda(terminos)]);
+    for (const alias of claves) await escribir(ALMACEN, `entidad:${alias}`, entrada);
   }
 
-  base.consultas[normalizar(sospecha)] = principal;
-  await volcar();
-  return base.canonicas[principal];
+  await escribir(ALMACEN, `consulta:${normalizar(sospecha)}`, { version: VERSION, principal });
+  return definitiva;
 }
 
 export async function tamano() {
-  const base = await cargar();
-  return { consultas: Object.keys(base.consultas).length, entidades: Object.keys(base.canonicas).length };
+  return cuantos(ALMACEN);
 }

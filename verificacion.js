@@ -15,7 +15,7 @@
 // en miles de combinaciones, el cálculo es correcto. Si no, tenemos un problema.
 
 import assert from "node:assert/strict";
-import { postTest, razonesDeVerosimilitud, interpretar, PRE_TEST } from "./dominio/probabilidad.js";
+import { postTest, razonesDeVerosimilitud, interpretar, PRE_TEST, pctMostrado } from "./dominio/probabilidad.js";
 
 const COHORTE = 1_000_000;
 
@@ -201,7 +201,7 @@ invariante("el porcentaje escrito coincide con el calculado", () => {
           const r = interpretar({ nivelPreTest: nivel, sn, sp, resultado });
           if (!r.interpretable) continue;
           const escrito = Number(r.detalle.postTestTexto.replace("%", ""));
-          assert.equal(escrito, Math.round(r.detalle.postTest * 100));
+          assert.equal(escrito, pctMostrado(r.detalle.postTest));
         }
       }
     }
