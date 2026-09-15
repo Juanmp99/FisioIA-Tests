@@ -80,14 +80,23 @@ export function mereceTextoCompleto(datos) {
 const MARGEN_ESCALADA = 32000;
 
 /**
- * Hasta cuándo se puede seguir abriendo artículos en el rescate, y cuántos.
+ * Hasta cuándo se puede abrir un artículo en el rescate, y cuánto se lee.
  *
- * El rescate ocurre después de la búsqueda y de una extracción, o sea con unos
- * doce segundos gastados de los sesenta. Cada artículo que se abre son unos
- * quince más. Dos caben; tres se juegan el aviso entero por un test.
+ * La primera versión permitía dos intentos y arrancaba hasta el segundo 38.
+ * Estaba mal contado: la comprobación mira lo gastado antes de empezar, no lo
+ * que va a costar lo que empieza. Un intento son unos veinte segundos entre
+ * bajar el artículo y volver a extraer, así que dos intentos arrancando a los
+ * 38 se plantaban en los 78 y la pasarela de Netlify cortaba con una página de
+ * error en HTML. El fisioterapeuta veía "Unexpected token '<'" en la ficha.
+ *
+ * Ahora es un solo intento, que además no arranca si ya se han ido veinte
+ * segundos, y lee ocho mil caracteres en lugar de quince mil. Las tablas van
+ * las primeras, que es donde están las cifras: recortar quita discusión, no
+ * números.
  */
-const MARGEN_RESCATE = 38000;
-const RESCATES_MAX = 2;
+const MARGEN_RESCATE = 20000;
+const RESCATES_MAX = 1;
+const TOPE_RESCATE = 8000;
 
 /** Días tras los cuales se vuelve a intentar una búsqueda que no encontró nada. */
 const CADUCIDAD_NEGATIVOS = 30;
@@ -216,7 +225,11 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   // adopta si encuentra algo: un texto completo que tampoco da cifras deja el
   // resultado exactamente como estaba.
   let deRescate = null;
-  if ((!datos.encontrado || (!tieneSn && !tieneSp)) && Date.now() - inicio < MARGEN_RESCATE) {
+  const sinCifras = !datos.encontrado || (!tieneSn && !tieneSp);
+  if (sinCifras && Date.now() - inicio >= MARGEN_RESCATE) {
+    console.warn(`[rescate] ${test}: no se abre el artículo, ya van ${Math.round((Date.now() - inicio) / 1000)} s`);
+  }
+  if (sinCifras && Date.now() - inicio < MARGEN_RESCATE) {
     const disponibles = await abiertos(articulos.map((a) => a.pmid), senal);
     const candidatos = articulos.filter((a) => disponibles.has(a.pmid)).slice(0, RESCATES_MAX);
 
@@ -227,7 +240,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     for (const fuente of candidatos) {
       if (Date.now() - inicio >= MARGEN_RESCATE) break;
       try {
-        const completo = await textoCompletoAbierto(disponibles.get(fuente.pmid), senal);
+        const completo = await textoCompletoAbierto(disponibles.get(fuente.pmid), senal, TOPE_RESCATE);
         if (!completo) continue;
         const otra = await pedirJson({
           sistema: SISTEMA_EXTRACCION,

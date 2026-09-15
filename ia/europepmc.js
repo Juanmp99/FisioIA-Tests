@@ -166,14 +166,14 @@ export async function abiertos(pmids, senal) {
  *
  * Devuelve null cuando no hay cuerpo, que es un desenlace normal y no un error.
  */
-export async function textoCompletoAbierto(pmcid, senal) {
+export async function textoCompletoAbierto(pmcid, senal, tope) {
   if (!pmcid) return null;
   try {
     const respuesta = await fetch(`${RAIZ}/${encodeURIComponent(pmcid)}/fullTextXML`, { signal: senal });
     if (!respuesta.ok) return null;
     const xml = await respuesta.text();
     if (!/<body[\s>]/.test(xml)) return null;
-    const texto = partesUtiles(xml);
+    const texto = partesUtiles(xml, tope);
     return texto.length > 600 ? { pmcid, texto } : null;
   } catch (e) {
     console.warn(`[europepmc] ${pmcid}: ${e.message}`);

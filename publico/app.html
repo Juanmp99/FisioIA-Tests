@@ -1104,19 +1104,37 @@ a { color: var(--azul); text-underline-offset: 3px; }
     });
   }
 
+  // Cuando una función se pasa de tiempo, quien responde no es ella sino la
+  // pasarela, y lo hace con una página de error en HTML. Al intentar leerla
+  // como JSON saltaba un "Unexpected token '<'" que acababa impreso tal cual
+  // en la ficha del test. El fisioterapeuta no tiene por qué leer eso.
+  function leerJson(r) {
+    return r.text().then(function (texto) {
+      try {
+        return JSON.parse(texto);
+      } catch (e) {
+        if (r.status === 502 || r.status === 503 || r.status === 504) {
+          return { error: "La búsqueda de este test ha tardado demasiado y se ha cortado. Vuelve a intentarlo." };
+        }
+        return { error: "El servidor ha respondido algo que no se ha podido leer (" + r.status + ")." };
+      }
+    });
+  }
+
   function pedir(ruta, cuerpo) {
     return fetch(ruta, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-acceso": acceso() },
       body: JSON.stringify(cuerpo)
     }).then(function (r) {
-      return r.json().then(function (d) {
+      return leerJson(r).then(function (d) {
         if (r.status === 401) {
           aLaEntrada("caducado");
           throw new Error(d.error || "Tu acceso ya no es válido.");
         }
         if (typeof d.restantes === "number") mostrarRestantes(d.restantes);
         if (!r.ok) throw new Error(d.error || "El servidor ha devuelto un error.");
+        if (d.error) throw new Error(d.error);
         return d;
       });
     });

@@ -57,7 +57,7 @@ export async function pmcidDe(pmid, senal) {
  * intervalos de confianza, que es justo lo que el resumen no trae. Después las
  * secciones de método y resultados. Lo demás solo si sobra sitio.
  */
-export function partesUtiles(xml) {
+export function partesUtiles(xml, tope = TOPE) {
   const trozos = [];
 
   const tablas = [...xml.matchAll(/<table-wrap[\s\S]*?<\/table-wrap>/g)].map((m) => m[0]);
@@ -87,7 +87,7 @@ export function partesUtiles(xml) {
 
   let texto = "";
   for (const t of todo) {
-    if (texto.length + t.length > TOPE) break;
+    if (texto.length + t.length > tope) break;
     texto += t + "\n\n";
   }
   return texto.trim();
