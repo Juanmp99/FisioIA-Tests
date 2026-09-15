@@ -7,10 +7,10 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server.js",
     "test": "node pruebas.js",
-    "verificar": "node verificacion.js",
-    "auditar": "node auditoria.js",
+    "verificar": "node --env-file-if-exists=.env verificacion.js",
+    "auditar": "node --env-file-if-exists=.env auditoria.js",
     "dev": "ACCESO_LIBRE=1 node --env-file-if-exists=.env server.js",
-    "limpiar": "node limpiar.js"
+    "limpiar": "node --env-file-if-exists=.env limpiar.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",
