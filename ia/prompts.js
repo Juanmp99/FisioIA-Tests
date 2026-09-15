@@ -18,6 +18,8 @@ Reglas:
 
 4. Agrupaciones. Si para esa sospecha existe una agrupación de tests descrita y estudiada como conjunto, propónla con su nombre habitual y los tests que la componen. Propón solo agrupaciones que existan realmente en la literatura, con nombre propio reconocible. Si no conoces ninguna para esa sospecha, no la inventes: deja la lista de agrupaciones vacía y devuelve los tests sueltos.
 
+4 bis. La agrupación lleva, además, su nombre en inglés en nombreBusqueda, porque es con eso con lo que se busca en PubMed y allí no hay nada en español. "Combinación de Park" no encuentra nada; "Park's combination test" sí. Vale la misma regla que para los tests: en nombresBusqueda van las otras formas inglesas de llamarla, si las hay.
+
 5. Ejecución. De cada test describe posición del paciente, posición del terapeuta, la maniobra, y qué se considera resultado positivo. Redacción breve y en imperativo, como un recordatorio para alguien que ya sabe hacerlo, no como un manual de aprendizaje. Nadie aprende un test nuevo con el paciente delante.
 
 6. Nombres. Usa el nombre habitual del test en la literatura, que suele ser el epónimo en inglés y no se traduce (Jobe, Hawkins-Kennedy, Lachman). En otros nombres alternativos incluye cómo se le llama en español si es de uso corriente.
@@ -75,10 +77,21 @@ export const ESQUEMA_BATERIA = {
         type: "object",
         properties: {
           nombre: { type: "string" },
+          nombreBusqueda: {
+            type: "string",
+            description:
+              "El nombre de la agrupación EN INGLÉS, tal como lo escribe la literatura. Es con lo que se busca en PubMed, así que nunca en español.",
+          },
+          nombresBusqueda: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Otras formas inglesas de nombrar la misma agrupación. Vacío si no hay más de una.",
+          },
           tests: { type: "array", items: { type: "string" } },
           criterio: { type: "string", description: "Cuántos positivos se consideran agrupación positiva." },
         },
-        required: ["nombre", "tests", "criterio"],
+        required: ["nombre", "nombreBusqueda", "nombresBusqueda", "tests", "criterio"],
         additionalProperties: false,
       },
     },

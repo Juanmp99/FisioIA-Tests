@@ -1895,7 +1895,14 @@ a { color: var(--azul); text-underline-offset: 3px; }
   function buscarEvidencia() {
     var elementos = estado.agrupaciones.map(function (a) {
       return {
-        nombre: a.nombre, busqueda: a.nombre, tipo: "agrupacion",
+        nombre: a.nombre,
+        // En inglés: PubMed no indexa nada en español, y buscar "Combinación de
+        // Park" no devolvía un solo artículo. Las agrupaciones llevaban días
+        // sin encontrar cifras por esto, y parecía que era por falta de
+        // literatura.
+        busqueda: a.nombreBusqueda || a.nombre,
+        nombresBusqueda: a.nombresBusqueda || [],
+        tipo: "agrupacion",
         componentes: a.tests || [],
         // Para que el servidor pueda enseñar cada componente con el nombre que
         // lleva en la batería, en vez de con el que usó el artículo en inglés.
