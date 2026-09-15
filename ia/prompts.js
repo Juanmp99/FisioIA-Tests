@@ -251,13 +251,60 @@ function exigenciaAgrupacion() {
   );
 }
 
+/**
+ * Cuánto texto se le puede poner delante al modelo.
+ *
+ * Al ensanchar la búsqueda, los tests raros pasaron de encontrar un artículo a
+ * encontrar catorce, y el mensaje se disparó: uno llegó a 51.000 caracteres,
+ * con un solo "resumen" de 22.476 que no era un resumen sino un documento
+ * entero. PubMed mete ahí a veces capítulos y revisiones completas. La
+ * extracción tardaba tanto que la petición se cortaba y el fisioterapeuta veía
+ * "la búsqueda ha tardado demasiado" justo en los tests donde más se había
+ * buscado.
+ */
+const TOPE_RESUMEN = 2500;
+const TOPE_TEXTOS = 24000;
+
+/**
+ * Recorta un resumen desmedido sin tirar la frase que importa.
+ *
+ * Cortar por la mitad se llevaría por delante justo la línea con las cifras,
+ * que en los textos largos suele estar al final. Así que se conserva el
+ * principio, que es donde está el objetivo del estudio, y se rescatan aparte
+ * las frases donde aparece alguna medida de precisión.
+ */
+function recortarResumen(texto) {
+  const t = String(texto || "");
+  if (t.length <= TOPE_RESUMEN) return t;
+
+  const interesa = /sensitiv|specific|accuracy|likelihood ratio|predictive value|AUC|95% ?CI/i;
+  const frases = t.split(/(?<=[.;])\s+/).filter((f) => interesa.test(f));
+
+  const cabeza = t.slice(0, Math.floor(TOPE_RESUMEN * 0.6));
+  let cola = "";
+  for (const f of frases) {
+    if (cabeza.includes(f)) continue;
+    if (cola.length + f.length > TOPE_RESUMEN - cabeza.length) break;
+    cola += " " + f;
+  }
+  return `${cabeza}… [recortado]${cola ? " Frases con cifras:" + cola : ""}`;
+}
+
 export function mensajeExtraccion({ test, entidad, articulos, esAgrupacion }) {
-  const textos = articulos
-    .map(
-      (a, i) =>
-        `--- Artículo ${i + 1} ---\nPMID: ${a.pmid}\nTítulo: ${a.titulo}\nRevista: ${a.revista} (${a.anio})\nTipo de publicación: ${a.tipos.join(", ") || "no consta"}\nResumen: ${a.resumen || "(sin resumen disponible)"}`,
-    )
-    .join("\n\n");
+  // Los artículos vienen ordenados por relevancia, y las revisiones primero.
+  // Si no caben todos, los que se quedan fuera son los de la cola.
+  const trozos = [];
+  let gastado = 0;
+  for (const [i, a] of articulos.entries()) {
+    const trozo =
+      `--- Artículo ${i + 1} ---\nPMID: ${a.pmid}\nTítulo: ${a.titulo}\nRevista: ${a.revista} (${a.anio})\n` +
+      `Tipo de publicación: ${a.tipos.join(", ") || "no consta"}\n` +
+      `Resumen: ${recortarResumen(a.resumen) || "(sin resumen disponible)"}`;
+    if (gastado + trozo.length > TOPE_TEXTOS && trozos.length) break;
+    trozos.push(trozo);
+    gastado += trozo.length;
+  }
+  const textos = trozos.join("\n\n");
 
   return (
     `Test: ${test}\nEntidad clínica: ${entidad}\n` +

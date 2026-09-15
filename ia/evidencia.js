@@ -76,12 +76,16 @@ export function mereceTextoCompleto(datos) {
  * agotaba antes de empezar —hubo líneas de "quedan -6827 ms"— porque una sola
  * extracción cuesta entre 6 y 28 segundos, y la primera se lo comía entero.
  *
- * Ahora son 50, que dejan diez de margen bajo los sesenta que declara el
- * netlify.toml. No hace falta afinarlo más: nada arranca si no cabe según lo
- * que acaba de costar la extracción anterior, así que el número solo tiene que
- * ser una cota, no una medida exacta.
+ * Estuvo después en 50, confiando en los sesenta que declara el netlify.toml, y
+ * también era demasiado: con 50 volvieron los cortes. O sea que ese comentario
+ * tampoco es de fiar, y lo único cierto es lo que enseñó el registro, que una
+ * petición de 36.332 ms terminó bien.
+ *
+ * Se queda en 34, el valor más alto que producción ha demostrado que aguanta.
+ * Subirlo pide una prueba, no una suposición: si pasan días de uso sin que
+ * aparezca ningún corte, se sube un escalón y se vuelve a mirar.
  */
-const LIMITE_FUNCION = Number(process.env.LIMITE_FUNCION ?? 50000);
+const LIMITE_FUNCION = Number(process.env.LIMITE_FUNCION ?? 34000);
 
 /** Lo que se aparta para guardar el resultado y responder. */
 const RESERVA = 3000;
@@ -154,12 +158,38 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   /** Milisegundos que quedan antes de tener que responder. */
   const queda = () => LIMITE_FUNCION - RESERVA - (Date.now() - inicio);
 
+  /**
+   * Una señal que corta al agotarse el plazo.
+   *
+   * Es la diferencia entre responder mal y no responder. Sin ella, una
+   * extracción que se alarga se lleva la petición entera y quien contesta es la
+   * pasarela con una página de error; con ella, la función llega a tiempo de
+   * decir que no ha podido y el test queda como pendiente en vez de como roto.
+   */
+  const conPlazo = () => {
+    const plazo = AbortSignal.timeout(Math.max(1000, queda()));
+    return senal ? AbortSignal.any([senal, plazo]) : plazo;
+  };
+
   const antesDeExtraer = Date.now();
-  let { datos } = await pedirJson({
-    sistema: SISTEMA_EXTRACCION,
-    mensaje: mensajeExtraccion({ test, entidad: nombreEntidad, articulos, esAgrupacion }),
-    esquema: ESQUEMA_EXTRACCION,
-  });
+  let datos;
+  try {
+    ({ datos } = await pedirJson({
+      sistema: SISTEMA_EXTRACCION,
+      mensaje: mensajeExtraccion({ test, entidad: nombreEntidad, articulos, esAgrupacion }),
+      esquema: ESQUEMA_EXTRACCION,
+      senal: conPlazo(),
+    }));
+  } catch (e) {
+    if (!e.porPlazo) throw e;
+    // No se guarda: no es que no haya cifras, es que no ha dado tiempo a
+    // buscarlas. Guardarlo sellaría como "sin cifras" algo que no se ha mirado.
+    console.warn(`[plazo] ${test}: la extracción se ha cortado tras ${Date.now() - inicio} ms`);
+    return {
+      ...sinDatos("La búsqueda de este test no ha cabido en el tiempo disponible. Vuelve a intentarlo.", articulos),
+      transitorio: true,
+    };
+  }
 
   // Lo que cuesta una extracción, medido en esta misma petición y con este
   // mismo modelo. Es la mejor estimación posible de lo que va a costar la
@@ -187,6 +217,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
           sistema: SISTEMA_EXTRACCION,
           mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto, esAgrupacion }),
           esquema: ESQUEMA_EXTRACCION,
+          senal: conPlazo(),
         });
         // Solo se adopta si sigue encontrando el dato: el texto completo está
         // para afinar la valoración, no para perder una cifra que ya teníamos.
@@ -269,6 +300,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
           sistema: SISTEMA_EXTRACCION,
           mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto, esAgrupacion }),
           esquema: ESQUEMA_EXTRACCION,
+          senal: conPlazo(),
         });
         if (otra.datos?.encontrado && (typeof otra.datos.sn === "number" || typeof otra.datos.sp === "number")) {
           datos = normalizar(otra.datos);

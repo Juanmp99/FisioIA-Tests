@@ -1825,19 +1825,38 @@ a { color: var(--azul); text-underline-offset: 3px; }
     return Number(x).toLocaleString("es-ES", opciones);
   }
 
+  /**
+   * Los artículos que se leyeron, plegados.
+   *
+   * Se leen quince y se cita uno: el que publica la cifra. Citar los quince
+   * sería ruido, pero sin decirlo el trabajo de la búsqueda es invisible y
+   * parece que se ha mirado un solo sitio.
+   */
+  function leidos(ev, titulo) {
+    var lista = ev.consultados || [];
+    if (lista.length < 2) return "";
+    return '<details class="leidos"><summary>' + esc(titulo) + "</summary><ul>" +
+      lista.map(function (c) {
+        var actual = ev.cita && c.pmid === ev.cita.pmid;
+        return "<li>" + (actual ? "<b>" : "") +
+          '<a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.titulo) + "</a>" +
+          (actual ? "</b> · es el citado" : "") + "</li>";
+      }).join("") +
+    "</ul></details>";
+  }
+
   /** La cita, siempre visible. Es lo que permite comprobar el número. */
   function fuente(ev) {
     if (!ev) return "";
 
     if (!ev.hayCifras) {
-      var consultados = (ev.consultados || []).slice(0, 2);
+      // Cuando no hay cifras, lo que hay que enseñar es la lista entera y no
+      // dos: la pregunta que se hace uno es "¿de verdad no está en ninguno?", y
+      // dos títulos sueltos no la contestan. Antes esta ficha parecía haber
+      // mirado dos artículos y la de al lado quince, y eran los mismos quince.
       return '<div class="fuente">' + icono("libro") + "<span>" +
         esc(ev.motivo || ev.error || "No se han localizado cifras de precisión.") +
-        (consultados.length
-          ? " Se consultó: " + consultados.map(function (c) {
-              return '<a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.titulo) + "</a>";
-            }).join(" · ")
-          : "") +
+        leidos(ev, "Se leyeron " + (ev.consultados || []).length + " artículos · ninguno publica la cifra") +
       "</span></div>";
     }
 
@@ -1847,18 +1866,8 @@ a { color: var(--azul); text-underline-offset: 3px; }
     // que permite comprobar el número en dos clics, y citar los quince sería
     // ruido. Pero sin decirlo, el trabajo de la búsqueda es invisible y parece
     // que se ha mirado un solo sitio.
-    var leidos = (ev.consultados || []).length;
-    var resto = leidos > 1
-      ? '<details class="leidos"><summary>Se leyeron ' + leidos +
-          " artículos · se cita el que publica la cifra</summary><ul>" +
-          ev.consultados.map(function (c) {
-            var actual = ev.cita && c.pmid === ev.cita.pmid;
-            return "<li>" + (actual ? "<b>" : "") +
-              '<a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.titulo) + "</a>" +
-              (actual ? "</b> · es el citado" : "") + "</li>";
-          }).join("") +
-        "</ul></details>"
-      : "";
+    var resto = leidos(ev, "Se leyeron " + (ev.consultados || []).length +
+      " artículos · se cita el que publica la cifra");
 
     return '<div class="fuente">' + icono("libro") + "<span>" +
       '<a href="' + esc(ev.cita.url) + '" target="_blank" rel="noopener">' + esc(ev.cita.titulo) + "</a> · " +
