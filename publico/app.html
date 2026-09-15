@@ -568,6 +568,34 @@ a { color: var(--azul); text-underline-offset: 3px; }
 .tarjeta.cluster h3 { margin: 8px 0 4px; font-size: 1.0625rem; }
 .tarjeta.cluster .criterio { margin: 0 0 12px; color: var(--tinta-media); font-size: .9375rem; }
 .tarjeta.cluster ol { margin: 0; padding-left: 20px; color: var(--tinta-media); font-size: .9375rem; }
+.tarjeta.cluster ol li { margin-bottom: 4px; }
+
+/* Una agrupación cuyas cifras no se ha podido confirmar que midan esta misma
+   combinación de tests. Sigue siendo útil, pero no puede ir vestida igual que
+   la que sí está confirmada. */
+.tarjeta.cluster.sinConfirmar { border-color: color-mix(in srgb, var(--ambar) 40%, var(--borde)); }
+.tarjeta.cluster.sinConfirmar .rotulo { color: var(--ambar); }
+
+.avisoComp {
+  font-size: .75rem; color: var(--ambar);
+  border: 1px solid color-mix(in srgb, var(--ambar) 35%, transparent);
+  border-radius: 999px; padding: 1px 7px; margin-left: 6px; white-space: nowrap;
+}
+
+/* El careo entre lo que mostramos y lo que midió el artículo. Es lo que
+   convierte un sello en algo comprobable. */
+.careo {
+  margin: 12px 0 0; padding: 11px 13px;
+  border-radius: var(--radio-s); font-size: .8125rem; line-height: 1.5;
+  color: var(--tinta-tenue);
+  border: 1px solid color-mix(in srgb, var(--ambar) 30%, var(--borde));
+  background: color-mix(in srgb, var(--ambar) 6%, transparent);
+}
+.careo b { color: var(--tinta-media); font-weight: 600; }
+.careo.confirmado {
+  border-color: color-mix(in srgb, var(--violeta) 30%, var(--borde));
+  background: color-mix(in srgb, var(--violeta) 6%, transparent);
+}
 
 /* ============ leyenda ============ */
 
@@ -803,6 +831,22 @@ a { color: var(--azul); text-underline-offset: 3px; }
 }
 .fuente a { color: var(--tinta-media); }
 .fuente a:hover { color: var(--azul); }
+
+/* Los otros catorce artículos. Plegados por defecto: el que importa es el que
+   publica la cifra, pero verlos disponibles dice que la búsqueda fue ancha. */
+.leidos { margin-top: 10px; }
+.leidos summary {
+  cursor: pointer; color: var(--tinta-tenue); font-size: .75rem;
+  list-style: none; display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 8px; border-radius: 999px; border: 1px solid var(--borde);
+  transition: color .15s, border-color .15s;
+}
+.leidos summary::-webkit-details-marker { display: none; }
+.leidos summary::before { content: "▸"; font-size: .625rem; transition: transform .15s; }
+.leidos[open] summary::before { transform: rotate(90deg); }
+.leidos summary:hover { color: var(--tinta-media); border-color: var(--tinta-tenue); }
+.leidos ul { margin: 10px 0 0; padding-left: 18px; }
+.leidos li { margin-bottom: 5px; line-height: 1.45; }
 
 .motivos { margin: 10px 0 0; padding-left: 18px; font-size: .8125rem; color: var(--tinta-tenue); }
 .motivos li { margin-bottom: 4px; }
@@ -1527,11 +1571,47 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
     var html = validadas.map(function (a) {
       var ev = estado.evidencias[a.nombre];
-      return '<div class="tarjeta cluster" style="margin-bottom:14px">' +
-        '<span class="rotulo">Agrupación validada</span>' +
+      var comp = ev.agrupacion;
+
+      // "Validada" solo si el artículo del que salen las cifras describe esta
+      // misma combinación de tests y dice con qué regla la da por positiva.
+      // Antes bastaba con que la búsqueda devolviera cifras para un nombre
+      // parecido, que es bastante menos de lo que la palabra prometía.
+      var confirmada = comp && comp.coincide;
+      var rotulo = confirmada
+        ? "Agrupación confirmada por el artículo"
+        : "Agrupación con cifras publicadas";
+
+      // Los tests se enseñan con el nombre de la batería cuando es el mismo
+      // test: ver "Joint line tenderness" aquí y "Palpación de la interlínea
+      // articular" ahí abajo parecen dos pruebas distintas y son una.
+      var equivalencias = (comp && comp.equivalencias) || a.tests.map(function (t) {
+        return { propuesto: t, enBateria: null };
+      });
+      var lista = equivalencias.map(function (e) {
+        return "<li>" + esc(e.enBateria || e.propuesto) +
+          (e.enBateria ? "" : ' <span class="avisoComp">no está en la batería de abajo</span>') +
+        "</li>";
+      }).join("");
+
+      var careo = "";
+      if (comp && !comp.coincide) {
+        careo = '<div class="careo">' + esc(comp.motivo) +
+          (comp.delArticulo && comp.delArticulo.length
+            ? "<br><b>El artículo combina:</b> " + esc(comp.delArticulo.join(" · "))
+            : "") +
+          (comp.criterio ? "<br><b>Con la regla:</b> " + esc(comp.criterio) : "") +
+        "</div>";
+      } else if (comp && comp.criterio) {
+        careo = '<div class="careo confirmado"><b>Regla del artículo:</b> ' + esc(comp.criterio) + "</div>";
+      }
+
+      return '<div class="tarjeta cluster' + (confirmada ? "" : " sinConfirmar") + '" style="margin-bottom:14px">' +
+        '<span class="rotulo">' + rotulo + "</span>" +
         "<h3>" + esc(a.nombre) + "</h3>" +
         '<p class="criterio">' + esc(a.criterio) + "</p>" +
-        "<ol>" + a.tests.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ol>" +
+        "<ol>" + lista + "</ol>" +
+        careo +
         '<div class="franja" style="padding:14px 0 0">' + chipsCifras(ev) + selloCalidad(ev) + "</div>" +
         fuente(ev) +
       "</div>";
@@ -1759,10 +1839,29 @@ a { color: var(--azul); text-underline-offset: 3px; }
     }
 
     if (!ev.cita) return "";
+
+    // Se leen quince artículos y se cita uno: el que publica la cifra. Es lo
+    // que permite comprobar el número en dos clics, y citar los quince sería
+    // ruido. Pero sin decirlo, el trabajo de la búsqueda es invisible y parece
+    // que se ha mirado un solo sitio.
+    var leidos = (ev.consultados || []).length;
+    var resto = leidos > 1
+      ? '<details class="leidos"><summary>Se leyeron ' + leidos +
+          " artículos · se cita el que publica la cifra</summary><ul>" +
+          ev.consultados.map(function (c) {
+            var actual = ev.cita && c.pmid === ev.cita.pmid;
+            return "<li>" + (actual ? "<b>" : "") +
+              '<a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.titulo) + "</a>" +
+              (actual ? "</b> · es el citado" : "") + "</li>";
+          }).join("") +
+        "</ul></details>"
+      : "";
+
     return '<div class="fuente">' + icono("libro") + "<span>" +
       '<a href="' + esc(ev.cita.url) + '" target="_blank" rel="noopener">' + esc(ev.cita.titulo) + "</a> · " +
       esc(ev.cita.revista) + " " + esc(ev.cita.anio) +
       (ev.trazable === false ? " · <b>cifra no localizada en la frase citada, compruébala</b>" : "") +
+      resto +
     "</span></div>";
   }
 
@@ -1782,7 +1881,15 @@ a { color: var(--azul); text-underline-offset: 3px; }
    * quieta, y no cabía en el límite de tiempo de una función de Netlify.
    */
   function buscarEvidencia() {
-    var elementos = estado.agrupaciones.map(function (a) { return { nombre: a.nombre, busqueda: a.nombre, tipo: "agrupacion" }; })
+    var elementos = estado.agrupaciones.map(function (a) {
+      return {
+        nombre: a.nombre, busqueda: a.nombre, tipo: "agrupacion",
+        componentes: a.tests || [],
+        // Para que el servidor pueda enseñar cada componente con el nombre que
+        // lleva en la batería, en vez de con el que usó el artículo en inglés.
+        bateria: estado.tests.map(function (t) { return t.nombre; })
+      };
+    })
       .concat(estado.tests.map(function (t) {
         return {
           nombre: t.nombre,

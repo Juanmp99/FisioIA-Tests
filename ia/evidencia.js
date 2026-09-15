@@ -14,6 +14,7 @@ import { SISTEMA_EXTRACCION, ESQUEMA_EXTRACCION, mensajeExtraccion, mensajeExtra
 import { validarPrecision, validarParcial } from "../dominio/probabilidad.js";
 import { semaforo } from "../dominio/calidad.js";
 import { comprobarCita } from "../dominio/trazabilidad.js";
+import { comprobarAgrupacion } from "../dominio/agrupaciones.js";
 
 const ALMACEN = "evidencia";
 
@@ -115,7 +116,8 @@ const diasDesde = (iso) => (Date.now() - new Date(iso).getTime()) / 86400000;
  * Los resultados sin cifras también se guardan, para no repetir una búsqueda
  * infructuosa en cada consulta, pero caducan: la literatura crece.
  */
-export async function evidenciaDe({ test, busqueda, nombresTest, entidad, terminos, senal }) {
+export async function evidenciaDe({ test, busqueda, nombresTest, entidad, terminos, tipo, componentes, bateria, senal }) {
+  const esAgrupacion = tipo === "agrupacion";
   const inicio = Date.now();
   const consulta = busqueda || test;
   const lista = (Array.isArray(terminos) && terminos.length ? terminos : [entidad]).filter(Boolean);
@@ -155,7 +157,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   const antesDeExtraer = Date.now();
   let { datos } = await pedirJson({
     sistema: SISTEMA_EXTRACCION,
-    mensaje: mensajeExtraccion({ test, entidad: nombreEntidad, articulos }),
+    mensaje: mensajeExtraccion({ test, entidad: nombreEntidad, articulos, esAgrupacion }),
     esquema: ESQUEMA_EXTRACCION,
   });
 
@@ -183,7 +185,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
       if (completo) {
         const segunda = await pedirJson({
           sistema: SISTEMA_EXTRACCION,
-          mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto }),
+          mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto, esAgrupacion }),
           esquema: ESQUEMA_EXTRACCION,
         });
         // Solo se adopta si sigue encontrando el dato: el texto completo está
@@ -265,7 +267,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
         if (!completo) continue;
         const otra = await pedirJson({
           sistema: SISTEMA_EXTRACCION,
-          mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto }),
+          mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto, esAgrupacion }),
           esquema: ESQUEMA_EXTRACCION,
         });
         if (otra.datos?.encontrado && (typeof otra.datos.sn === "number" || typeof otra.datos.sp === "number")) {
@@ -341,8 +343,21 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     numeroEstudios: datos.numeroEstudios || 1,
   };
 
+  // Una agrupación solo puede llamarse validada si el artículo del que salen
+  // las cifras describe esta misma combinación de tests y dice con qué regla
+  // la da por positiva. Lo compara el código, no el modelo.
+  const agrupacion = esAgrupacion
+    ? comprobarAgrupacion({
+        propuestos: componentes,
+        delArticulo: datos.componentes,
+        criterio: datos.criterioDelArticulo,
+        bateria,
+      })
+    : null;
+
   const resultado = {
     hayCifras: true,
+    agrupacion,
     // Solo se puede calcular probabilidad post-test con las dos cifras.
     interpretable: !parcial,
     parcial,

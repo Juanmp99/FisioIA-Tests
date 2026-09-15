@@ -8,6 +8,7 @@ import { banderasPara } from "./dominio/banderas.js";
 import { coincidencia } from "./ia/entidades.js";
 import { mereceTextoCompleto } from "./ia/evidencia.js";
 import { promete } from "./ia/europepmc.js";
+import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
 
 let pasadas = 0;
 const cerca = (a, b, t = 0.01) => Math.abs(a - b) < t;
@@ -255,6 +256,77 @@ prueba("un artículo de tratamiento que además mide precisión no se descarta",
 
 prueba("lo que no habla de diagnóstico ni de exploración no puntúa", () => {
   assert.equal(promete({ title: "Epidemiology of knee pain in runners", abstractText: "A cohort study." }), 0);
+});
+
+console.log("\nAgrupaciones: que el artículo mida lo que decimos");
+
+// Una agrupación son unos tests concretos bajo una regla concreta. "Dos de
+// estos tres" y "los tres" son pruebas distintas con especificidades muy
+// distintas, así que llamar validada a una agrupación sin comprobar ninguna de
+// las dos cosas es prometer más de lo comprobado.
+
+prueba("el mismo test con nombres distintos no cuenta como discrepancia", () => {
+  assert.equal(mismoTest("Joint line tenderness", "Palpación de la interlínea articular"), true);
+  assert.equal(mismoTest("Jobe (empty can)", "Empty can test"), true);
+  assert.equal(mismoTest("Hoffmann-Tinel sign", "Tinel"), true);
+});
+
+prueba("dos tests distintos no se confunden", () => {
+  assert.equal(mismoTest("McMurray test", "Thessaly test"), false);
+  assert.equal(mismoTest("full can test", "empty can test"), false);
+});
+
+prueba("coincide cuando el artículo mide los mismos tests y dice la regla", () => {
+  const r = comprobarAgrupacion({
+    propuestos: ["Joint line tenderness", "McMurray test", "Pain with forced flexion"],
+    delArticulo: ["joint line tenderness", "McMurray sign", "pain with forced flexion"],
+    criterio: "at least two of the three positive",
+  });
+  assert.equal(r.coincide, true);
+});
+
+prueba("no coincide si el artículo combina otros tests", () => {
+  const r = comprobarAgrupacion({
+    propuestos: ["Joint line tenderness", "McMurray test", "Pain with forced flexion"],
+    delArticulo: ["joint line tenderness", "McMurray test", "Apley compression"],
+    criterio: "two of three",
+  });
+  assert.equal(r.coincide, false);
+  assert.deepEqual(r.sobran, ["Apley compression"]);
+  assert.deepEqual(r.faltan, ["Pain with forced flexion"]);
+});
+
+prueba("los mismos tests pero sin regla publicada tampoco es coincidir", () => {
+  // Sin saber cuántos positivos hacen falta, las cifras no son interpretables:
+  // "dos de tres" y "tres de tres" tienen especificidades muy distintas.
+  const r = comprobarAgrupacion({
+    propuestos: ["McMurray test", "Thessaly test"],
+    delArticulo: ["McMurray test", "Thessaly test"],
+    criterio: "",
+  });
+  assert.equal(r.coincide, false);
+  assert.match(r.motivo, /cuántos positivos/);
+});
+
+prueba("si el artículo no enumera lo que combina, no hay nada que comparar", () => {
+  const r = comprobarAgrupacion({
+    propuestos: ["McMurray test", "Thessaly test"],
+    delArticulo: [],
+    criterio: "two of three",
+  });
+  assert.equal(r.descrita, false);
+  assert.equal(r.coincide, false);
+});
+
+prueba("cada componente se devuelve con el nombre que lleva en la batería", () => {
+  const r = comprobarAgrupacion({
+    propuestos: ["Joint line tenderness", "Pain with forced flexion"],
+    delArticulo: ["joint line tenderness", "pain with forced flexion"],
+    criterio: "two of two",
+    bateria: ["Palpación de la interlínea articular", "McMurray"],
+  });
+  assert.equal(r.equivalencias[0].enBateria, "Palpación de la interlínea articular");
+  assert.equal(r.equivalencias[1].enBateria, null);
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);

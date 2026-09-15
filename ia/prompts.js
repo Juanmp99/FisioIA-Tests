@@ -175,12 +175,24 @@ export const ESQUEMA_EXTRACCION = {
       description: "Frase del texto, copiada palabra por palabra, donde constan las cifras extraídas.",
     },
     pmid: { type: ["string", "null"], description: "PMID del artículo del que salen las cifras." },
+    componentes: {
+      type: "array",
+      items: { type: "string" },
+      description:
+        "Solo para agrupaciones: los tests que componen la agrupación SEGÚN EL ARTÍCULO, nombrados como los nombra él. Vacío si el artículo no los enumera o si no se trata de una agrupación.",
+    },
+    criterioDelArticulo: {
+      type: "string",
+      description:
+        "Solo para agrupaciones: la regla que el artículo usa para dar la agrupación por positiva, copiada de su texto. Vacío si el artículo no la dice.",
+    },
     notas: { type: "string", description: "Una línea sobre de dónde sale el dato o por qué no se ha encontrado." },
   },
   required: [
     "encontrado", "sn", "sp", "lrPositiva", "lrNegativa", "tipoEstudio",
     "amstar2", "quadas2", "consistencia", "intervalos", "numeroEstudios",
-    "mismaEntidad", "entidadDeLasCifras", "citaLiteral", "pmid", "notas",
+    "mismaEntidad", "entidadDeLasCifras", "citaLiteral", "pmid",
+    "componentes", "criterioDelArticulo", "notas",
   ],
   additionalProperties: false,
 };
@@ -193,9 +205,11 @@ export const ESQUEMA_EXTRACCION = {
  * trae y los dos que impiden que una evidencia buena llegue a verde. En el
  * texto completo suelen estar, y casi siempre en las tablas.
  */
-export function mensajeExtraccionCompleta({ test, entidad, articulo, texto }) {
+export function mensajeExtraccionCompleta({ test, entidad, articulo, texto, esAgrupacion }) {
   return (
-    `Test: ${test}\nEntidad clínica: ${entidad}\n\n` +
+    `Test: ${test}\nEntidad clínica: ${entidad}\n` +
+    (esAgrupacion ? exigenciaAgrupacion() : "") +
+    "\n" +
     "Tienes el TEXTO COMPLETO de un solo artículo, no un resumen. Las tablas van primero.\n" +
     "Aprovéchalo para lo que un resumen no permite: comprobar si constan intervalos de\n" +
     "confianza y si son estrechos o amplios, y valorar con criterio el riesgo de sesgo\n" +
@@ -207,7 +221,37 @@ export function mensajeExtraccionCompleta({ test, entidad, articulo, texto }) {
   );
 }
 
-export function mensajeExtraccion({ test, entidad, articulos }) {
+/**
+ * Lo que se le exige de más cuando lo que se busca es una agrupación.
+ *
+ * Una agrupación no es un test con otro nombre: son unos tests concretos
+ * combinados bajo una regla concreta, y sus cifras solo valen para esa
+ * combinación y esa regla. Sin comprobarlo, bastaba con que la búsqueda
+ * devolviera cifras para algo llamado "exploración clínica combinada" para que
+ * la interfaz lo diera por validado, aunque el artículo combinase otros tests o
+ * exigiera otro número de positivos.
+ *
+ * Por eso se le piden los componentes y el criterio tal como los nombra el
+ * artículo, y no se le enseña la propuesta que hay que comprobar: si la viera,
+ * la tentación de devolverla igual sería demasiado grande. Comparar es trabajo
+ * de después, y de código.
+ */
+function exigenciaAgrupacion() {
+  return (
+    "\nESTO ES UNA AGRUPACIÓN, NO UN TEST SUELTO.\n" +
+    "Las cifras de una agrupación solo valen para unos tests concretos combinados\n" +
+    "bajo una regla concreta. Así que, además de las cifras:\n" +
+    "  - Enumera en `componentes` los tests que el artículo combina, con el nombre\n" +
+    "    que les da el artículo. Si no los enumera, deja la lista vacía.\n" +
+    "  - Copia en `criterioDelArticulo` la regla con la que el artículo da la\n" +
+    "    agrupación por positiva. Si no la dice, déjalo vacío.\n" +
+    "No deduzcas ninguna de las dos cosas ni las completes con lo que sepas: si no\n" +
+    "están escritas en el texto, van vacías. Una agrupación sin componentes y sin\n" +
+    "criterio no es un error, es un dato.\n"
+  );
+}
+
+export function mensajeExtraccion({ test, entidad, articulos, esAgrupacion }) {
   const textos = articulos
     .map(
       (a, i) =>
@@ -215,5 +259,9 @@ export function mensajeExtraccion({ test, entidad, articulos }) {
     )
     .join("\n\n");
 
-  return `Test: ${test}\nEntidad clínica: ${entidad}\n\nTextos disponibles:\n\n${textos}`;
+  return (
+    `Test: ${test}\nEntidad clínica: ${entidad}\n` +
+    (esAgrupacion ? exigenciaAgrupacion() : "") +
+    `\nTextos disponibles:\n\n${textos}`
+  );
 }
