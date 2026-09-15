@@ -18,7 +18,10 @@
 // devuelven el XML: el resto están indexados, no abiertos. Por eso esto es un
 // buscador de candidatos y la lectura del artículo entero sigue donde estaba.
 
-const BASE = "https://www.ebi.ac.uk/europepmc/webservices/rest/search";
+const RAIZ = "https://www.ebi.ac.uk/europepmc/webservices/rest";
+const BASE = `${RAIZ}/search`;
+
+import { partesUtiles } from "./pmc.js";
 
 /** Lo que tiene que decir un artículo para que valga la pena mirarlo. */
 const PRECISION = '("diagnostic accuracy" OR "sensitivity and specificity" OR "likelihood ratio" OR "predictive value" OR (sensitivity AND specificity))';
@@ -94,7 +97,10 @@ export async function buscarCuerpoCompleto({ nombresTest, terminos, limite = 5, 
 
   try {
     const respuesta = await fetch(url, { signal: senal });
-    if (!respuesta.ok) return [];
+    if (!respuesta.ok) {
+      console.warn(`[europepmc] búsqueda respondió ${respuesta.status} para ${consulta}`);
+      return [];
+    }
     const datos = await respuesta.json();
     return (datos?.resultList?.result ?? [])
       .filter((r) => typeof r.pmid === "string" && /^\d+$/.test(r.pmid))
@@ -103,7 +109,74 @@ export async function buscarCuerpoCompleto({ nombresTest, terminos, limite = 5, 
       .sort((a, b) => b.puntos - a.puntos)
       .slice(0, limite)
       .map((r) => r.pmid);
-  } catch {
+  } catch (e) {
+    // Devolver vacío sin decir nada haría que un fallo de red fuese
+    // indistinguible de una consulta sin resultados, y la auditoría no podría
+    // notar la diferencia.
+    console.warn(`[europepmc] búsqueda fallida: ${e.message}`);
     return [];
+  }
+}
+
+/**
+ * Cuáles de estos artículos sirven el texto completo, en una sola consulta.
+ *
+ * Preguntarlo uno a uno costaría una petición por artículo, y son quince. Aquí
+ * son todos en una.
+ *
+ * El criterio es el acceso abierto y no el "consta en Europe PMC", que es más
+ * ancho y engaña: de los ocho artículos de nuestra base que constan, solo
+ * cuatro devuelven el XML. Los otros están indexados, no abiertos, y pedirlos
+ * es un 404 y un viaje perdido.
+ *
+ * @returns {Promise<Map<string,string>>} pmid -> pmcid
+ */
+export async function abiertos(pmids, senal) {
+  const utiles = (pmids || []).filter((p) => /^\d+$/.test(String(p)));
+  if (!utiles.length) return new Map();
+
+  const consulta = `EXT_ID:(${utiles.join(" OR ")}) AND OPEN_ACCESS:Y`;
+  const url = `${BASE}?query=${encodeURIComponent(consulta)}&format=json&pageSize=${utiles.length}&resultType=lite`;
+
+  try {
+    const respuesta = await fetch(url, { signal: senal });
+    if (!respuesta.ok) {
+      console.warn(`[europepmc] consulta de acceso abierto respondió ${respuesta.status}`);
+      return new Map();
+    }
+    const datos = await respuesta.json();
+    const mapa = new Map();
+    for (const r of datos?.resultList?.result ?? []) {
+      if (r.pmid && r.pmcid) mapa.set(String(r.pmid), r.pmcid);
+    }
+    return mapa;
+  } catch (e) {
+    console.warn(`[europepmc] consulta de acceso abierto fallida: ${e.message}`);
+    return new Map();
+  }
+}
+
+/**
+ * Texto completo desde Europe PMC, del mismo catálogo que dijo que estaba
+ * abierto.
+ *
+ * Existe porque los dos catálogos no coinciden: hay artículos que Europe PMC
+ * sirve enteros y que el efetch de PubMed Central rechaza con un 400. Preguntar
+ * a uno y descargar del otro quemaba intentos en artículos que sí estaban ahí.
+ *
+ * Devuelve null cuando no hay cuerpo, que es un desenlace normal y no un error.
+ */
+export async function textoCompletoAbierto(pmcid, senal) {
+  if (!pmcid) return null;
+  try {
+    const respuesta = await fetch(`${RAIZ}/${encodeURIComponent(pmcid)}/fullTextXML`, { signal: senal });
+    if (!respuesta.ok) return null;
+    const xml = await respuesta.text();
+    if (!/<body[\s>]/.test(xml)) return null;
+    const texto = partesUtiles(xml);
+    return texto.length > 600 ? { pmcid, texto } : null;
+  } catch (e) {
+    console.warn(`[europepmc] ${pmcid}: ${e.message}`);
+    return null;
   }
 }

@@ -57,7 +57,7 @@ export async function pmcidDe(pmid, senal) {
  * intervalos de confianza, que es justo lo que el resumen no trae. Después las
  * secciones de método y resultados. Lo demás solo si sobra sitio.
  */
-function partesUtiles(xml) {
+export function partesUtiles(xml) {
   const trozos = [];
 
   const tablas = [...xml.matchAll(/<table-wrap[\s\S]*?<\/table-wrap>/g)].map((m) => m[0]);
@@ -100,8 +100,16 @@ function partesUtiles(xml) {
 export async function textoCompleto(pmid, senal) {
   const pmcid = await pmcidDe(pmid, senal);
   if (!pmcid) return null;
+  return textoCompletoDe(pmcid, senal);
+}
 
-  const url = `${BASE}/efetch.fcgi?db=pmc&id=${encodeURIComponent(pmcid.replace("PMC", ""))}&retmode=xml`;
+/**
+ * Lo mismo, cuando ya se sabe el identificador de PubMed Central y no hace
+ * falta preguntarlo. Ahorra una petición por artículo, que con quince
+ * candidatos es la diferencia entre poder mirar y no poder.
+ */
+export async function textoCompletoDe(pmcid, senal) {
+  const url = `${BASE}/efetch.fcgi?db=pmc&id=${encodeURIComponent(String(pmcid).replace("PMC", ""))}&retmode=xml`;
   const xml = await (await pedir(url, senal)).text();
 
   // Sin cuerpo no hay nada que leer: pasa con los que solo tienen resumen

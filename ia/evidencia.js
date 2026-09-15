@@ -8,6 +8,7 @@
 import { leer, escribir, cuantos } from "../lib/almacen.js";
 import { buscarPrecision, urlPubmed } from "./pubmed.js";
 import { textoCompleto } from "./pmc.js";
+import { abiertos, textoCompletoAbierto } from "./europepmc.js";
 import { pedirJson } from "./cliente.js";
 import { SISTEMA_EXTRACCION, ESQUEMA_EXTRACCION, mensajeExtraccion, mensajeExtraccionCompleta } from "./prompts.js";
 import { validarPrecision, validarParcial } from "../dominio/probabilidad.js";
@@ -77,6 +78,16 @@ export function mereceTextoCompleto(datos) {
  * Ahora son 32 s, que dejan 28 para bajar el artículo y volver a extraer.
  */
 const MARGEN_ESCALADA = 32000;
+
+/**
+ * Hasta cuándo se puede seguir abriendo artículos en el rescate, y cuántos.
+ *
+ * El rescate ocurre después de la búsqueda y de una extracción, o sea con unos
+ * doce segundos gastados de los sesenta. Cada artículo que se abre son unos
+ * quince más. Dos caben; tres se juegan el aviso entero por un test.
+ */
+const MARGEN_RESCATE = 38000;
+const RESCATES_MAX = 2;
 
 /** Días tras los cuales se vuelve a intentar una búsqueda que no encontró nada. */
 const CADUCIDAD_NEGATIVOS = 30;
@@ -174,16 +185,69 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   // constancia de que se ha tocado.
   const aProporcion = (x) => (typeof x === "number" && x > 1 && x <= 100 ? x / 100 : x);
 
-  const snCruda = datos.sn;
-  const spCruda = datos.sp;
-  datos.sn = aProporcion(datos.sn);
-  datos.sp = aProporcion(datos.sp);
-  const normalizada = datos.sn !== snCruda || datos.sp !== spCruda;
+  // Se aplica a toda extracción que llegue a adoptarse, también a la del
+  // rescate: la bandera tiene que hablar de las cifras que se acaban
+  // publicando, no de las de un intento que se descartó.
+  let normalizada = false;
+  const normalizar = (d) => {
+    const snCruda = d.sn;
+    const spCruda = d.sp;
+    d.sn = aProporcion(d.sn);
+    d.sp = aProporcion(d.sp);
+    normalizada = d.sn !== snCruda || d.sp !== spCruda;
+    return d;
+  };
+  normalizar(datos);
 
   const tieneSn = typeof datos.sn === "number";
   const tieneSp = typeof datos.sp === "number";
 
-  if (!datos.encontrado || (!tieneSn && !tieneSp)) {
+  // Rescate: el resumen no trae las cifras, pero el artículo puede traerlas.
+  //
+  // Es el caso más frecuente de la base, con diferencia: veinte de cuarenta y
+  // cinco entradas se quedaban en "sin cifras publicadas". Y la mayoría de las
+  // veces no es que no estén publicadas, es que no están en el resumen: un
+  // estudio que compara ocho maniobras resume las dos mejores y deja las otras
+  // seis en una tabla. Hasta ahora solo se bajaba al texto completo para afinar
+  // el color de una revisión que ya tenía cifras, que es la situación en la que
+  // menos falta hace.
+  //
+  // Se abre el artículo que más promete de los que están en abierto. Solo se
+  // adopta si encuentra algo: un texto completo que tampoco da cifras deja el
+  // resultado exactamente como estaba.
+  let deRescate = null;
+  if ((!datos.encontrado || (!tieneSn && !tieneSp)) && Date.now() - inicio < MARGEN_RESCATE) {
+    const disponibles = await abiertos(articulos.map((a) => a.pmid), senal);
+    const candidatos = articulos.filter((a) => disponibles.has(a.pmid)).slice(0, RESCATES_MAX);
+
+    if (!candidatos.length) {
+      console.warn(`[rescate] ${test}: ninguno de los ${articulos.length} artículos está en abierto`);
+    }
+
+    for (const fuente of candidatos) {
+      if (Date.now() - inicio >= MARGEN_RESCATE) break;
+      try {
+        const completo = await textoCompletoAbierto(disponibles.get(fuente.pmid), senal);
+        if (!completo) continue;
+        const otra = await pedirJson({
+          sistema: SISTEMA_EXTRACCION,
+          mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto }),
+          esquema: ESQUEMA_EXTRACCION,
+        });
+        if (otra.datos?.encontrado && (typeof otra.datos.sn === "number" || typeof otra.datos.sp === "number")) {
+          datos = normalizar(otra.datos);
+          deRescate = completo.pmcid;
+          break;
+        }
+      } catch (e) {
+        console.warn(`[rescate] ${test}: ${e.message}`);
+      }
+    }
+  }
+
+  if (deRescate) {
+    pmcid = deRescate;
+  } else if (!datos.encontrado || (!tieneSn && !tieneSp)) {
     const vacio = sinDatos(
       datos.notas || "Los artículos localizados no aportan sensibilidad ni especificidad para este test.",
       articulos,
@@ -192,12 +256,15 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     return vacio;
   }
 
+  const tieneSnFinal = typeof datos.sn === "number";
+  const tieneSpFinal = typeof datos.sp === "number";
+
   // Solo una de las dos. Ocurre mucho en patologías que se diagnostican por
   // clínica, donde los estudios no tienen grupo control sin la enfermedad y por
   // tanto no pueden calcular la especificidad. No permite concluir, pero decir
   // "sin cifras" cuando existe una sensibilidad publicada es peor: da a entender
   // que no se sabe nada.
-  const parcial = !tieneSn || !tieneSp;
+  const parcial = !tieneSnFinal || !tieneSpFinal;
 
   const validacion = parcial
     ? validarParcial({ sn: datos.sn, sp: datos.sp })
@@ -245,9 +312,9 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     // Solo se puede calcular probabilidad post-test con las dos cifras.
     interpretable: !parcial,
     parcial,
-    falta: parcial ? (tieneSn ? "especificidad" : "sensibilidad") : null,
-    sn: tieneSn ? datos.sn : null,
-    sp: tieneSp ? datos.sp : null,
+    falta: parcial ? (tieneSnFinal ? "especificidad" : "sensibilidad") : null,
+    sn: tieneSnFinal ? datos.sn : null,
+    sp: tieneSpFinal ? datos.sp : null,
     indirecta,
     entidadDeLasCifras: indirecta ? datos.entidadDeLasCifras : null,
     valoracion,
@@ -256,7 +323,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
       indirecta,
       entidadDeLasCifras: datos.entidadDeLasCifras,
       parcial,
-      falta: parcial ? (tieneSn ? "especificidad" : "sensibilidad") : null,
+      falta: parcial ? (tieneSnFinal ? "especificidad" : "sensibilidad") : null,
     }),
     cita: {
       pmid: fuente.pmid,
