@@ -66,36 +66,36 @@ export function mereceTextoCompleto(datos) {
 }
 
 /**
- * Hasta cuándo se puede empezar la segunda pasada.
+ * Cuánto puede durar la función entera antes de que la pasarela de Netlify
+ * corte la petición y responda ella una página de error en HTML.
  *
- * Una función de Netlify muere a los 60 s. Para cuando llega esta decisión ya
- * se han gastado la búsqueda en PubMed y la primera extracción, que juntas
- * suelen irse a la treintena de segundos. El primer valor que puse aquí fueron
- * 25 s, medidos desde el principio de la función: el umbral quedaba por debajo
- * de lo que ya se había consumido, así que la escalada no se disparó ni una
- * sola vez. La auditoría lo cantó con un "leídas del texto completo: 0".
+ * Es una suposición, y conviene decirlo: el comentario del netlify.toml hablaba
+ * de sesenta segundos, sobre esa cifra calculé los intentos del rescate, y el
+ * resultado fue que las fichas de los tests sin cifras empezaron a mostrar
+ * "Unexpected token '<'". El número real lo dice el registro de la función
+ * ("Task timed out after N seconds"), y en cuanto se sepa se pone aquí con
+ * LIMITE_FUNCION sin tocar código.
  *
- * Ahora son 32 s, que dejan 28 para bajar el artículo y volver a extraer.
+ * Por defecto va bajo a propósito: pasarse cuesta la respuesta entera, mientras
+ * que quedarse corto solo cuesta un rescate que no se intenta y queda anotado
+ * en el registro.
  */
-const MARGEN_ESCALADA = 32000;
+const LIMITE_FUNCION = Number(process.env.LIMITE_FUNCION ?? 26000);
+
+/** Lo que se aparta para guardar el resultado y responder. */
+const RESERVA = 3000;
+
+/** Lo que tarda en bajarse un artículo entero. Medido, no supuesto. */
+const COSTE_DESCARGA = 3000;
 
 /**
- * Hasta cuándo se puede abrir un artículo en el rescate, y cuánto se lee.
+ * Cuánto se lee de cada artículo en el rescate.
  *
- * La primera versión permitía dos intentos y arrancaba hasta el segundo 38.
- * Estaba mal contado: la comprobación mira lo gastado antes de empezar, no lo
- * que va a costar lo que empieza. Un intento son unos veinte segundos entre
- * bajar el artículo y volver a extraer, así que dos intentos arrancando a los
- * 38 se plantaban en los 78 y la pasarela de Netlify cortaba con una página de
- * error en HTML. El fisioterapeuta veía "Unexpected token '<'" en la ficha.
- *
- * Ahora es un solo intento, que además no arranca si ya se han ido veinte
- * segundos, y lee ocho mil caracteres en lugar de quince mil. Las tablas van
+ * Ocho mil caracteres en lugar de los quince mil de la escalada. Las tablas van
  * las primeras, que es donde están las cifras: recortar quita discusión, no
- * números.
+ * números, y a cambio la extracción tarda bastante menos, que es lo que decide
+ * si caben dos intentos o ninguno.
  */
-const MARGEN_RESCATE = 20000;
-const RESCATES_MAX = 1;
 const TOPE_RESCATE = 8000;
 
 /** Días tras los cuales se vuelve a intentar una búsqueda que no encontró nada. */
@@ -149,24 +149,34 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
 
   const nombreEntidad = `${entidad} (${lista.join("; ")})`;
 
+  /** Milisegundos que quedan antes de tener que responder. */
+  const queda = () => LIMITE_FUNCION - RESERVA - (Date.now() - inicio);
+
+  const antesDeExtraer = Date.now();
   let { datos } = await pedirJson({
     sistema: SISTEMA_EXTRACCION,
     mensaje: mensajeExtraccion({ test, entidad: nombreEntidad, articulos }),
     esquema: ESQUEMA_EXTRACCION,
   });
 
+  // Lo que cuesta una extracción, medido en esta misma petición y con este
+  // mismo modelo. Es la mejor estimación posible de lo que va a costar la
+  // siguiente, y es lo que decide cuántas veces se puede volver a intentar sin
+  // pasarse. Antes ese número estaba escrito a mano y por eso se pasó.
+  const costeExtraccion = Date.now() - antesDeExtraer;
+  const cabeOtraExtraccion = () => queda() > costeExtraccion + COSTE_DESCARGA;
+
   // Segunda pasada con el artículo entero, cuando el resumen se ha quedado
   // corto justo en lo que decide el color del semáforo.
   let pmcid = null;
-  if (mereceTextoCompleto(datos)) {
-    const gastado = Date.now() - inicio;
-    if (gastado >= MARGEN_ESCALADA) {
-      // Se deja constancia: sin esto, una escalada que nunca ocurre es
-      // indistinguible de una que ocurre y no cambia nada.
-      console.warn(`[pmc] ${test}: se salta el texto completo, ya van ${Math.round(gastado / 1000)} s`);
-    }
+  if (mereceTextoCompleto(datos) && !cabeOtraExtraccion()) {
+    // Se deja constancia: sin esto, una escalada que nunca ocurre es
+    // indistinguible de una que ocurre y no cambia nada.
+    console.warn(
+      `[pmc] ${test}: se salta el texto completo, quedan ${queda()} ms y una extracción cuesta ${costeExtraccion}`,
+    );
   }
-  if (mereceTextoCompleto(datos) && Date.now() - inicio < MARGEN_ESCALADA) {
+  if (mereceTextoCompleto(datos) && cabeOtraExtraccion()) {
     const fuente = articulos.find((a) => a.pmid === datos.pmid) || articulos[0];
     try {
       const completo = await textoCompleto(fuente.pmid, senal);
@@ -226,19 +236,30 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   // resultado exactamente como estaba.
   let deRescate = null;
   const sinCifras = !datos.encontrado || (!tieneSn && !tieneSp);
-  if (sinCifras && Date.now() - inicio >= MARGEN_RESCATE) {
-    console.warn(`[rescate] ${test}: no se abre el artículo, ya van ${Math.round((Date.now() - inicio) / 1000)} s`);
+
+  if (sinCifras && !cabeOtraExtraccion()) {
+    console.warn(
+      `[rescate] ${test}: no se abre ningún artículo, quedan ${queda()} ms y una extracción cuesta ${costeExtraccion}`,
+    );
   }
-  if (sinCifras && Date.now() - inicio < MARGEN_RESCATE) {
+
+  if (sinCifras && cabeOtraExtraccion()) {
     const disponibles = await abiertos(articulos.map((a) => a.pmid), senal);
-    const candidatos = articulos.filter((a) => disponibles.has(a.pmid)).slice(0, RESCATES_MAX);
+    // Se prueban tantos como quepan. Cuántos son no lo decide un número escrito
+    // a mano, sino lo que queda de presupuesto frente a lo que acaba de costar
+    // la primera extracción: si el límite real resulta ser más generoso, se
+    // aprovecha solo, y si es más corto, no se pasa.
+    const candidatos = articulos.filter((a) => disponibles.has(a.pmid));
 
     if (!candidatos.length) {
       console.warn(`[rescate] ${test}: ninguno de los ${articulos.length} artículos está en abierto`);
     }
 
     for (const fuente of candidatos) {
-      if (Date.now() - inicio >= MARGEN_RESCATE) break;
+      if (!cabeOtraExtraccion()) {
+        console.warn(`[rescate] ${test}: se para tras quedarse sin tiempo, quedan ${queda()} ms`);
+        break;
+      }
       try {
         const completo = await textoCompletoAbierto(disponibles.get(fuente.pmid), senal, TOPE_RESCATE);
         if (!completo) continue;
@@ -357,6 +378,14 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     estrategia,
     consultados: articulos.map((a) => ({ pmid: a.pmid, titulo: a.titulo, url: urlPubmed(a.pmid) })),
   };
+
+  // Cuánto ha costado de verdad. Es la única forma de saber si LIMITE_FUNCION
+  // está puesto donde toca, porque el límite real de la pasarela no se puede
+  // consultar desde dentro.
+  console.log(
+    `[tiempos] ${test}: total ${Date.now() - inicio} ms · extracción ${costeExtraccion} ms · ` +
+      `${articulos.length} artículos · ${pmcid ? "con" : "sin"} texto completo`,
+  );
 
   await anotar(resultado);
   return resultado;
