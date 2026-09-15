@@ -70,18 +70,18 @@ export function mereceTextoCompleto(datos) {
  * Cuánto puede durar la función entera antes de que la pasarela de Netlify
  * corte la petición y responda ella una página de error en HTML.
  *
- * Es una suposición, y conviene decirlo: el comentario del netlify.toml hablaba
- * de sesenta segundos, sobre esa cifra calculé los intentos del rescate, y el
- * resultado fue que las fichas de los tests sin cifras empezaron a mostrar
- * "Unexpected token '<'". El número real lo dice el registro de la función
- * ("Task timed out after N seconds"), y en cuanto se sepa se pone aquí con
- * LIMITE_FUNCION sin tocar código.
+ * Estuvo en 26 segundos mientras no se sabía el número, y era demasiado poco:
+ * el registro de producción enseñó peticiones de 36 segundos terminando bien, y
+ * ni un solo "Task timed out" en toda una tarde. Con 26 el presupuesto se
+ * agotaba antes de empezar —hubo líneas de "quedan -6827 ms"— porque una sola
+ * extracción cuesta entre 6 y 28 segundos, y la primera se lo comía entero.
  *
- * Por defecto va bajo a propósito: pasarse cuesta la respuesta entera, mientras
- * que quedarse corto solo cuesta un rescate que no se intenta y queda anotado
- * en el registro.
+ * Ahora son 50, que dejan diez de margen bajo los sesenta que declara el
+ * netlify.toml. No hace falta afinarlo más: nada arranca si no cabe según lo
+ * que acaba de costar la extracción anterior, así que el número solo tiene que
+ * ser una cota, no una medida exacta.
  */
-const LIMITE_FUNCION = Number(process.env.LIMITE_FUNCION ?? 26000);
+const LIMITE_FUNCION = Number(process.env.LIMITE_FUNCION ?? 50000);
 
 /** Lo que se aparta para guardar el resultado y responder. */
 const RESERVA = 3000;

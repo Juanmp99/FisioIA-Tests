@@ -152,49 +152,60 @@ export async function buscarPrecision({ test, nombresTest, terminos, senal }) {
     { id: "solo_test", termino: `${t} AND ${ACCURACY}` },
   ];
 
+  // Las consultas se acumulan en vez de sustituirse.
+  //
+  // Antes la escalera se paraba en cuanto una vía devolvía algo, aunque ese
+  // algo fuese un único artículo, y se quedaba ahí. En el registro de
+  // producción se veía el resultado: "Duck walk test: 1 artículos",
+  // "Distraction test: ninguno de los 1 artículos está en abierto". Con un solo
+  // candidato no hay extracción que valga ni artículo que abrir, y el hueco
+  // para catorce más estaba pagado y sin usar.
+  //
+  // Como las tres vías son cada una más ancha que la anterior, lo que encuentra
+  // la segunda incluye lo de la primera: sumarlas por orden conserva las más
+  // específicas arriba y solo añade por abajo.
+  const revisiones = [];
+  const generales = [];
+  let ultima = "sin_resultados";
+
   for (const estrategia of estrategias) {
-    const revisiones = await buscarIds(`${estrategia.termino} AND ${REVISIONES}`, REVISIONES_MAX, senal);
+    const nuevasRevisiones = await buscarIds(`${estrategia.termino} AND ${REVISIONES}`, REVISIONES_MAX, senal);
+    await esperar(PAUSA);
+    const nuevosGenerales = await buscarIds(estrategia.termino, ARTICULOS_MAX, senal);
     await esperar(PAUSA);
 
-    const generales = (await buscarIds(estrategia.termino, ARTICULOS_MAX, senal)).filter((id) => !revisiones.includes(id));
-    await esperar(PAUSA);
-
-    // El ensanchado se decide con lo que encuentra PubMed y solo con eso. Si
-    // contara también lo del cuerpo, una consulta demasiado estrecha que Europe
-    // PMC salvara por los pelos se daría por buena y la escalera no llegaría a
-    // soltar la restricción que sobraba.
-    if (!revisiones.length && !generales.length) continue;
-
-    const cuerpo = await deCuerpoCompleto;
-
-    // Las revisiones primero, porque son las únicas que pueden dar verde.
-    // Después lo que aportó la búsqueda en el cuerpo, que desplaza a los
-    // últimos resultados de PubMed y no a los primeros: si algo sobra de una
-    // lista ordenada por relevancia, es la cola.
-    const ids = [...new Set([...revisiones, ...cuerpo, ...generales])].slice(0, ARTICULOS_MAX);
-
-    const articulos = await traer(ids, senal);
-    const porId = new Map(articulos.map((a) => [a.pmid, a]));
-    const aportados = cuerpo.filter((id) => ids.includes(id) && !revisiones.includes(id) && !generales.includes(id));
-
-    return {
-      articulos: ids.map((id) => porId.get(id)).filter(Boolean),
-      estrategia: estrategia.id,
-      deCuerpoCompleto: aportados.length,
-    };
-  }
-
-  // Si PubMed no dio nada por ninguna de las tres vías, todavía queda lo que
-  // encontró la búsqueda en el cuerpo: es el caso para el que más falta hace.
-  const cuerpo = await deCuerpoCompleto;
-  if (cuerpo.length) {
-    const articulos = await traer(cuerpo, senal);
-    if (articulos.length) {
-      return { articulos, estrategia: "solo_cuerpo_completo", deCuerpoCompleto: articulos.length };
+    for (const id of nuevasRevisiones) if (!revisiones.includes(id)) revisiones.push(id);
+    for (const id of nuevosGenerales) {
+      if (!revisiones.includes(id) && !generales.includes(id)) generales.push(id);
     }
+
+    if (nuevasRevisiones.length || nuevosGenerales.length) ultima = estrategia.id;
+
+    // Se deja de ensanchar cuando hay de sobra para llenar los huecos que no
+    // se reservan a la búsqueda en el cuerpo. Antes bastaba con uno.
+    if (revisiones.length + generales.length >= ARTICULOS_MAX - CUERPO_COMPLETO_MAX) break;
   }
 
-  return { articulos: [], estrategia: "sin_resultados", deCuerpoCompleto: 0 };
+  const cuerpo = await deCuerpoCompleto;
+
+  // Las revisiones primero, porque son las únicas que pueden dar verde. Después
+  // lo que aportó la búsqueda en el cuerpo, que desplaza a los últimos
+  // resultados de PubMed y no a los primeros: si algo sobra de una lista
+  // ordenada por relevancia, es la cola.
+  const ids = [...new Set([...revisiones, ...cuerpo, ...generales])].slice(0, ARTICULOS_MAX);
+  if (!ids.length) return { articulos: [], estrategia: "sin_resultados", deCuerpoCompleto: 0 };
+
+  const articulos = await traer(ids, senal);
+  const porId = new Map(articulos.map((a) => [a.pmid, a]));
+  const aportados = cuerpo.filter(
+    (id) => ids.includes(id) && !revisiones.includes(id) && !generales.includes(id),
+  );
+
+  return {
+    articulos: ids.map((id) => porId.get(id)).filter(Boolean),
+    estrategia: revisiones.length + generales.length ? ultima : "solo_cuerpo_completo",
+    deCuerpoCompleto: aportados.length,
+  };
 }
 
 export function urlPubmed(pmid) {
