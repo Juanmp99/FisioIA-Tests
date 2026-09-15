@@ -1585,14 +1585,17 @@ a { color: var(--azul); text-underline-offset: 3px; }
       // Los tests se enseñan con el nombre de la batería cuando es el mismo
       // test: ver "Joint line tenderness" aquí y "Palpación de la interlínea
       // articular" ahí abajo parecen dos pruebas distintas y son una.
-      var equivalencias = (comp && comp.equivalencias) || a.tests.map(function (t) {
-        return { propuesto: t, enBateria: null };
-      });
-      var lista = equivalencias.map(function (e) {
-        return "<li>" + esc(e.enBateria || e.propuesto) +
-          (e.enBateria ? "" : ' <span class="avisoComp">no está en la batería de abajo</span>') +
-        "</li>";
-      }).join("");
+      // Una entrada guardada antes de que existiera el careo no lo trae. Ahí no
+      // se marca nada: decir "no está en la batería" sin haberlo comprobado
+      // sería el mismo error, del revés.
+      var equivalencias = comp && comp.equivalencias;
+      var lista = equivalencias
+        ? equivalencias.map(function (e) {
+            return "<li>" + esc(e.enBateria || e.propuesto) +
+              (e.enBateria ? "" : ' <span class="avisoComp">no está en la batería de abajo</span>') +
+            "</li>";
+          }).join("")
+        : a.tests.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("");
 
       var careo = "";
       if (comp && !comp.coincide) {
