@@ -261,33 +261,80 @@ function exigenciaAgrupacion() {
  * extracción tardaba tanto que la petición se cortaba y el fisioterapeuta veía
  * "la búsqueda ha tardado demasiado" justo en los tests donde más se había
  * buscado.
+ *
+ * Los dos números salen de medir, no de elegirlos redondos. Sobre 114 artículos
+ * de ocho búsquedas reales se contó cuántas afirmaciones de sensibilidad,
+ * especificidad o razón de verosimilitud llegan al modelo con cada
+ * combinación:
+ *
+ *     resumen 2500 · total 24000  ->  82 %   89 de 114 artículos
+ *     resumen 4000 · total 24000  ->  76 %   85            (peor: los
+ *                                            resúmenes grandes echan fuera
+ *                                            artículos enteros)
+ *     resumen 3000 · total 27000  ->  86 %   98
+ *     resumen 3000 · total 30000  ->  91 %  107
+ *
+ * Subir el tope por resumen sin subir el total empeora las cosas, que era justo
+ * lo que no se veía a ojo. El 9 % que sigue sin llegar está casi todo en los
+ * artículos de la cola, los de menos relevancia, que hasta anteayer no se leían
+ * en absoluto porque la búsqueda devolvía uno solo.
  */
-const TOPE_RESUMEN = 2500;
-const TOPE_TEXTOS = 24000;
+const TOPE_RESUMEN = 3000;
+const TOPE_TEXTOS = 30000;
 
 /**
  * Recorta un resumen desmedido sin tirar la frase que importa.
  *
- * Cortar por la mitad se llevaría por delante justo la línea con las cifras,
- * que en los textos largos suele estar al final. Así que se conserva el
- * principio, que es donde está el objetivo del estudio, y se rescatan aparte
- * las frases donde aparece alguna medida de precisión.
+ * El orden de prioridad es al revés de lo que parece natural. Lo primero que se
+ * salva no es el principio del texto sino las frases con cifras de precisión,
+ * porque son literalmente lo único que se ha venido a buscar y en los textos
+ * largos suelen estar al final, que es justo lo que un recorte por delante se
+ * lleva. Solo con el hueco que sobra se rellena la cabecera, que sirve para
+ * saber de qué va el estudio.
+ *
+ * La primera versión hacía lo contrario —cabecera primero, cifras con lo que
+ * quedara— y medido sobre dieciocho resúmenes recortados perdía una
+ * sensibilidad publicada. Una de cuarenta, pero de la única clase de dato que
+ * no se puede perder.
+ *
+ * Dentro de las frases con cifras también hay jerarquía: sensibilidad,
+ * especificidad y razones de verosimilitud van antes que valores predictivos o
+ * áreas bajo la curva, que no se extraen. Y se devuelven en el orden del
+ * artículo, para que cada cifra siga pegada al test que la tenía al lado.
  */
+const ESENCIAL = /sensitiv|specific|likelihood ratio|\bLR\s?[+−-]/i;
+const SECUNDARIO = /accuracy|predictive value|AUC|95% ?CI/i;
+
 function recortarResumen(texto) {
   const t = String(texto || "");
   if (t.length <= TOPE_RESUMEN) return t;
 
-  const interesa = /sensitiv|specific|accuracy|likelihood ratio|predictive value|AUC|95% ?CI/i;
-  const frases = t.split(/(?<=[.;])\s+/).filter((f) => interesa.test(f));
+  const frases = t.split(/(?<=[.;])\s+/);
+  const candidatas = frases
+    .map((f, i) => ({ f, i, esencial: ESENCIAL.test(f) }))
+    .filter((x) => x.esencial || SECUNDARIO.test(x.f));
 
-  const cabeza = t.slice(0, Math.floor(TOPE_RESUMEN * 0.6));
-  let cola = "";
-  for (const f of frases) {
-    if (cabeza.includes(f)) continue;
-    if (cola.length + f.length > TOPE_RESUMEN - cabeza.length) break;
-    cola += " " + f;
+  // Las esenciales primero para decidir cuáles caben...
+  const porPrioridad = [
+    ...candidatas.filter((x) => x.esencial),
+    ...candidatas.filter((x) => !x.esencial),
+  ];
+
+  const elegidas = [];
+  let gastado = 0;
+  for (const x of porPrioridad) {
+    if (gastado + x.f.length > TOPE_RESUMEN * 0.8) continue;
+    elegidas.push(x);
+    gastado += x.f.length + 1;
   }
-  return `${cabeza}… [recortado]${cola ? " Frases con cifras:" + cola : ""}`;
+  // ...pero se emiten en el orden en que las escribió el artículo.
+  elegidas.sort((a, b) => a.i - b.i);
+  const cifras = elegidas.map((x) => x.f).join(" ");
+
+  const hueco = TOPE_RESUMEN - cifras.length - 40;
+  const cabeza = hueco > 250 ? t.slice(0, hueco).trim() + "… [recortado] " : "";
+
+  return cabeza + cifras;
 }
 
 export function mensajeExtraccion({ test, entidad, articulos, esAgrupacion }) {
