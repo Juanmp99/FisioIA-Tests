@@ -10,12 +10,37 @@
 import { buscarCuerpoCompleto } from "./europepmc.js";
 
 const BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";
-const PAUSA = 350;
+
+/**
+ * Clave de NCBI, opcional y gratuita.
+ *
+ * Sin ella, PubMed corta a tres peticiones por segundo contando por dirección
+ * IP, no por usuario. Una búsqueda son siete peticiones y el navegador lanza
+ * tres tests a la vez, así que una sola persona ya va a 1,8 por segundo: con
+ * dos personas usando la herramienta al mismo tiempo nos pasamos del corte y
+ * PubMed empieza a devolver 429.
+ *
+ * Con clave el tope sube a diez por segundo, que da margen para varios
+ * usuarios simultáneos, y además permite acortar la pausa entre peticiones.
+ * Se saca gratis desde la cuenta de NCBI y se pone en NCBI_API_KEY.
+ */
+const CLAVE = process.env.NCBI_API_KEY || "";
+
+/** Con clave caben diez por segundo; sin ella, tres, y hay que ir más despacio. */
+const PAUSA = CLAVE ? 120 : 350;
 
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** La clave viaja como parámetro, que es como la pide E-utilities. */
+const conClave = (url) => (CLAVE ? `${url}&api_key=${encodeURIComponent(CLAVE)}` : url);
+
 async function pedir(url, senal) {
-  const respuesta = await fetch(url, { signal: senal });
+  const respuesta = await fetch(conClave(url), { signal: senal });
+  // El 429 tiene arreglo y conviene decirlo con nombre y apellidos: es el tope
+  // por segundo de PubMed, y lo levanta la clave.
+  if (respuesta.status === 429) {
+    throw new Error("PubMed ha cortado por exceso de peticiones por segundo. Define NCBI_API_KEY para subir el tope.");
+  }
   if (!respuesta.ok) throw new Error(`PubMed respondió ${respuesta.status}`);
   return respuesta;
 }
