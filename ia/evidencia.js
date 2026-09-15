@@ -123,6 +123,29 @@ const diasDesde = (iso) => (Date.now() - new Date(iso).getTime()) / 86400000;
 export async function evidenciaDe({ test, busqueda, nombresTest, entidad, terminos, tipo, componentes, bateria, senal }) {
   const esAgrupacion = tipo === "agrupacion";
   const inicio = Date.now();
+
+  /** Milisegundos que quedan antes de tener que responder. */
+  const queda = () => LIMITE_FUNCION - RESERVA - (Date.now() - inicio);
+
+  /**
+   * Una señal que corta al agotarse el plazo.
+   *
+   * Es la diferencia entre responder mal y no responder. Sin ella, lo que se
+   * alargue se lleva la petición entera y quien contesta es la pasarela con una
+   * página de error; con ella, la función llega a tiempo de decir que no ha
+   * podido, y el test queda pendiente en vez de roto.
+   *
+   * Nace aquí, con la función, y no más abajo. Antes solo cubría la llamada al
+   * modelo, y la búsqueda —que son siete peticiones a PubMed con sus pausas,
+   * más una a Europe PMC— quedaba fuera de plazo y sin ningún tope. Se notó en
+   * que el mensaje que llegaba a la ficha era el del navegador y no el del
+   * servidor: señal de que no habíamos abortado nada, nos habían matado.
+   */
+  const conPlazo = () => {
+    const plazo = AbortSignal.timeout(Math.max(1000, queda()));
+    return senal ? AbortSignal.any([senal, plazo]) : plazo;
+  };
+
   const consulta = busqueda || test;
   const lista = (Array.isArray(terminos) && terminos.length ? terminos : [entidad]).filter(Boolean);
   const termino = lista[0];
@@ -139,12 +162,23 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   let articulos = [];
   let estrategia = "sin_resultados";
   try {
-    const hallazgo = await buscarPrecision({ test: consulta, nombresTest, terminos: lista, senal });
+    const hallazgo = await buscarPrecision({ test: consulta, nombresTest, terminos: lista, senal: conPlazo() });
     articulos = hallazgo.articulos;
     estrategia = hallazgo.estrategia;
   } catch (e) {
-    // Un fallo de red no se guarda: puede haber datos y conviene reintentar luego.
-    return { ...sinDatos(`No se ha podido consultar PubMed: ${e.message}`), transitorio: true };
+    // Ni un fallo de red ni un corte por plazo se guardan: puede haber datos y
+    // conviene reintentar luego. Sellar esto como "sin cifras" sería dar por
+    // mirado lo que no se ha llegado a mirar.
+    const porPlazo = e?.name === "AbortError" || e?.name === "TimeoutError";
+    if (porPlazo) console.warn(`[plazo] ${test}: la búsqueda se ha cortado tras ${Date.now() - inicio} ms`);
+    return {
+      ...sinDatos(
+        porPlazo
+          ? "La búsqueda de este test no ha cabido en el tiempo disponible. Vuelve a intentarlo."
+          : `No se ha podido consultar PubMed: ${e.message}`,
+      ),
+      transitorio: true,
+    };
   }
 
   if (!articulos.length) {
@@ -154,22 +188,6 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   }
 
   const nombreEntidad = `${entidad} (${lista.join("; ")})`;
-
-  /** Milisegundos que quedan antes de tener que responder. */
-  const queda = () => LIMITE_FUNCION - RESERVA - (Date.now() - inicio);
-
-  /**
-   * Una señal que corta al agotarse el plazo.
-   *
-   * Es la diferencia entre responder mal y no responder. Sin ella, una
-   * extracción que se alarga se lleva la petición entera y quien contesta es la
-   * pasarela con una página de error; con ella, la función llega a tiempo de
-   * decir que no ha podido y el test queda como pendiente en vez de como roto.
-   */
-  const conPlazo = () => {
-    const plazo = AbortSignal.timeout(Math.max(1000, queda()));
-    return senal ? AbortSignal.any([senal, plazo]) : plazo;
-  };
 
   const antesDeExtraer = Date.now();
   let datos;

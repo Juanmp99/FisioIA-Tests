@@ -41,6 +41,14 @@ export default async (req) => {
       return json({ evidencia: r });
     }
 
+    // Tampoco se cobra lo que no se ha llegado a hacer. Un corte por plazo o un
+    // fallo de red devuelven `transitorio`, no se guardan, y hay que volver a
+    // pedirlos: cobrarlos sería cobrar dos veces la misma consulta.
+    if (r.transitorio) {
+      await devolver(puerta.registro);
+      return json({ evidencia: r });
+    }
+
     return json({ evidencia: r, restantes: cupo.restantes });
   } catch (e) {
     console.error("[evidencia]", e);
