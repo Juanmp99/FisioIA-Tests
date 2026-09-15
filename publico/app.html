@@ -1916,17 +1916,49 @@ a { color: var(--azul); text-underline-offset: 3px; }
     var enCurso = estado.entidad;
     var siguiente = 0;
 
-    function tomarUno() {
-      if (siguiente >= elementos.length) return Promise.resolve();
-      var el = elementos[siguiente++];
-
+    /**
+     * Pregunta por un test hasta que haya respuesta.
+     *
+     * El servidor ya no resuelve la búsqueda en la misma petición: contesta
+     * "listo", "en curso" o "fallo", y el trabajo de verdad corre aparte con
+     * quince minutos por delante en vez de treinta segundos. Eso es lo que
+     * permite que se lea el texto completo de los artículos, que antes se
+     * saltaba casi siempre por falta de tiempo.
+     *
+     * El sondeo empieza rápido y se va espaciando: casi todo lo que se pide ya
+     * está en la base y contesta a la primera, así que no tiene sentido
+     * machacar cada segundo durante medio minuto por los pocos que no.
+     */
+    function esperarPor(el, intento) {
       return pedir("/api/evidencia", {
         entidad: estado.entidad,
         terminosBusqueda: estado.terminos,
         elemento: el
       }).then(function (d) {
-        if (estado.entidad !== enCurso) return;
-        estado.evidencias[el.nombre] = d.evidencia;
+        if (estado.entidad !== enCurso) return null;
+
+        if (d.estado === "listo") return d.evidencia;
+        if (d.estado === "fallo") return { hayCifras: false, error: d.motivo };
+
+        // Sigue en marcha. Se abandona pasados unos minutos: a esas alturas el
+        // trabajador está muerto y su marca caducará sola, así que insistir
+        // solo gastaría peticiones.
+        var n = (intento || 0) + 1;
+        if (n > 90) return { hayCifras: false, error: "La búsqueda de este test está tardando demasiado. Vuelve a intentarlo." };
+
+        var espera = n < 5 ? 1200 : n < 15 ? 2500 : 4000;
+        return new Promise(function (listo) { setTimeout(listo, espera); })
+          .then(function () { return esperarPor(el, n); });
+      });
+    }
+
+    function tomarUno() {
+      if (siguiente >= elementos.length) return Promise.resolve();
+      var el = elementos[siguiente++];
+
+      return esperarPor(el, 0).then(function (ev) {
+        if (estado.entidad !== enCurso || !ev) return;
+        estado.evidencias[el.nombre] = ev;
         pintar();
       }).catch(function (err) {
         if (estado.entidad !== enCurso) return;

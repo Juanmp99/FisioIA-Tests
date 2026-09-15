@@ -17,7 +17,19 @@ const RAIZ = path.dirname(fileURLToPath(import.meta.url));
 const PUBLICO = path.join(RAIZ, "publico");
 const PUERTO = Number(process.env.PORT) || 3200;
 
-const FUNCIONES = ["acceso", "verificar", "bateria", "evidencia", "interpretar", "estado", "aliento"];
+const FUNCIONES = [
+  "acceso", "verificar", "bateria", "evidencia", "evidencia-background",
+  "interpretar", "estado", "aliento",
+];
+
+/**
+ * Las que Netlify trata como trabajo en segundo plano: contesta 202 al instante
+ * y las deja corriendo por su cuenta. Se imita aquí porque, si no, en local se
+ * comportarían como cualquier otra función y el despachador se quedaría
+ * esperándolas. Parecería que todo va bien y en producción no iría.
+ */
+const EN_SEGUNDO_PLANO = new Set(FUNCIONES.filter((n) => n.endsWith("-background")));
+const rutasDeFondo = new Set();
 
 // Cada función declara su ruta en `config.path`; aquí se construye el mismo
 // mapa que arma Netlify al desplegar.
@@ -25,6 +37,7 @@ const rutas = new Map();
 for (const nombre of FUNCIONES) {
   const modulo = await import(`./netlify/functions/${nombre}.mjs`);
   rutas.set(modulo.config.path, modulo.default);
+  if (EN_SEGUNDO_PLANO.has(nombre)) rutasDeFondo.add(modulo.config.path);
 }
 
 const TIPOS = {
@@ -73,6 +86,15 @@ const servidor = http.createServer(async (req, res) => {
 
   try {
     const peticion = new Request(url, { method: req.method, headers: req.headers, body: cuerpo });
+
+    if (rutasDeFondo.has(url.pathname)) {
+      res.writeHead(202).end();
+      manejador(peticion, { ip: req.socket.remoteAddress }).catch((e) =>
+        console.error("Fallo en segundo plano:", e),
+      );
+      return;
+    }
+
     const respuesta = await manejador(peticion, { ip: req.socket.remoteAddress });
     res.writeHead(respuesta.status, Object.fromEntries(respuesta.headers));
     res.end(Buffer.from(await respuesta.arrayBuffer()));

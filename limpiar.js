@@ -19,6 +19,7 @@ const CONOCIDOS = {
   evidencia: "las cifras de cada test con su cita",
   registro: "las baterías ya resueltas y sus entidades",
   aliento: "las frases de la pantalla de espera",
+  curso: "las marcas de búsquedas en marcha (se borran solas; vaciarlas desatasca)",
 };
 
 const pedidos = process.argv.slice(2).filter((a) => !a.startsWith("--"));

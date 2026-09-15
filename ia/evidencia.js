@@ -67,25 +67,27 @@ export function mereceTextoCompleto(datos) {
 }
 
 /**
- * Cuánto puede durar la función entera antes de que la pasarela de Netlify
- * corte la petición y responda ella una página de error en HTML.
+ * Cuánto puede durar una búsqueda entera.
  *
- * Estuvo en 26 segundos mientras no se sabía el número, y era demasiado poco:
- * el registro de producción enseñó peticiones de 36 segundos terminando bien, y
- * ni un solo "Task timed out" en toda una tarde. Con 26 el presupuesto se
- * agotaba antes de empezar —hubo líneas de "quedan -6827 ms"— porque una sola
- * extracción cuesta entre 6 y 28 segundos, y la primera se lo comía entero.
+ * Este número tiene historia. Fue 60 porque lo decía un comentario, y con 60 se
+ * cortaban las peticiones. Fue 26 y entonces el presupuesto se agotaba antes de
+ * empezar: se leían líneas de "quedan -6827 ms". Fue 50 y volvieron los cortes.
+ * Fue 34, que era lo máximo que producción había demostrado aguantar, y con 34
+ * la auditoría daba cero lecturas de texto completo: la búsqueda se comía doce
+ * segundos, una extracción entre quince y veintiocho, y nunca sobraba para una
+ * segunda.
  *
- * Estuvo después en 50, confiando en los sesenta que declara el netlify.toml, y
- * también era demasiado: con 50 volvieron los cortes. O sea que ese comentario
- * tampoco es de fiar, y lo único cierto es lo que enseñó el registro, que una
- * petición de 36.332 ms terminó bien.
+ * Todas esas peleas eran contra el mismo muro, que no era nuestro: el tope de
+ * una función de Netlify que responde en directo. Ahora esto corre en segundo
+ * plano, donde el tope son quince minutos, y el número deja de ser un
+ * equilibrio imposible para ser lo que siempre debió: un freno por si algo se
+ * atasca.
  *
- * Se queda en 34, el valor más alto que producción ha demostrado que aguanta.
- * Subirlo pide una prueba, no una suposición: si pasan días de uso sin que
- * aparezca ningún corte, se sube un escalón y se vuelve a mirar.
+ * Tres minutos. Nada va a tardar tanto, porque cada paso sigue comprobando si
+ * cabe antes de empezar; está por si un día algo se queda esperando a un
+ * servidor que no contesta.
  */
-const LIMITE_FUNCION = Number(process.env.LIMITE_FUNCION ?? 34000);
+const LIMITE_FUNCION = Number(process.env.LIMITE_FUNCION ?? 180000);
 
 /** Lo que se aparta para guardar el resultado y responder. */
 const RESERVA = 3000;
@@ -107,6 +109,38 @@ const TOPE_RESCATE = 8000;
 const CADUCIDAD_NEGATIVOS = 30;
 
 const diasDesde = (iso) => (Date.now() - new Date(iso).getTime()) / 86400000;
+
+const terminosUtiles = ({ entidad, terminos }) =>
+  (Array.isArray(terminos) && terminos.length ? terminos : [entidad]).filter(Boolean);
+
+/**
+ * La clave con la que se guarda una evidencia.
+ *
+ * Se exporta porque, con el trabajo en segundo plano, quien recibe la petición
+ * ya no es quien hace el trabajo: el despachador necesita mirar en la base y en
+ * el registro de trabajos en curso antes de decidir si lanza a nadie, y tiene
+ * que llegar exactamente a la misma clave que llegará el trabajador. Si las dos
+ * se calcularan por separado, un día dejarían de coincidir y el resultado se
+ * guardaría donde nadie lo busca.
+ */
+export function claveDe({ test, busqueda, entidad, terminos }) {
+  return clave(busqueda || test, terminosUtiles({ entidad, terminos })[0]);
+}
+
+/**
+ * Lo que hay en la base para esa clave, o null.
+ *
+ * Los resultados sin cifras caducan: la literatura crece, y lo que hoy no se
+ * encuentra puede publicarse mañana. Los que sí las tienen no caducan nunca,
+ * que es lo que hace que la misma pregunta dé siempre la misma respuesta.
+ */
+export async function deLaBase(k) {
+  const guardado = await leer(ALMACEN, k);
+  if (!guardado) return null;
+  const caducado =
+    !guardado.hayCifras && guardado.fecha && diasDesde(guardado.fecha) > CADUCIDAD_NEGATIVOS;
+  return caducado ? null : guardado;
+}
 
 /**
  * Evidencia de un test para una entidad. Va a la caché primero; si no está,
@@ -147,17 +181,13 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   };
 
   const consulta = busqueda || test;
-  const lista = (Array.isArray(terminos) && terminos.length ? terminos : [entidad]).filter(Boolean);
+  const lista = terminosUtiles({ entidad, terminos });
   const termino = lista[0];
   const k = clave(consulta, termino);
   const anotar = (valor) => guardar(k, valor, { test: consulta, entidad: termino });
 
-  const guardado = await leer(ALMACEN, k);
-  if (guardado) {
-    const caducado =
-      !guardado.hayCifras && guardado.fecha && diasDesde(guardado.fecha) > CADUCIDAD_NEGATIVOS;
-    if (!caducado) return { ...guardado, deCache: true };
-  }
+  const guardado = await deLaBase(k);
+  if (guardado) return { ...guardado, deCache: true };
 
   let articulos = [];
   let estrategia = "sin_resultados";
