@@ -19,6 +19,7 @@ const CONOCIDOS = {
   evidencia: "las cifras de cada test con su cita",
   registro: "las baterías ya resueltas y sus entidades",
   aliento: "las frases de la pantalla de espera",
+  explicacion: "las explicaciones personalizadas de cada test (redactadas con IA)",
   curso: "las marcas de búsquedas en marcha (se borran solas; vaciarlas desatasca)",
 };
 

@@ -9,6 +9,7 @@ import { coincidencia } from "./ia/entidades.js";
 import { mereceTextoCompleto } from "./ia/evidencia.js";
 import { promete } from "./ia/europepmc.js";
 import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
+import { numerosPermitidos, comprobarNumeros } from "./dominio/redaccion.js";
 
 let pasadas = 0;
 const cerca = (a, b, t = 0.01) => Math.abs(a - b) < t;
@@ -533,6 +534,34 @@ prueba("una especificidad perfecta no da una razón infinita", () => {
   const r = acotarParcial({ nivelPreTest: "media", sn: null, sp: 1, resultado: "positivo" });
   assert.ok(Number.isFinite(r.detalle.razonDeVerosimilitud));
   assert.ok(r.detalle.postTest < 1);
+});
+
+console.log("\nCandado de los textos redactados por el modelo");
+
+// Cada número que escriba el modelo tiene que salir de los datos que se le
+// dieron. Un "sube al 80%" inventado se lee igual que uno calculado.
+
+const permitidosJobe = numerosPermitidos({ proporciones: [0.77, 0.68], razones: [2.40625, 0.338] });
+
+prueba("acepta las cifras en cualquiera de sus formas", () => {
+  assert.equal(comprobarNumeros("De cada 100 personas, el test detecta a 77.", permitidosJobe).valido, true);
+  assert.equal(comprobarNumeros("Una sensibilidad de 0,77 y una especificidad del 68%.", permitidosJobe).valido, true);
+  assert.equal(comprobarNumeros("Un positivo multiplica las probabilidades por 2,4.", permitidosJobe).valido, true);
+});
+
+prueba("rechaza un porcentaje que no estaba en los datos", () => {
+  const r = comprobarNumeros("Con un positivo tu sospecha sube al 80%.", permitidosJobe);
+  assert.equal(r.valido, false);
+  assert.deepEqual(r.intrusos, ["80"]);
+});
+
+prueba("rechaza una cifra clínica inventada aunque parezca plausible", () => {
+  // Sin números de prevalencia en los datos, no puede aparecer ninguno.
+  assert.equal(comprobarNumeros("Afecta a un 20% de los mayores de 60 años.", permitidosJobe).valido, false);
+});
+
+prueba("un texto sin números pasa, porque no hay nada que comprobar", () => {
+  assert.equal(comprobarNumeros("Si sale negativo, ayuda a descartar.", permitidosJobe).valido, true);
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);

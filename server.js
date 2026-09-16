@@ -19,7 +19,7 @@ const PUERTO = Number(process.env.PORT) || 3200;
 
 const FUNCIONES = [
   "acceso", "verificar", "bateria", "evidencia", "evidencia-background",
-  "interpretar", "estado", "aliento",
+  "interpretar", "estado", "aliento", "explicar",
 ];
 
 /**

@@ -13,7 +13,7 @@
 // lectura del texto completo se saltaba "por falta de tiempo" en casi todas las
 // consultas, y no porque no mereciera la pena, sino porque no cabía.
 
-import { claveDe, deLaBase } from "../../ia/evidencia.js";
+import { claveDe, deLaBase, enriquecer } from "../../ia/evidencia.js";
 import { estadoDe, marcarEnCurso, olvidar } from "../../lib/encurso.js";
 import { json, error, cuerpoJson, conAcceso, tokenDe } from "../../lib/http.js";
 
@@ -44,7 +44,7 @@ export default async (req) => {
   const guardado = await deLaBase(k);
   if (guardado) {
     await olvidar(k);
-    return json({ estado: "listo", evidencia: { ...guardado, deCache: true } });
+    return json({ estado: "listo", evidencia: enriquecer({ ...guardado, deCache: true }) });
   }
 
   // 2. ¿Se está haciendo, o se intentó y no pudo ser?

@@ -11,7 +11,7 @@ import { textoCompleto } from "./pmc.js";
 import { abiertos, textoCompletoAbierto } from "./europepmc.js";
 import { pedirJson } from "./cliente.js";
 import { SISTEMA_EXTRACCION, ESQUEMA_EXTRACCION, mensajeExtraccion, mensajeExtraccionCompleta } from "./prompts.js";
-import { validarPrecision, validarParcial } from "../dominio/probabilidad.js";
+import { validarPrecision, validarParcial, razonesDeVerosimilitud, magnitud } from "../dominio/probabilidad.js";
 import { semaforo } from "../dominio/calidad.js";
 import { comprobarCita } from "../dominio/trazabilidad.js";
 import { comprobarAgrupacion } from "../dominio/agrupaciones.js";
@@ -125,6 +125,30 @@ const terminosUtiles = ({ entidad, terminos }) =>
  */
 export function claveDe({ test, busqueda, entidad, terminos }) {
   return clave(busqueda || test, terminosUtiles({ entidad, terminos })[0]);
+}
+
+/**
+ * La evidencia tal como se entrega, con lo que se deriva de ella.
+ *
+ * Cuánto confirma un positivo y cuánto descarta un negativo se calcula aquí,
+ * con el dominio, y no se guarda: así llega también a lo que ya estaba en la
+ * base, y el navegador no rehace una aritmética que acabaría divergiendo de la
+ * del servidor. Lo necesitan las explicaciones de cada cifra.
+ */
+export function enriquecer(ev) {
+  if (!ev || !ev.hayCifras || typeof ev.sn !== "number" || typeof ev.sp !== "number") {
+    return ev ? { ...ev, rv: null } : ev;
+  }
+  const lr = razonesDeVerosimilitud(ev.sn, ev.sp);
+  return {
+    ...ev,
+    rv: {
+      positiva: lr.positiva,
+      negativa: lr.negativa,
+      magnitudPositiva: magnitud(lr.positiva).nivel,
+      magnitudNegativa: magnitud(lr.negativa).nivel,
+    },
+  };
 }
 
 /**
