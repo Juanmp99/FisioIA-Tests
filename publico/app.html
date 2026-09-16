@@ -128,7 +128,10 @@ body::before {
     radial-gradient(60% 45% at 100% 8%, rgba(167, 139, 250, .09) 0%, transparent 70%);
 }
 
-.marco { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 0 20px 60px; }
+.marco { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 0 20px 60px; transition: max-width .6s var(--curva); }
+/* Con la batería en pantalla conviven el carril, la línea de las fases y la
+   tarjeta, y en 860 px la tarjeta se estrechaba hasta partir su fila de botones. */
+.marco:has(.trabajo:not([hidden]):not(.sin-carril)) { max-width: 1060px; }
 
 a { color: var(--azul); text-underline-offset: 3px; }
 
@@ -321,8 +324,10 @@ a { color: var(--azul); text-underline-offset: 3px; }
   content: ""; position: absolute; left: 15px; top: 32px; bottom: 6px; width: 2px;
   background: var(--borde);
 }
+/* Azul y no verde: en esta herramienta el verde es "evidencia sólida", y un paso
+   completado no dice nada de la evidencia. */
 .paso-carril:not(:last-child).hecho::before {
-  background: linear-gradient(180deg, var(--verde), color-mix(in srgb, var(--verde) 30%, var(--borde)));
+  background: linear-gradient(180deg, var(--azul), color-mix(in srgb, var(--azul) 30%, var(--borde)));
 }
 
 .paso-num {
@@ -339,7 +344,7 @@ a { color: var(--azul); text-underline-offset: 3px; }
   box-shadow: 0 0 0 5px var(--brillo-azul), 0 0 20px -4px var(--azul);
 }
 .paso-carril.hecho .paso-num {
-  border-color: var(--verde); background: var(--verde); color: var(--fondo);
+  border-color: var(--azul); background: var(--azul); color: var(--fondo);
 }
 .paso-carril.hecho .paso-num span { display: none; }
 .paso-carril.hecho .paso-num::after {
@@ -358,7 +363,7 @@ a { color: var(--azul); text-underline-offset: 3px; }
   display: block; font-family: var(--mono); font-size: .75rem; margin-top: 3px;
   color: var(--tinta-tenue); font-variant-numeric: tabular-nums;
 }
-.paso-carril.hecho .paso-valor { color: var(--verde); }
+.paso-carril.hecho .paso-valor { color: var(--tinta-media); }
 .paso-carril.activo .paso-valor { color: var(--azul); }
 
 /* Lo que falta por hacer, invitando en vez de alarmando. */
@@ -485,6 +490,231 @@ a { color: var(--azul); text-underline-offset: 3px; }
 .advertencia {
   font-size: .8125rem; color: var(--tinta-tenue); padding: 16px 0 0; margin: 4px 0 0;
   border-top: 1px solid var(--borde);
+}
+
+/* ============ las tres fases ============ */
+
+/* Tres capítulos unidos por una línea. Un solo acento, el azul, que se enciende
+   en la fase activa y rellena la línea al completarla: el progreso se entiende
+   sin leer nada. Nada aquí bloquea un clic ni retrasa al fisioterapeuta. */
+
+.fases { position: relative; padding-bottom: 8px; }
+
+.fase {
+  --sangria: 66px;
+  position: relative;
+  padding-left: var(--sangria);
+  margin-top: 56px;
+  /* Al saltar desde el carril, la cabecera quedaba debajo de la barra fija. */
+  scroll-margin-top: 96px;
+}
+.fase:first-child { margin-top: 30px; }
+
+/* La línea que une una fase con la siguiente: el raíl, y encima su relleno. */
+.fase::before,
+.fase::after {
+  content: ""; position: absolute;
+  left: 21px; top: 50px; bottom: -58px; width: 2px;
+  border-radius: 2px;
+}
+.fase::before { background: var(--borde); }
+.fase::after {
+  background: linear-gradient(180deg, var(--azul) 0%, color-mix(in srgb, var(--azul) 40%, transparent) 100%);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--azul) 55%, transparent);
+  transform: scaleY(0); transform-origin: top;
+  transition: transform 1.1s var(--curva);
+}
+.fase.fase-hecha::after { transform: scaleY(1); }
+.fase:last-child::before,
+.fase:last-child::after { display: none; }
+
+/* ---- cabecera ---- */
+
+.fase-cab {
+  position: relative;
+  display: flex; align-items: center; gap: 18px;
+  margin: 0 0 24px calc(var(--sangria) * -1);
+  padding-bottom: 20px;
+  opacity: 0; transform: translateY(22px);
+  transition: opacity .8s var(--curva), transform .8s var(--curva);
+}
+.fase-cab.revelada { opacity: 1; transform: none; }
+.fase-2 .fase-cab { transition-delay: .08s; }
+
+/* El número de la fase, enorme y casi invisible, detrás del titular. */
+.fase-cab::before {
+  content: attr(data-num);
+  position: absolute; right: 150px; top: -40px; z-index: 0;
+  font-family: var(--mono); font-size: 7.5rem; font-weight: 800; line-height: 1;
+  letter-spacing: -.08em; pointer-events: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--azul) 26%, transparent), transparent 78%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  opacity: .35; transition: opacity .6s var(--curva);
+}
+.fase-activa .fase-cab::before { opacity: 1; }
+
+.fase-nodo {
+  flex: none; position: relative; z-index: 1;
+  width: 44px; height: 44px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--fondo);
+  border: 2px solid var(--borde-vivo);
+  font-family: var(--mono); font-size: 1rem; font-weight: 800; color: var(--tinta-tenue);
+  transition: border-color .5s var(--curva), background .5s var(--curva), color .5s var(--curva), box-shadow .5s var(--curva);
+}
+.fase-activa .fase-nodo {
+  border-color: var(--azul); color: var(--azul);
+  background: color-mix(in srgb, var(--azul) 10%, var(--fondo));
+  box-shadow: 0 0 0 6px var(--brillo-azul), 0 0 32px -6px var(--azul);
+}
+/* La onda de la fase activa: dice "aquí" sin necesidad de leerlo. */
+.fase-activa .fase-nodo::after {
+  content: ""; position: absolute; inset: -2px; border-radius: 50%;
+  border: 1.5px solid var(--azul);
+  animation: onda 2.8s var(--curva) infinite;
+}
+.fase-hecha .fase-nodo {
+  border-color: var(--azul); background: var(--azul); color: var(--fondo);
+  box-shadow: 0 0 26px -8px var(--azul);
+}
+.nodo-tic { width: 20px; height: 20px; }
+.nodo-tic path {
+  fill: none; stroke: var(--fondo); stroke-width: 3;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.nodo-tic.trazando path {
+  stroke-dasharray: 22; stroke-dashoffset: 22;
+  animation: trazar .55s .25s var(--curva) forwards;
+}
+
+.fase-titulos { position: relative; z-index: 1; flex: 1; min-width: 0; }
+
+.fase-eyebrow {
+  display: block;
+  font-size: .6875rem; font-weight: 800; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--tinta-tenue); transition: color .5s var(--curva);
+}
+.fase-de { opacity: .55; }
+.fase-activa .fase-eyebrow { color: var(--azul); }
+
+.fase-titulo {
+  margin: 5px 0 0;
+  font-size: clamp(1.75rem, 4.6vw, 2.5rem); font-weight: 800;
+  letter-spacing: -.05em; line-height: 1.02;
+  color: var(--tinta-tenue);
+  transition: opacity .5s var(--curva);
+}
+/* La activa es la única con el titular a pleno contraste: es lo que dice dónde
+   estás. La completada se aparta un paso atrás, la pendiente dos. */
+.fase-activa .fase-titulo {
+  background: linear-gradient(115deg, var(--tinta) 30%, color-mix(in srgb, var(--azul) 70%, var(--tinta)) 110%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.fase-hecha .fase-titulo { color: var(--tinta-media); }
+.fase-pendiente .fase-titulo { opacity: .7; }
+
+.fase-sub {
+  display: block; margin-top: 6px;
+  font-size: .9375rem; color: var(--tinta-tenue);
+}
+
+.fase-valor {
+  position: relative; z-index: 1; flex: none; align-self: center;
+  font-family: var(--mono); font-size: .8125rem; font-variant-numeric: tabular-nums;
+  padding: 7px 14px; border-radius: 999px; white-space: nowrap;
+  color: var(--tinta-tenue); background: var(--superficie);
+  border: 1px solid var(--borde);
+  transition: color .4s var(--curva), background .4s var(--curva), border-color .4s var(--curva);
+}
+.fase-activa .fase-valor {
+  color: var(--azul); background: var(--brillo-azul);
+  border-color: color-mix(in srgb, var(--azul) 40%, transparent);
+}
+.fase-hecha .fase-valor { color: var(--tinta); border-color: var(--borde-vivo); }
+.fase-valor.cambia { animation: latido .6s var(--curva); }
+
+/* La raya bajo el titular: se traza de izquierda a derecha al revelarse. */
+.fase-raya {
+  position: absolute; left: var(--sangria); right: 0; bottom: 0; height: 1px;
+  background: linear-gradient(90deg, var(--borde-vivo), transparent 85%);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 1s .2s var(--curva);
+}
+.fase-activa .fase-raya { background: linear-gradient(90deg, color-mix(in srgb, var(--azul) 70%, transparent), transparent 85%); }
+.fase-cab.revelada .fase-raya { transform: scaleX(1); }
+
+.fase-cuerpo { position: relative; }
+
+/* ---- fase 1 recogida ---- */
+
+.fase-resumen {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 16px 20px; border-radius: var(--radio);
+  background:
+    linear-gradient(90deg, var(--brillo-azul), transparent 70%),
+    var(--superficie);
+  border: 1px solid color-mix(in srgb, var(--azul) 25%, var(--borde));
+}
+.fase-resumen.entra { animation: recoger .55s var(--curva) both; }
+.fase-resumen-texto { flex: 1; min-width: 220px; color: var(--tinta-media); font-size: 1rem; }
+.fase-resumen-texto b { color: var(--tinta); font-weight: 700; }
+.fase-resumen-texto i {
+  font-style: normal; font-family: var(--mono); font-size: .8125rem;
+  color: var(--azul); margin-left: 10px; white-space: nowrap;
+}
+.btn-cambiar {
+  font: inherit; font-size: .8125rem; font-weight: 650; cursor: pointer;
+  color: var(--azul); background: none;
+  border: 1px solid color-mix(in srgb, var(--azul) 40%, transparent);
+  border-radius: 999px; padding: 7px 16px;
+  transition: background .2s, border-color .2s, transform .15s var(--curva);
+}
+.btn-cambiar:hover { background: var(--brillo-azul); border-color: var(--azul); transform: translateY(-1px); }
+.tarjeta.pretest.entra { animation: entrar .5s var(--curva) both; }
+
+/* ---- fase 3 ---- */
+
+.fase-vacia {
+  display: flex; gap: 16px; align-items: flex-start;
+  padding: 22px 24px; border-radius: var(--radio);
+  border: 1px dashed var(--borde-vivo);
+  color: var(--tinta-tenue);
+}
+.fase-vacia b { display: block; color: var(--tinta-media); font-weight: 650; }
+.fase-vacia p { margin: 4px 0 0; font-size: .9375rem; max-width: 52ch; }
+.fase-vacia-icono {
+  flex: none; width: 36px; height: 36px; border-radius: 50%;
+  border: 2px dashed var(--borde-vivo);
+  animation: girar 14s linear infinite;
+}
+
+/* La llegada de la conclusión: el final del recorrido tiene que sentirse como
+   tal. Solo la primera vez; después se queda quieta mientras se marca. */
+.fase-3 .conclusion { margin-top: 0; }
+.conclusion.ya { animation: none; }
+.conclusion.llega { animation: llegada .9s var(--curva) both; }
+.conclusion.llega .conclusion-dentro { position: relative; overflow: hidden; }
+.conclusion.llega .conclusion-dentro::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, color-mix(in srgb, var(--azul) 16%, transparent) 50%, transparent 65%);
+  transform: translateX(-100%);
+  animation: barrido 1.4s .35s var(--curva) both;
+}
+.fase-3.fase-activa .conclusion,
+.fase-3.fase-hecha .conclusion {
+  box-shadow: 0 30px 70px -40px color-mix(in srgb, var(--azul) 60%, transparent);
+}
+
+@media (max-width: 620px) {
+  /* En móvil el carril es una barra pegada arriba, así que hace falta más margen. */
+  .fase { --sangria: 0px; margin-top: 44px; scroll-margin-top: 150px; }
+  .fase::before, .fase::after { display: none; }
+  .fase-cab { gap: 14px; margin-left: 0; }
+  .fase-cab::before { font-size: 5rem; top: -22px; right: 0; }
+  .fase-nodo { width: 38px; height: 38px; font-size: .9375rem; }
+  .fase-valor { display: none; }
+  .fase-raya { left: 0; }
+  .fase-sub { font-size: .875rem; }
 }
 
 /* ============ sospecha previa ============ */
@@ -671,7 +901,21 @@ a { color: var(--azul); text-underline-offset: 3px; }
   animation-delay: inherit;
   padding-top: 2px;
   transition: filter .4s var(--curva);
+  text-align: center;
 }
+/* "Test" encima del número. Con fases numeradas en la página, un "01" suelto
+   se confundía con la fase 1. */
+.orden small {
+  display: block; margin-bottom: 7px;
+  font-family: var(--ui); font-size: .625rem; font-weight: 800; line-height: 1;
+  letter-spacing: .22em; text-transform: uppercase; text-indent: .22em;
+  color: var(--tinta-tenue);
+}
+
+/* Una tarjeta que ya se ha enseñado no vuelve a entrar al repintarse. */
+.test.ya, .test.ya .orden { animation: none; }
+/* Pero cuando le llega su evidencia, la franja de cifras se enciende un momento. */
+.test.llega-dato .franja { animation: destello .9s var(--curva) both; }
 
 .test-titulo { flex: 1; min-width: 0; }
 .test-titulo h3 {
@@ -1012,6 +1256,28 @@ a { color: var(--azul); text-underline-offset: 3px; }
    salto es invisible. */
 @keyframes desfilar { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @keyframes trazar { to { stroke-dashoffset: 0; } }
+@keyframes onda {
+  0% { transform: scale(1); opacity: .7; }
+  70%, 100% { transform: scale(1.75); opacity: 0; }
+}
+@keyframes latido {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes destello {
+  0% { opacity: 0; transform: translateY(6px); filter: blur(3px); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+@keyframes recoger {
+  from { opacity: 0; transform: translateY(-12px) scale(.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes llegada {
+  from { opacity: 0; transform: translateY(28px) scale(.975); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes barrido { to { transform: translateX(100%); } }
 @keyframes aparecerTic {
   from { opacity: 0; transform: rotate(-45deg) scale(.4); }
   to { opacity: 1; transform: rotate(-45deg) scale(1); }
@@ -1019,6 +1285,9 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
+  .fase-cab { opacity: 1; transform: none; }
+  .fase-raya { transform: none; }
+  .nodo-tic.trazando path { stroke-dashoffset: 0; }
   .aguja-post { left: var(--hasta); }
   .recorrido { transform: none; }
   .tira-pista { overflow-x: auto; }
@@ -1133,6 +1402,32 @@ a { color: var(--azul); text-underline-offset: 3px; }
     // rehacer la aritmética en el navegador, que acabaría divergiendo.
     interpretaciones: {}
   };
+
+  /**
+   * Estado de la interfaz, separado del clínico a propósito.
+   *
+   * Lo clínico es lo que el fisioterapeuta ha decidido; esto es solo cómo se le
+   * está enseñando. La pantalla se repinta entera cada vez que llega una
+   * evidencia, y sin memoria de lo ya mostrado cada repintado volvía a lanzar
+   * todas las animaciones de entrada: con el sondeo en segundo plano, siete
+   * tarjetas bailando siete veces.
+   */
+  function nuevaUi() {
+    return {
+      // La fase 1 se recoge en una línea en cuanto se elige la sospecha, y se
+      // reabre a petición. Recogerla es lo que da la sensación de avanzar.
+      f1Abierta: true,
+      acabaDeElegir: false,
+      acabaDeAbrir: false,
+      // Qué se ha enseñado ya, para no volver a animarlo.
+      vistos: {},
+      // El estado con el que se pintó cada fase la vez anterior. Se pinta con
+      // ese y se cambia al actual un instante después: es lo que permite que la
+      // línea se rellene y el check se dibuje en vez de aparecer de golpe.
+      fasesPrevias: {}
+    };
+  }
+  var ui = nuevaUi();
 
   var salida = document.getElementById("salida");
   var form = document.getElementById("form");
@@ -1379,6 +1674,7 @@ a { color: var(--azul); text-underline-offset: 3px; }
         estado.evidencias = {};
         estado.resultados = {};
         estado.interpretaciones = {};
+        ui = nuevaUi();
 
         recordar(sospecha);
         pasoActivo = 1;
@@ -1469,17 +1765,35 @@ a { color: var(--azul); text-underline-offset: 3px; }
   /* ============ pintado principal ============ */
 
   function pintar() {
-    salida.innerHTML =
-      bloquePreTest() +
-      bloqueTests() +
-      '<div id="paso-3"><div id="conclusion"></div></div>';
+    var fases = estadoFases();
+
+    salida.innerHTML = '<div class="fases">' +
+      fase(fases[0], bloquePreTest()) +
+      fase(fases[1], bloqueTests()) +
+      fase(fases[2], '<div id="conclusion"></div>') +
+    "</div>";
+    ui.acabaDeElegir = false;
+    ui.acabaDeAbrir = false;
 
     Array.prototype.forEach.call(salida.querySelectorAll("[data-nivel]"), function (b) {
       b.addEventListener("click", function () {
         estado.nivel = b.getAttribute("data-nivel");
+        ui.f1Abierta = false;
+        ui.acabaDeElegir = true;
         pintar();
       });
     });
+
+    var cambiarNivel = salida.querySelector("[data-cambiar-nivel]");
+    if (cambiarNivel) {
+      cambiarNivel.addEventListener("click", function () {
+        ui.f1Abierta = true;
+        ui.acabaDeAbrir = true;
+        pintar();
+        var elegido = salida.querySelector('.nivel[aria-pressed="true"]') || salida.querySelector(".nivel");
+        if (elegido) elegido.focus({ preventScroll: true });
+      });
+    }
 
     var ley = document.getElementById("leyenda");
     if (ley) {
@@ -1499,6 +1813,8 @@ a { color: var(--azul); text-underline-offset: 3px; }
         var valor = b.getAttribute("data-valor");
         estado.resultados[nombre] = estado.resultados[nombre] === valor ? null : valor;
         if (!estado.resultados[nombre]) delete estado.interpretaciones[nombre];
+        var tarjeta = b.closest(".test");
+        if (tarjeta) tarjeta.classList.toggle("marcado", Boolean(estado.resultados[nombre]));
         interpretarTest(nombre);
       });
     });
@@ -1510,6 +1826,179 @@ a { color: var(--azul); text-underline-offset: 3px; }
     animarCifras(salida);
     refrescarConclusion();
     actualizarCarril();
+    revelarFases();
+  }
+
+  /* ============ las tres fases ============ */
+
+  /*
+   * Las tres fases ya estaban en el carril de la izquierda, pero el contenido
+   * era un único río: pregunta, agrupaciones, siete tarjetas y conclusión con el
+   * mismo peso. El carril avisaba de que había pasos y la página no los tenía.
+   *
+   * Ahora cada fase es un capítulo con su titular, unidos por una línea que se
+   * rellena al avanzar. No es un asistente de pantallas: los tests llegan poco a
+   * poco, en consulta se va y se vuelve, y la conclusión se actualiza mientras
+   * se marca. Se toma del asistente la sensación —saber dónde estás, que lo
+   * hecho se recoja— sin nada que bloquee.
+   *
+   * Y sin colores propios por fase, deliberadamente. En esta herramienta el
+   * verde, el ámbar y el rojo dicen cómo de fiable es una cifra; una "fase 3"
+   * verde se leería como "conclusión fiable". La identidad de cada fase la dan
+   * su número, su posición y la línea, con un único acento que se enciende.
+   */
+  function estadoFases() {
+    var total = estado.tests.length;
+    var marcados = Object.keys(estado.resultados).filter(function (n) { return estado.resultados[n]; }).length;
+    var s = sintesis();
+    var post = s.fase === "listo" && s.decisivo ? pct(s.decisivo.d.detalle.postTest) + "%" : null;
+
+    var nivel = null;
+    NIVELES.forEach(function (n) { if (n.id === estado.nivel) nivel = n; });
+
+    var e1 = nivel ? "hecha" : "activa";
+    var e2 = total && marcados === total ? "hecha" : (nivel || marcados ? "activa" : "pendiente");
+    var e3 = s.fase === "sin_marcar" ? "pendiente" : (s.fase === "listo" && e2 === "hecha" ? "hecha" : "activa");
+
+    return [
+      {
+        n: 1, estado: e1, titulo: "Tu sospecha",
+        sub: "Con cuánta sospecha llegas al paciente",
+        valor: nivel ? nivel.corto : "Empieza aquí"
+      },
+      {
+        n: 2, estado: e2, titulo: "Tu exploración",
+        sub: total + (total === 1 ? " test" : " tests") + ", de cribado a confirmación",
+        valor: marcados ? marcados + " de " + total + " marcados" : total + " por explorar",
+        valorCarril: marcados ? marcados + " de " + total : total + " tests"
+      },
+      {
+        n: 3, estado: e3, titulo: "Tu conclusión",
+        sub: "Qué hace lo explorado con tu sospecha",
+        valor: s.fase === "sin_marcar" ? "Marca un resultado" : s.fase === "sin_nivel" ? "Falta tu sospecha" : s.calculando && !post ? "Calculando…" : (post || "Nada decide"),
+        valorCarril: s.fase === "sin_marcar" ? "—" : s.fase === "sin_nivel" ? "falta sospecha" : s.calculando && !post ? "calculando…" : (post || "nada decide"),
+        // El nombre del test que decide: era la mitad útil de la barra fija que
+        // se quitó, y en el carril cabe sin estorbar.
+        detalle: post && s.decisivo ? "lo decide " + s.decisivo.nombre : null
+      }
+    ];
+  }
+
+  function nodoFase(n, hecha, trazar) {
+    return hecha
+      ? '<svg class="nodo-tic' + (trazar ? " trazando" : "") + '" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 12.5l4.2 4.2L18.5 7.8"/></svg>'
+      : '<span class="nodo-num">' + n + "</span>";
+  }
+
+  function fase(f, cuerpo) {
+    // Se pinta con el estado de la vez anterior y se pasa al actual justo
+    // después, en actualizarFases. Si se pintara directamente el actual, un
+    // cambio de estado nunca se vería ocurrir: aparecería ya hecho.
+    var previo = ui.fasesPrevias[f.n] || f.estado;
+    var revelada = ui.vistos["fase-" + f.n] ? " revelada" : "";
+
+    return '<section class="fase fase-' + f.n + " fase-" + previo + '" id="paso-' + f.n + '" data-fase="' + f.n + '" aria-labelledby="fase-titulo-' + f.n + '">' +
+      '<header class="fase-cab' + revelada + '" data-num="0' + f.n + '">' +
+        '<span class="fase-nodo">' + nodoFase(f.n, previo === "hecha", false) + "</span>" +
+        '<div class="fase-titulos">' +
+          '<span class="fase-eyebrow">Fase ' + f.n + '<span class="fase-de"> de 3</span></span>' +
+          '<h2 class="fase-titulo" id="fase-titulo-' + f.n + '">' + f.titulo + "</h2>" +
+          '<span class="fase-sub">' + esc(f.sub) + "</span>" +
+        "</div>" +
+        '<span class="fase-valor" data-fase-valor>' + esc(f.valor) + "</span>" +
+        '<span class="fase-raya" aria-hidden="true"></span>' +
+      "</header>" +
+      '<div class="fase-cuerpo">' + cuerpo + "</div>" +
+    "</section>";
+  }
+
+  /**
+   * Pone cada fase en su estado actual sin repintar.
+   *
+   * Se llama tanto después de pintar como al marcar un resultado, que no
+   * repinta la página. En los dos casos los elementos ya existen con su estado
+   * anterior, así que cambiar la clase dispara las transiciones: la línea que
+   * baja, el nodo que se enciende, el check que se traza.
+   */
+  function actualizarFases() {
+    var secciones = salida.querySelectorAll(".fase[data-fase]");
+    if (!secciones.length) return;
+
+    // Obliga al navegador a asentar el estado anterior antes de cambiarlo. Sin
+    // esto agruparía los dos cambios en uno y no habría transición.
+    void salida.offsetHeight;
+
+    var fases = estadoFases();
+    Array.prototype.forEach.call(secciones, function (sec) {
+      var n = Number(sec.getAttribute("data-fase"));
+      var f = fases[n - 1];
+      if (!f) return;
+
+      if (!sec.classList.contains("fase-" + f.estado)) {
+        sec.classList.remove("fase-hecha", "fase-activa", "fase-pendiente");
+        sec.classList.add("fase-" + f.estado);
+        var nodo = sec.querySelector(".fase-nodo");
+        if (nodo) nodo.innerHTML = nodoFase(n, f.estado === "hecha", true);
+      }
+
+      var valor = sec.querySelector("[data-fase-valor]");
+      if (valor && valor.textContent !== f.valor) {
+        valor.textContent = f.valor;
+        valor.classList.remove("cambia");
+        void valor.offsetWidth;
+        valor.classList.add("cambia");
+      }
+
+      ui.fasesPrevias[n] = f.estado;
+    });
+  }
+
+  /** Los titulares de fase aparecen al llegar a ellos, una sola vez. */
+  var observadorFases = null;
+  function revelarFases() {
+    var cabeceras = salida.querySelectorAll(".fase-cab:not(.revelada)");
+    if (!cabeceras.length) return;
+
+    var revelar = function (cab) {
+      cab.classList.add("revelada");
+      var sec = cab.closest(".fase");
+      if (sec) ui.vistos["fase-" + sec.getAttribute("data-fase")] = true;
+    };
+
+    if (!("IntersectionObserver" in window)) {
+      Array.prototype.forEach.call(cabeceras, revelar);
+      return;
+    }
+
+    // Lo que ya está a la vista se revela sin esperar al observador. Este avisa
+    // en el siguiente ciclo, y en una pestaña que el navegador frena —en
+    // segundo plano, o con el portátil en ahorro— eso puede ser un segundo con
+    // el titular en blanco. Se fuerza un reflujo antes para que la transición
+    // arranque desde el estado oculto y no se la salte.
+    var alto = window.innerHeight || document.documentElement.clientHeight;
+    var pendientes = [];
+    Array.prototype.forEach.call(cabeceras, function (cab) {
+      var r = cab.getBoundingClientRect();
+      if (r.top < alto && r.bottom > 0) {
+        void cab.offsetHeight;
+        revelar(cab);
+      } else {
+        pendientes.push(cab);
+      }
+    });
+    if (!pendientes.length) return;
+    cabeceras = pendientes;
+
+    if (observadorFases) observadorFases.disconnect();
+    observadorFases = new IntersectionObserver(function (entradas) {
+      entradas.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        revelar(e.target);
+        observadorFases.unobserve(e.target);
+      });
+    }, { rootMargin: "0px 0px -6% 0px", threshold: 0.15 });
+
+    Array.prototype.forEach.call(cabeceras, function (c) { observadorFases.observe(c); });
   }
 
   /* Las banderas ya no ocupan media pantalla en el listado: viven en el panel
@@ -1539,11 +2028,31 @@ a { color: var(--azul); text-underline-offset: 3px; }
     if (cerrar) cerrar.focus();
   }
 
+  /** Una entidad a mitad de frase va en minúscula, salvo que sea una sigla (LCA, STC). */
+  function enFrase(texto) {
+    var t = String(texto || "");
+    if (t.length > 1 && t[1] === t[1].toUpperCase() && t[1] !== t[1].toLowerCase()) return t;
+    return t.charAt(0).toLowerCase() + t.slice(1);
+  }
+
   function bloquePreTest() {
     var niveles = NIVELES;
 
-    return '<div class="seccion" id="paso-1"><div class="tarjeta pretest">' +
-      "<h3>Antes de explorar: ¿cómo de fuerte es tu sospecha de " + esc(estado.entidad) + "?</h3>" +
+    var elegido = null;
+    NIVELES.forEach(function (n) { if (n.id === estado.nivel) elegido = n; });
+
+    // Contestada, la pregunta se aparta y deja una línea. Lo terminado deja de
+    // pedir atención y la fase siguiente sube a ocupar su sitio.
+    if (elegido && !ui.f1Abierta) {
+      return '<div class="fase-resumen' + (ui.acabaDeElegir ? " entra" : "") + '">' +
+        '<span class="fase-resumen-texto">Llegas con una sospecha <b>' + esc(elegido.nombre.toLowerCase()) + "</b> de " +
+          esc(enFrase(estado.entidad)) + '<i>' + esc(elegido.detalle) + "</i></span>" +
+        '<button class="btn-cambiar" data-cambiar-nivel>Cambiar</button>' +
+      "</div>";
+    }
+
+    return '<div><div class="tarjeta pretest' + (ui.acabaDeAbrir ? " entra" : "") + '">' +
+      "<h3>¿Cómo de fuerte es tu sospecha de " + esc(estado.entidad) + "?</h3>" +
       "<p>La conclusión de cada test depende de con cuánta sospecha llegas a él. Se pregunta una sola vez y se aplica a toda la batería.</p>" +
       '<div class="niveles">' +
         niveles.map(function (n) {
@@ -1675,9 +2184,7 @@ a { color: var(--azul); text-underline-offset: 3px; }
         "</div>"
       : "";
 
-    return '<div class="seccion" id="paso-2">' +
-      '<span class="rotulo">Batería · ' + total + " tests, de cribado a confirmación</span>" +
-      '<div style="height:12px"></div>' +
+    return "<div>" +
       bloqueAgrupaciones() +
       leyenda() +
       progreso +
@@ -1694,9 +2201,20 @@ a { color: var(--azul); text-underline-offset: 3px; }
     // evidencia lo fija su semáforo de calidad.
     var tono = ev && ev.calidad ? esc(ev.calidad.id) : "espera";
 
-    return '<div class="test tono-' + tono + (marcado ? " marcado" : "") + '" style="animation-delay:' + Math.min(i * 55, 400) + 'ms">' +
+    // La entrada solo la primera vez que aparece la tarjeta. Y cuando le llega
+    // su evidencia, un destello en la franja de cifras: es el momento en que la
+    // tarjeta pasa de "buscando" a tener algo que decir.
+    var clave = "test-" + t.nombre;
+    var ya = ui.vistos[clave] ? " ya" : "";
+    ui.vistos[clave] = true;
+    var llega = ev && !ui.vistos["ev-" + t.nombre] && ya ? " llega-dato" : "";
+    if (ev) ui.vistos["ev-" + t.nombre] = true;
+
+    return '<div class="test tono-' + tono + (marcado ? " marcado" : "") + ya + llega + '" style="animation-delay:' + Math.min(i * 55, 400) + 'ms">' +
       '<div class="test-cab">' +
-        '<span class="orden">' + String(i + 1).padStart(2, "0") + "</span>" +
+        // "Test 01" y no "01" a secas: con fases numeradas encima, un número
+        // suelto se confundía con ellas.
+        '<span class="orden"><small>Test</small> ' + String(i + 1).padStart(2, "0") + "</span>" +
         '<div class="test-titulo">' +
           "<h3>" + esc(t.nombre) + "</h3>" +
           '<div class="objetivo">' + esc(t.objetivo) + "</div>" +
@@ -2057,7 +2575,9 @@ a { color: var(--azul); text-underline-offset: 3px; }
       }
 
       if (!d.interpretable) {
+        estado.interpretaciones[nombre] = d;
         hueco.innerHTML = veredictoSimple("nulo", "No interpretable", (d.problemas || []).join(" "));
+        refrescarConclusion();
         return;
       }
 
@@ -2084,7 +2604,12 @@ a { color: var(--azul); text-underline-offset: 3px; }
       animarCifras(hueco);
       refrescarConclusion();
     }).catch(function (err) {
+      if (estado.resultados[nombre] !== resultado) return;
+      // Se anota como no interpretable para que la conclusión no se quede
+      // esperando un cálculo que ya no va a llegar.
+      estado.interpretaciones[nombre] = { interpretable: false, fallida: true };
       hueco.innerHTML = veredictoSimple("nulo", "No se ha podido calcular", err.message);
+      refrescarConclusion();
     });
   }
 
@@ -2117,6 +2642,10 @@ a { color: var(--azul); text-underline-offset: 3px; }
     var conCalculo = [];
     var sinCifras = [];
     var parciales = [];
+    // Marcados con las dos cifras cuya interpretación aún no ha vuelto del
+    // servidor. Sin contarlos, durante esos instantes la conclusión decía "nada
+    // de lo explorado decide" y un momento después lo contrario.
+    var calculando = 0;
 
     marcados.forEach(function (n) {
       var ev = estado.evidencias[n];
@@ -2124,6 +2653,11 @@ a { color: var(--azul); text-underline-offset: 3px; }
       if (d && d.interpretable) conCalculo.push({ nombre: n, d: d });
       else if (ev && ev.hayCifras && ev.interpretable === false) parciales.push(n);
       else if (ev && !ev.hayCifras) sinCifras.push(n);
+      else if (ev && ev.hayCifras && !d) calculando += 1;
+      // Marcado antes de que llegaran sus cifras, que con la búsqueda en segundo
+      // plano pasa: el fisioterapeuta hace el test cuando lo tiene delante, no
+      // cuando termina PubMed. Hasta que lleguen, tampoco se sabe qué aporta.
+      else if (!ev) calculando += 1;
     });
 
     // Fuerza de un resultado: cuánto se aleja de 1 su razón de verosimilitud,
@@ -2146,6 +2680,7 @@ a { color: var(--azul); text-underline-offset: 3px; }
     return {
       fase: "listo",
       marcados: marcados.length,
+      calculando: calculando,
       decisivo: decisivo,
       utiles: utiles,
       nulos: nulos,
@@ -2167,16 +2702,44 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
     var s = sintesis();
 
-    if (s.fase === "sin_marcar") { caja.innerHTML = ""; actualizarCarril(); return; }
+    if (s.fase === "sin_marcar") {
+      // Antes la fase quedaba vacía. Ahora dice qué hace falta para llenarla, y
+      // la próxima conclusión que aparezca vuelve a tener su llegada.
+      ui.vistos.conclusion = false;
+      caja.innerHTML = '<div class="fase-vacia">' +
+        '<span class="fase-vacia-icono" aria-hidden="true"></span>' +
+        "<div><b>Aún no hay nada que concluir</b>" +
+        "<p>Marca Positivo o Negativo en cualquier test y aquí verás qué hace ese resultado con tu sospecha.</p></div>" +
+      "</div>";
+      actualizarCarril();
+      return;
+    }
 
     if (s.fase === "sin_nivel") {
-      caja.innerHTML = '<div class="conclusion"><div class="conclusion-dentro">' +
-        '<span class="rotulo">Conclusión</span>' +
+      caja.innerHTML = '<div class="conclusion' + entradaConclusion() + '"><div class="conclusion-dentro">' +
         "<h2>Falta tu sospecha inicial</h2>" +
         '<p class="sumario">Has marcado ' + s.marcados + (s.marcados === 1 ? " resultado" : " resultados") +
         ", pero sin saber con cuánta sospecha llegabas no puede calcularse qué significan. " +
-        "Márcala arriba y se interpretan todos de golpe.</p>" +
+        "Márcala en la fase 1 y se interpretan todos de golpe.</p>" +
       "</div></div>";
+      actualizarCarril();
+      return;
+    }
+
+    // Si falta por llegar algún cálculo, no se reescribe: se deja lo que hubiera
+    // hasta que esté. Afirmar "nada decide" con un resultado aún por calcular es
+    // afirmar algo que no se sabe, aunque sea durante medio segundo.
+    if (s.calculando) {
+      // Si ya había una conclusión se deja quieta hasta que esté todo. Si no la
+      // había, se dice que se está esperando: seguir enseñando "aún no hay nada
+      // que concluir" con un resultado ya marcado parecería que no se ha visto.
+      if (!caja.querySelector(".conclusion")) {
+        caja.innerHTML = '<div class="fase-vacia">' +
+          '<span class="fase-vacia-icono" aria-hidden="true"></span>' +
+          "<div><b>Calculando…</b>" +
+          "<p>Esperando las cifras de lo que has marcado. En cuanto lleguen, verás aquí qué hace con tu sospecha.</p></div>" +
+        "</div>";
+      }
       actualizarCarril();
       return;
     }
@@ -2184,7 +2747,6 @@ a { color: var(--azul); text-underline-offset: 3px; }
     var partes = [];
 
     if (!s.decisivo) {
-      partes.push('<span class="rotulo">Conclusión</span>');
       partes.push("<h2>Nada de lo explorado decide</h2>");
       partes.push('<p class="sumario">Has marcado ' + s.marcados +
         (s.marcados === 1 ? " resultado" : " resultados") +
@@ -2193,7 +2755,6 @@ a { color: var(--azul); text-underline-offset: 3px; }
     } else {
       var x = s.decisivo.d.detalle;
       var clase = claseVeredicto(s.decisivo.d);
-      partes.push('<span class="rotulo">Conclusión</span>');
       partes.push("<h2>" + esc(s.decisivo.d.lectura) + "</h2>");
       partes.push('<p class="sumario">De todo lo que has explorado, el resultado que más pesa es ' +
         "<b>" + esc(s.decisivo.nombre) + " " + esc(s.decisivo.d.resultado) + "</b>. " +
@@ -2238,9 +2799,20 @@ a { color: var(--azul); text-underline-offset: 3px; }
       "sus razones de verosimilitud daría una certeza que la evidencia no respalda. Lo que ves es " +
       "el resultado que más mueve tu sospecha, interpretado contra la sospecha con la que llegaste.</p>");
 
-    caja.innerHTML = '<div class="conclusion"><div class="conclusion-dentro">' + partes.join("") + "</div></div>";
+    caja.innerHTML = '<div class="conclusion' + entradaConclusion() + '"><div class="conclusion-dentro">' + partes.join("") + "</div></div>";
     animarCifras(caja);
     actualizarCarril();
+  }
+
+  /**
+   * La conclusión se rehace con cada resultado marcado. Entra con su llegada la
+   * primera vez y después se queda quieta: una tarjeta que vuelve a aparecer a
+   * cada clic parece que se ha reiniciado.
+   */
+  function entradaConclusion() {
+    if (ui.vistos.conclusion) return " ya";
+    ui.vistos.conclusion = true;
+    return " llega";
   }
 
   /* ============ el carril de pasos ============ */
@@ -2250,40 +2822,23 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
   var pasoActivo = 1;
 
+  // El carril y las cabeceras leen el mismo estado. Si lo calcularan por
+  // separado, un día el carril diría "hecho" y la fase "en curso".
   function estadoPasos() {
-    var marcados = Object.keys(estado.resultados).filter(function (n) { return estado.resultados[n]; }).length;
-    var s = sintesis();
-    var post = s.fase === "listo" && s.decisivo ? pct(s.decisivo.d.detalle.postTest) + "%" : null;
-
-    var nivel = null;
-    NIVELES.forEach(function (n) { if (n.id === estado.nivel) nivel = n; });
-
-    return [
-      {
-        titulo: "Tu sospecha",
+    return estadoFases().map(function (f) {
+      return {
+        titulo: f.titulo,
+        valor: f.valorCarril || f.valor,
+        detalle: f.detalle || null,
+        hecho: f.estado === "hecha",
         // Es el paso que más gente se salta, y sin él no puede concluirse nada.
-        // Mientras falte, pide que lo marquen en lugar de limitarse a informar.
-        valor: nivel ? nivel.corto : "empieza aquí",
-        hecho: Boolean(nivel),
-        pendiente: !nivel
-      },
-      {
-        titulo: "La exploración",
-        valor: marcados ? marcados + " de " + estado.tests.length + " marcados" : estado.tests.length + " tests",
-        hecho: marcados > 0
-      },
-      {
-        titulo: "La conclusión",
-        valor: post || (marcados ? "en curso" : "—"),
-        // El nombre del test que decide: era la mitad útil de la barra fija que
-        // quitamos, y en el carril cabe sin estorbar.
-        detalle: post && s.decisivo ? "lo decide " + s.decisivo.nombre : null,
-        hecho: Boolean(post)
-      }
-    ];
+        pendiente: f.n === 1 && f.estado !== "hecha"
+      };
+    });
   }
 
   function actualizarCarril() {
+    actualizarFases();
     if (!carril) return;
 
     if (!estado.tests.length) {
