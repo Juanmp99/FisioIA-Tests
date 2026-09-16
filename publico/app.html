@@ -951,8 +951,8 @@ a { color: var(--azul); text-underline-offset: 3px; }
 .sello.verde { color: var(--verde); background: var(--brillo-verde); border-color: color-mix(in srgb, var(--verde) 30%, transparent); }
 .sello.ambar { color: var(--ambar); background: var(--brillo-ambar); border-color: color-mix(in srgb, var(--ambar) 30%, transparent); }
 .sello.rojo { color: var(--tinta-tenue); background: var(--superficie-viva); border-color: var(--borde); }
-.sello.espera { color: var(--tinta-tenue); background: var(--superficie-viva); border-color: var(--borde); }
-.sello.espera::before { animation: latir 1.3s ease-in-out infinite; }
+.sello.buscando { color: var(--tinta-tenue); background: var(--superficie-viva); border-color: var(--borde); }
+.sello.buscando::before { animation: latir 1.3s ease-in-out infinite; }
 
 .marbete {
   font-size: .6875rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 700;
@@ -1007,6 +1007,10 @@ a { color: var(--azul); text-underline-offset: 3px; }
 .veredicto.decide { border-color: color-mix(in srgb, var(--verde) 45%, transparent); background: var(--brillo-verde); }
 .veredicto.mueve { border-color: color-mix(in srgb, var(--azul) 40%, transparent); background: var(--brillo-azul); }
 .veredicto.nulo { border-color: color-mix(in srgb, var(--ambar) 40%, transparent); background: var(--brillo-ambar); }
+/* Anotado pero aún sin cifras que interpretar. Ni ámbar ni verde: todavía no
+   dice nada sobre el test, solo que hay que esperar. */
+.veredicto.aguarda { border-color: var(--borde-vivo); background: var(--superficie-viva); }
+.veredicto.aguarda .icono { color: var(--azul); animation: latir 1.6s ease-in-out infinite; }
 
 .veredicto-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .icono { flex: none; width: 20px; height: 20px; }
@@ -2314,7 +2318,9 @@ a { color: var(--azul); text-underline-offset: 3px; }
    * la valoración de la evidencia estaba escondida dentro de un desplegable.
    */
   function selloCalidad(ev) {
-    if (!ev) return '<span class="sello espera">buscando evidencia</span>';
+    // "buscando" y no "espera": .espera es el contenedor del halo de carga, con
+    // 54 px de relleno, y la pastilla lo heredaba hasta volverse un círculo.
+    if (!ev) return '<span class="sello buscando">buscando evidencia</span>';
     if (!ev.calidad) return "";
 
     // El sello valora el artículo, no la utilidad del test: un estudio
@@ -2532,7 +2538,17 @@ a { color: var(--azul); text-underline-offset: 3px; }
       return;
     }
 
-    if (!ev || !ev.hayCifras) {
+    // Aún buscando: decir "nadie lo ha publicado" sería afirmar algo que no se
+    // sabe todavía. Al llegar las cifras la página se repinta y este mismo
+    // resultado se interpreta solo.
+    if (!ev) {
+      hueco.innerHTML = veredictoSimple("aguarda", "Resultado anotado",
+        "Todavía estamos buscando la precisión publicada de este test. En cuanto llegue, verás aquí qué significa este resultado, sin tener que volver a marcarlo.");
+      refrescarConclusion();
+      return;
+    }
+
+    if (!ev.hayCifras) {
       hueco.innerHTML = veredictoSimple("nulo", "Resultado anotado",
         "Nadie ha publicado la precisión de este test para esta patología, así que no puede decirse cuánto cambia tu sospecha.");
       refrescarConclusion();

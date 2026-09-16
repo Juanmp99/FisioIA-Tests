@@ -37,7 +37,13 @@ export async function pedirJson({ sistema, mensaje, esquema, esfuerzo = "medium"
         model: modelo,
         max_tokens: maxTokens,
         system: sistema,
-        output_config: { effort: esfuerzo, format: { type: "json_schema", schema: esquema } },
+        // `effort` solo si se pide. Haiku 4.5 no lo admite y responde con un 400,
+        // y las frases de la espera iban a Haiku con él puesto: fallaron todas,
+        // en silencio porque son adorno, y durante semanas no se generó ni una.
+        output_config: {
+          ...(esfuerzo ? { effort: esfuerzo } : {}),
+          format: { type: "json_schema", schema: esquema },
+        },
         messages: [{ role: "user", content: mensaje }],
       },
       senal ? { signal: senal } : undefined,

@@ -50,7 +50,8 @@ export async function frasesDeEspera(sospecha) {
       mensaje: `Sospecha escrita por el fisioterapeuta: ${sospecha}`,
       esquema: ESQUEMA,
       modelo: MODELO_ALIENTO,
-      esfuerzo: "low",
+      // Nulo, no "low": Haiku 4.5 no admite el parámetro y la llamada entera falla.
+      esfuerzo: null,
       maxTokens: 400,
     });
     const frases = (datos.frases || []).filter((f) => typeof f === "string" && f.trim().length > 4);
