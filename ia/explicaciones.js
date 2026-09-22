@@ -21,6 +21,19 @@ const ALMACEN = "explicacion";
 /** Se cambia al tocar el prompt, para no servir explicaciones escritas con otro. */
 const VERSION = 2;
 
+/**
+ * En qué cifras se apoya una explicación.
+ *
+ * La clave de la explicación es la de la evidencia, así que al rehacer una
+ * búsqueda —vaciando la caché, por ejemplo— la clave es la misma pero los
+ * números pueden ser otros. Sin esto se serviría un texto escrito sobre las
+ * cifras viejas junto a las nuevas: la ficha diría 0,45 y el texto de al lado,
+ * 0,77. Guardando de qué cifras salió, se rehace sola cuando cambian.
+ */
+function huellaDe(ev) {
+  return [ev.sn, ev.sp, ev.cita?.pmid, ev.calidad?.id, (ev.otrasFuentes || []).length].join("|");
+}
+
 const TOPE_CAMPO = 360;
 
 const SISTEMA = `Redactas aclaraciones muy breves para un fisioterapeuta que tiene a un paciente delante y está haciendo un test de exploración. Le explicas qué significan, para su paciente, unas cifras que ya ha visto.
@@ -126,8 +139,9 @@ function filtrar(bruto, ev, test) {
 export async function explicacionDe(clave, ev, { test, entidad, senal }) {
   if (!ev?.hayCifras) return null;
 
+  const huella = huellaDe(ev);
   const guardada = await leer(ALMACEN, clave);
-  if (guardada?.version === VERSION) return guardada.textos;
+  if (guardada?.version === VERSION && guardada.huella === huella) return guardada.textos;
 
   try {
     const { datos } = await pedirJson({
@@ -139,7 +153,7 @@ export async function explicacionDe(clave, ev, { test, entidad, senal }) {
       senal,
     });
     const textos = filtrar(datos, ev, test);
-    await escribir(ALMACEN, clave, { version: VERSION, test, entidad, textos, fecha: new Date().toISOString() });
+    await escribir(ALMACEN, clave, { version: VERSION, huella, test, entidad, textos, fecha: new Date().toISOString() });
     return textos;
   } catch (e) {
     console.warn(`[explicacion] ${test}: ${e.message}`);

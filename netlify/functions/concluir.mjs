@@ -33,14 +33,15 @@ export default async (req) => {
   const marcados = Array.isArray(cuerpo.marcados) ? cuerpo.marcados.slice(0, 40) : [];
   if (!entidad || !PRE_TEST[nivel] || !marcados.length) return json({ conclusion: null });
 
-  const clave = claveConclusion({ entidad, nivel, marcados });
-
   // Se rehace el cálculo con lo guardado. Nada de lo que decide el veredicto
   // sale de la petición: de ahí solo viene qué se ha marcado.
   const resultados = [];
   const proporciones = [];
   const razones = [];
   const otros = [PRE_TEST[nivel].valor * 100];
+  // De qué cifras concretas sale este veredicto. Si la búsqueda se rehace y
+  // cambian, el guardado deja de valer aunque la combinación sea la misma.
+  const huella = [];
   let decisivo = null;
 
   for (const m of marcados) {
@@ -49,6 +50,7 @@ export default async (req) => {
     if (!nombre || !resultado) continue;
 
     const ev = enriquecer(await deLaBase(claveDe({ test: nombre, busqueda: m.busqueda, entidad, terminos })));
+    huella.push(`${nombre}:${ev?.sn ?? "-"}/${ev?.sp ?? "-"}@${ev?.cita?.pmid ?? "-"}`);
     if (!ev || !ev.hayCifras) {
       resultados.push({ test: nombre, resultado, estado: "sin cifras publicadas" });
       continue;
@@ -100,7 +102,7 @@ export default async (req) => {
   };
 
   const conclusion = await veredictoDe({
-    clave,
+    clave: claveConclusion({ entidad, nivel, marcados, huella: huella.sort().join(",") }),
     datos,
     permitidos: numerosPermitidos({ proporciones, razones, otros }),
     etiqueta: `${entidad} · ${marcados.length} marcados`,

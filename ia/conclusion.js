@@ -57,13 +57,18 @@ const ESQUEMA = {
 /**
  * La misma combinación tiene que dar la misma clave siempre, se hayan marcado
  * los tests en el orden que se hayan marcado.
+ *
+ * `huella` son las cifras sobre las que se redactó. Entra en la clave porque la
+ * misma combinación de tests puede apoyarse en cifras distintas si entre medias
+ * se ha rehecho la búsqueda: el veredicto viejo hablaría de unos números que ya
+ * no están en pantalla.
  */
-export function claveConclusion({ entidad, nivel, marcados }) {
+export function claveConclusion({ entidad, nivel, marcados, huella = "" }) {
   const pares = marcados
     .map((m) => `${m.nombre}=${m.resultado}`)
     .sort()
     .join("&");
-  return `v${VERSION}|${entidad}|${nivel}|${pares}`;
+  return `v${VERSION}|${entidad}|${nivel}|${pares}|${huella}`;
 }
 
 function filtrar(bruto, permitidos, etiqueta) {
