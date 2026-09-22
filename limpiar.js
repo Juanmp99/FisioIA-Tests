@@ -20,6 +20,7 @@ const CONOCIDOS = {
   registro: "las baterías ya resueltas y sus entidades",
   aliento: "las frases de la pantalla de espera",
   explicacion: "las explicaciones personalizadas de cada test (redactadas con IA)",
+  conclusion: "los veredictos de la conclusión por combinación (redactados con IA)",
   curso: "las marcas de búsquedas en marcha (se borran solas; vaciarlas desatasca)",
 };
 

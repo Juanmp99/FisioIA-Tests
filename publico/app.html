@@ -975,25 +975,53 @@ button.sello.pista { font-size: .8125rem; }
 /* ============ el test mientras se investiga ============ */
 
 .investigando {
-  display: inline-flex; align-items: center; gap: 9px;
-  font: inherit; font-size: .8125rem; font-weight: 600;
-  color: var(--azul); cursor: pointer;
-  background: var(--brillo-azul);
-  border: 1px solid color-mix(in srgb, var(--azul) 30%, transparent);
-  border-radius: 999px; padding: 6px 12px 6px 8px;
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 14px;
+  width: calc(100% - 40px); margin: 0 20px 14px;
+  font: inherit; text-align: left; cursor: pointer;
+  color: var(--tinta-media);
+  background:
+    linear-gradient(100deg, var(--brillo-azul), transparent 60%),
+    var(--superficie-viva);
+  border: 1px solid color-mix(in srgb, var(--azul) 22%, var(--borde));
+  border-radius: var(--radio-s); padding: 15px 17px;
+  /* El navegador aplastaba la franja a la altura de una línea y recortaba el
+     texto de abajo. Con esto se pide explícitamente que mida lo que mide su
+     contenido; los 76 px son el respaldo por si algún navegador no entiende
+     fit-content. */
+  min-height: 76px;
+  min-height: fit-content;
 }
+/* Un reflejo que recorre la franja: dice "esto sigue en marcha" sin prometer
+   cuánto falta, que no lo sabemos. */
+.investigando::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, color-mix(in srgb, var(--azul) 10%, transparent) 50%, transparent 65%);
+  transform: translateX(-100%);
+  animation: barrido 2.6s var(--curva) infinite;
+}
+.investigando:hover { border-color: color-mix(in srgb, var(--azul) 45%, transparent); }
+.investigando-texto { flex: 1; min-width: 0; }
+.investigando-texto b {
+  display: block; font-size: .9375rem; font-weight: 650; color: var(--azul);
+  letter-spacing: -.01em;
+}
+.investigando-texto small {
+  display: block; margin-top: 3px; font-size: .8125rem; color: var(--tinta-tenue);
+}
+.investigando .pista-ico { align-self: flex-start; margin-top: 2px; }
 
 /* El halo de la espera, en pequeño: el fisioterapeuta ya asocia ese anillo con
    "está trabajando", así que no hace falta enseñarle otro símbolo. */
 .mini-halo {
-  position: relative; flex: none; width: 18px; height: 18px; border-radius: 50%;
+  position: relative; flex: none; width: 26px; height: 26px; border-radius: 50%;
   background: conic-gradient(from 0deg, transparent 0 25%, var(--azul) 70%, var(--verde) 100%);
-  -webkit-mask: radial-gradient(circle, transparent 5.5px, #000 6px);
-          mask: radial-gradient(circle, transparent 5.5px, #000 6px);
+  -webkit-mask: radial-gradient(circle, transparent 8.5px, #000 9px);
+          mask: radial-gradient(circle, transparent 8.5px, #000 9px);
   animation: girar 1.1s linear infinite;
 }
 .mini-halo i {
-  position: absolute; top: -1px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px;
+  position: absolute; top: -1px; left: 50%; width: 6px; height: 6px; margin-left: -3px;
   border-radius: 50%; background: var(--verde); box-shadow: 0 0 8px var(--verde);
 }
 
@@ -1005,6 +1033,7 @@ button.sello.pista { font-size: .8125rem; }
   animation: brillar 1.6s ease-in-out infinite;
 }
 .cifra.fantasma.corta { width: 118px; animation-delay: .2s; }
+@media (max-width: 620px) { .investigando { padding: 13px 14px; gap: 11px; } }
 
 /* La línea de arriba de la tarjeta barre de lado a lado mientras dura. */
 .test.buscando::after {
@@ -1067,6 +1096,22 @@ button.sello.pista { font-size: .8125rem; }
 .cargando-ia { display: grid; gap: 7px; }
 .cargando-ia .esqueleto { display: block; height: 10px; width: 100%; }
 .cargando-ia .esqueleto.corto { width: 62%; }
+
+.veredicto-ia-caja {
+  margin: 22px 0 0; padding: 16px 18px 14px; border-radius: var(--radio-s);
+  background: color-mix(in srgb, var(--violeta) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--violeta) 25%, transparent);
+}
+.veredicto-ia-caja p { margin: 0 0 8px; color: var(--tinta-media); font-size: .9375rem; line-height: 1.55; }
+.veredicto-ia-caja p:last-of-type { margin-bottom: 0; }
+.veredicto-ia-caja b { color: var(--tinta); font-weight: 650; font-size: 1rem; }
+.veredicto-ia-caja small {
+  display: block; margin-top: 10px; font-size: .6875rem; color: var(--tinta-tenue);
+}
+.veredicto-ia-caja small::before { content: "✦ "; color: var(--violeta); }
+.veredicto-ia-caja.cargando { display: grid; gap: 8px; }
+.veredicto-ia-caja.cargando .esqueleto { display: block; height: 11px; }
+.veredicto-ia-caja.cargando .esqueleto.corto { width: 55%; }
 
 .veredicto-ia {
   margin: 10px 0 0; padding: 10px 12px; border-radius: 9px;
@@ -1531,7 +1576,10 @@ button.sello.pista { font-size: .8125rem; }
     interpretaciones: {},
     // Explicaciones personalizadas por test: undefined sin pedir, "pendiente",
     // el objeto de textos, o null si no ha habido.
-    explicaciones: {}
+    explicaciones: {},
+    // Veredictos de la conclusión, por combinación de sospecha y resultados.
+    // Volver a una combinación ya vista no vuelve a pedirlo.
+    veredictos: {}
   };
 
   /**
@@ -1806,6 +1854,7 @@ button.sello.pista { font-size: .8125rem; }
         estado.resultados = {};
         estado.interpretaciones = {};
         estado.explicaciones = {};
+        estado.veredictos = {};
         ui = nuevaUi();
         cerrarGlobo();
 
@@ -2323,7 +2372,9 @@ button.sello.pista { font-size: .8125rem; }
           '<div class="objetivo">' + esc(t.objetivo) + "</div>" +
         "</div>" +
       "</div>" +
-      '<div class="franja">' + (ev ? chipsCifras(ev, t.nombre) + selloCalidad(ev, t.nombre) + marbetes(ev, t.nombre) : investigando(t.nombre)) + "</div>" +
+      (ev
+        ? '<div class="franja">' + chipsCifras(ev, t.nombre) + selloCalidad(ev, t.nombre) + marbetes(ev, t.nombre) + "</div>"
+        : investigando(t.nombre)) +
       '<div class="test-acciones">' +
         '<span class="rotulo">Resultado</span>' +
         '<button class="btn-res" data-marcar="' + id + '" data-valor="positivo" aria-pressed="' + (marcado === "positivo") + '">Positivo</button>' +
@@ -2407,12 +2458,21 @@ button.sello.pista { font-size: .8125rem; }
       contenido + '<span class="pista-ico" aria-hidden="true">?</span></button>';
   }
 
-  /** Mientras se lee la literatura: que se vea que la tarjeta está viva, no rota. */
+  /**
+   * Mientras se lee la literatura.
+   *
+   * Ocupa la franja entera, que es el sitio donde van a ir las cifras cuando
+   * lleguen. Como pastilla pequeña entre dos huecos grises parecía un resto de
+   * algo que había fallado, y lo que está pasando ahí es justo lo contrario:
+   * es el trabajo que justifica la herramienta.
+   */
   function investigando(nombre) {
     return pista("buscando", nombre, "investigando",
-        '<span class="mini-halo" aria-hidden="true"><i></i></span><span>Investigando la literatura…</span>') +
-      '<span class="cifra fantasma" aria-hidden="true"></span>' +
-      '<span class="cifra fantasma corta" aria-hidden="true"></span>';
+      '<span class="mini-halo" aria-hidden="true"><i></i></span>' +
+      '<span class="investigando-texto">' +
+        "<b>Investigando la literatura</b>" +
+        "<small>Buscando en PubMed y Europe PMC la precisión publicada de este test</small>" +
+      "</span>");
   }
 
   function chipsCifras(ev, nombre) {
@@ -3227,6 +3287,7 @@ button.sello.pista { font-size: .8125rem; }
 
     caja.innerHTML = '<div class="conclusion' + entradaConclusion() + '"><div class="conclusion-dentro">' + partes.join("") + "</div></div>";
     animarCifras(caja);
+    montarVeredicto();
     actualizarCarril();
   }
 
@@ -3239,6 +3300,96 @@ button.sello.pista { font-size: .8125rem; }
     if (ui.vistos.conclusion) return " ya";
     ui.vistos.conclusion = true;
     return " llega";
+  }
+
+  /* ============ el veredicto redactado ============ */
+
+  /*
+   * La conclusión la calcula el dominio y manda ella. Esto es una capa encima
+   * que dice en voz alta por qué, con todos los resultados delante.
+   *
+   * Se pide por combinación —sospecha previa y resultados marcados— y se
+   * recuerda: el fisioterapeuta marca, se arrepiente y vuelve, y volver a una
+   * combinación ya vista no debe costar otra espera. La espera de verdad ocurre
+   * solo la primera vez que se llega a esa combinación.
+   */
+  var temporizadorVeredicto = null;
+
+  function combinacionActual() {
+    var marcados = [];
+    estado.tests.forEach(function (t) {
+      var r = estado.resultados[t.nombre];
+      if (r) marcados.push({ nombre: t.nombre, busqueda: t.nombreBusqueda || t.nombre, resultado: r });
+    });
+    marcados.sort(function (a, b) { return a.nombre < b.nombre ? -1 : 1; });
+    if (!marcados.length || !estado.nivel) return null;
+    return {
+      marcados: marcados,
+      clave: estado.nivel + "|" + marcados.map(function (m) { return m.nombre + "=" + m.resultado; }).join("&")
+    };
+  }
+
+  function montarVeredicto() {
+    var caja = document.querySelector(".conclusion-dentro");
+    if (!caja) return;
+    var combi = combinacionActual();
+    if (!combi) return;
+
+    var hueco = document.createElement("div");
+    hueco.id = "veredicto-ia";
+    var notas = caja.querySelector(".nota-cadena");
+    if (notas) caja.insertBefore(hueco, notas); else caja.appendChild(hueco);
+
+    var guardado = estado.veredictos[combi.clave];
+    if (guardado && guardado !== "pendiente") { pintarVeredicto(guardado); return; }
+
+    pintarVeredicto("pendiente");
+    if (guardado === "pendiente") return;
+
+    // Se espera un momento: marcar tres resultados seguidos es una sola
+    // combinación que importa, no tres.
+    clearTimeout(temporizadorVeredicto);
+    temporizadorVeredicto = setTimeout(function () { pedirVeredicto(combi); }, 700);
+  }
+
+  function pedirVeredicto(combi) {
+    var enCurso = estado.entidad;
+    if (estado.veredictos[combi.clave] === "pendiente") return;
+    estado.veredictos[combi.clave] = "pendiente";
+
+    pedir("/api/concluir", {
+      entidad: estado.entidad,
+      terminosBusqueda: estado.terminos,
+      nivel: estado.nivel,
+      marcados: combi.marcados
+    }).then(function (d) { return d.conclusion || null; })
+      .catch(function () { return null; })
+      .then(function (v) {
+        if (estado.entidad !== enCurso) return;
+        estado.veredictos[combi.clave] = v;
+        var ahora = combinacionActual();
+        if (ahora && ahora.clave === combi.clave) pintarVeredicto(v);
+      });
+  }
+
+  function pintarVeredicto(v) {
+    var hueco = document.getElementById("veredicto-ia");
+    if (!hueco) return;
+    if (!v) { hueco.innerHTML = ""; return; }
+
+    if (v === "pendiente") {
+      hueco.innerHTML = '<div class="veredicto-ia-caja cargando">' +
+        '<span class="globo-ia-rotulo">Leyendo todo lo que has explorado…</span>' +
+        '<span class="esqueleto"></span><span class="esqueleto corto"></span></div>';
+      return;
+    }
+
+    hueco.innerHTML = '<div class="veredicto-ia-caja">' +
+      '<span class="globo-ia-rotulo">El veredicto</span>' +
+      "<p><b>" + esc(v.veredicto) + "</b></p>" +
+      "<p>" + esc(v.porque) + "</p>" +
+      "<small>Redactado con IA sobre el cálculo de arriba</small>" +
+    "</div>";
   }
 
   /* ============ el carril de pasos ============ */
