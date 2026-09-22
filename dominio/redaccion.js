@@ -62,6 +62,26 @@ export function numerosEn(texto) {
 }
 
 /**
+ * Frases que delatan que el texto se dirige al paciente y no al fisioterapeuta.
+ *
+ * Quien lee es quien explora, y el enfermo es un tercero: "aumenta la
+ * probabilidad de que tu paciente lo tenga", nunca "de que tengas". El modelo
+ * se despista con facilidad porque el resto del texto tutea, así que además de
+ * pedírselo se comprueba. "Tu sospecha" y "tu paciente" son correctos y tienen
+ * que seguir pasando.
+ */
+const AL_PACIENTE = [
+  /\bque\s+(t[úu]\s+)?(tengas|tienes|padeces|padezcas|sufres|sufras)\b/i,
+  /\btu\s+(lesi[óo]n|enfermedad|patolog[íi]a|dolor|s[íi]ntomas?|afecci[óo]n)\b/i,
+  /\bsi\s+(t[úu]\s+)?(tienes|tuvieras|padeces)\b/i,
+];
+
+/** ¿Le está hablando al paciente en vez de al fisioterapeuta? */
+export function hablaAlPaciente(texto) {
+  return AL_PACIENTE.some((r) => r.test(String(texto || "")));
+}
+
+/**
  * ¿Se puede enseñar este texto?
  *
  * @returns {{ valido: boolean, intrusos: string[] }} los números que no venían en los datos.

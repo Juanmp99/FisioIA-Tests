@@ -9,7 +9,7 @@ import { coincidencia } from "./ia/entidades.js";
 import { mereceTextoCompleto } from "./ia/evidencia.js";
 import { promete } from "./ia/europepmc.js";
 import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
-import { numerosPermitidos, comprobarNumeros } from "./dominio/redaccion.js";
+import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/redaccion.js";
 
 let pasadas = 0;
 const cerca = (a, b, t = 0.01) => Math.abs(a - b) < t;
@@ -562,6 +562,22 @@ prueba("rechaza una cifra clínica inventada aunque parezca plausible", () => {
 
 prueba("un texto sin números pasa, porque no hay nada que comprobar", () => {
   assert.equal(comprobarNumeros("Si sale negativo, ayuda a descartar.", permitidosJobe).valido, true);
+});
+
+prueba("se detecta cuando el texto le habla al paciente y no al fisioterapeuta", () => {
+  // Salió en producción, con el signo de Tinel: "la probabilidad de que tengas
+  // síndrome del túnel carpiano". Quien lee es quien explora.
+  assert.equal(hablaAlPaciente("Aumenta la probabilidad de que tengas síndrome del túnel carpiano."), true);
+  assert.equal(hablaAlPaciente("No cambia si tienes o no la enfermedad."), true);
+  assert.equal(hablaAlPaciente("No cambia la probabilidad de que tengas o no la enfermedad."), true);
+  assert.equal(hablaAlPaciente("Esto no dice nada sobre tu lesión."), true);
+});
+
+prueba("no confunde al paciente con la sospecha del fisioterapeuta", () => {
+  // "Tu sospecha", "tu paciente" y "has hecho" son correctos y tienen que pasar.
+  assert.equal(hablaAlPaciente("Un negativo apenas cambia tu sospecha."), false);
+  assert.equal(hablaAlPaciente("Aumenta la probabilidad de que tu paciente tenga la lesión."), false);
+  assert.equal(hablaAlPaciente("El test que has hecho no decide por sí solo."), false);
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);

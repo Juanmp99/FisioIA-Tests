@@ -14,12 +14,12 @@
 
 import { leer, escribir } from "../lib/almacen.js";
 import { pedirJson } from "./cliente.js";
-import { numerosPermitidos, comprobarNumeros } from "../dominio/redaccion.js";
+import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "../dominio/redaccion.js";
 
 const ALMACEN = "explicacion";
 
 /** Se cambia al tocar el prompt, para no servir explicaciones escritas con otro. */
-const VERSION = 1;
+const VERSION = 2;
 
 const TOPE_CAMPO = 360;
 
@@ -33,9 +33,13 @@ Reglas, sin excepción:
 
 3. Tu trabajo es traducir, no ampliar: convierte las cifras y los motivos en lo que implican en consulta para un paciente con esa sospecha. Nombra el test y la patología.
 
-4. Cada campo, una o dos frases y como mucho 45 palabras. Español de España, tuteando, tono sobrio y práctico. Sin tecnicismos: si usas uno, explícalo en la misma frase.
+4. Cada campo, una o dos frases y como mucho 45 palabras. Español de España, tono sobrio y práctico. Sin tecnicismos: si usas uno, explícalo en la misma frase.
 
-5. Devuelve null en los campos que no apliquen: indirecta si las cifras son de la misma patología, parcial si están las dos cifras, sensibilidad o especificidad si esa cifra no consta.
+4 bis. Quien te lee es el fisioterapeuta, y el enfermo es un tercero. Tutéale a él y llama al enfermo "tu paciente": "aumenta la probabilidad de que tu paciente lo tenga", nunca "de que tengas" ni "tu lesión". Son correctos "tu sospecha", "tu paciente" y "el test que has hecho".
+
+4 ter. Escribe las frases completas. Si dices "de cada 100 personas", ese 100 tiene que estar escrito; no empieces una frase contando sobre un total que no nombras.
+
+5. Devuelve null SOLO cuando el dato no exista: indirecta si las cifras se midieron sobre la misma patología, parcial si constan las dos cifras. Si una cifra consta en los datos, su campo no puede quedarse vacío.
 
 6. Sobre los resultados positivo y negativo, apóyate en la magnitud que te doy (concluyente, moderado, pequeño, irrelevante). No afirmes que confirma o descarta: eso depende de la sospecha previa, que no conoces.`;
 
@@ -99,6 +103,13 @@ function filtrar(bruto, ev, test) {
     const r = comprobarNumeros(texto, permitidos);
     if (!r.valido) {
       console.warn(`[explicacion] ${test} · ${c}: descartado, números que no venían en los datos: ${r.intrusos.join(", ")}`);
+      limpio[c] = null;
+      continue;
+    }
+    // Además de pedírselo en el prompt, se comprueba: el modelo se despista y
+    // acaba hablándole al paciente, que no es quien está leyendo.
+    if (hablaAlPaciente(texto)) {
+      console.warn(`[explicacion] ${test} · ${c}: descartado, le habla al paciente en vez de al fisioterapeuta`);
       limpio[c] = null;
       continue;
     }
