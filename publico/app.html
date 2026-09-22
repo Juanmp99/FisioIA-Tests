@@ -1254,6 +1254,30 @@ button.sello.pista { font-size: .8125rem; }
 .leidos[open] summary::before { transform: rotate(90deg); }
 .leidos summary:hover { color: var(--tinta-media); border-color: var(--tinta-tenue); }
 .leidos ul { margin: 10px 0 0; padding-left: 18px; }
+
+/* Las otras cifras publicadas. Mismo trato visual que la lista de artículos
+   leídos: plegado, discreto, disponible. */
+.otras-cifras { margin-top: 10px; }
+.otras-cifras summary {
+  cursor: pointer; color: var(--ambar); font-size: .75rem; font-weight: 600;
+  list-style: none; display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ambar) 30%, transparent);
+  background: var(--brillo-ambar);
+}
+.otras-cifras summary::-webkit-details-marker { display: none; }
+.otras-cifras summary::before { content: "▸"; font-size: .625rem; transition: transform .15s; }
+.otras-cifras[open] summary::before { transform: rotate(90deg); }
+.otras-cifras ul { margin: 10px 0 0; padding-left: 18px; }
+.otras-cifras li { margin-bottom: 5px; line-height: 1.45; }
+.otras-cifras .rangos { list-style: none; padding: 0; margin: 10px 0 0; }
+.otras-cifras .rangos li {
+  padding: 8px 11px; border-radius: 8px; margin-bottom: 6px;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+  color: var(--tinta-media);
+}
+.otras-cifras .rangos b { color: var(--tinta); font-family: var(--mono); font-weight: 600; }
+.otras-cifras > p { margin: 10px 0 2px; font-size: .75rem; color: var(--tinta-tenue); max-width: 60ch; }
 .leidos li { margin-bottom: 5px; line-height: 1.45; }
 
 .motivos { margin: 10px 0 0; padding-left: 18px; font-size: .8125rem; color: var(--tinta-tenue); }
@@ -2840,8 +2864,49 @@ button.sello.pista { font-size: .8125rem; }
       '<a href="' + esc(ev.cita.url) + '" target="_blank" rel="noopener">' + esc(ev.cita.titulo) + "</a> · " +
       esc(ev.cita.revista) + " " + esc(ev.cita.anio) +
       (ev.trazable === false ? " · <b>cifra no localizada en la frase citada, compruébala</b>" : "") +
+      otrasCifras(ev) +
       resto +
     "</span></div>";
+  }
+
+  /**
+   * Las otras cifras publicadas del mismo test.
+   *
+   * No se funden con las de arriba: la sensibilidad y la especificidad salen de
+   * la misma tabla y del mismo grupo de pacientes, así que combinarlas entre
+   * estudios daría un número que nadie ha medido. Van al lado, con su artículo
+   * cada una, para enseñar lo que una cifra sola esconde: si la literatura está
+   * de acuerdo consigo misma o no.
+   */
+  function otrasCifras(ev) {
+    var otras = ev.otrasFuentes || [];
+    if (!otras.length) return "";
+
+    var tramo = function (campo, nombre) {
+      var r = ev.rango && ev.rango[campo];
+      if (!r) return "";
+      return "<li>La <b>" + nombre + "</b> publicada va de <b>" + num(r.min, true) +
+        "</b> a <b>" + num(r.max, true) + "</b> entre " + r.estudios + " estudios.</li>";
+    };
+    var rangos = tramo("sn", "sensibilidad") + tramo("sp", "especificidad");
+
+    var filas = otras.map(function (o) {
+      var cifras = (o.sn != null ? "Sn " + num(o.sn, true) : "Sn —") +
+        " · " + (o.sp != null ? "Sp " + num(o.sp, true) : "Sp —");
+      return "<li><b>" + cifras + "</b> " +
+        '<a href="' + esc(o.url) + '" target="_blank" rel="noopener">' + esc(o.titulo) + "</a>" +
+        (o.anio ? " · " + esc(o.anio) : "") + "</li>";
+    }).join("");
+
+    return '<details class="otras-cifras"><summary>' +
+        "También lo miden otros " + otras.length + (otras.length === 1 ? " artículo" : " artículos") +
+        " · el cálculo usa solo el citado</summary>" +
+      (rangos ? '<ul class="rangos">' + rangos + "</ul>" : "") +
+      "<ul>" + filas + "</ul>" +
+      "<p>Cada cifra con su artículo. No se mezclan entre sí: la sensibilidad y la especificidad " +
+      "se miden juntas, en el mismo grupo de pacientes, y combinarlas entre estudios daría un número " +
+      "que nadie ha publicado.</p>" +
+    "</details>";
   }
 
   /* ============ evidencia ============ */

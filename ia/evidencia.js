@@ -15,6 +15,7 @@ import { validarPrecision, validarParcial, razonesDeVerosimilitud, magnitud } fr
 import { semaforo } from "../dominio/calidad.js";
 import { comprobarCita } from "../dominio/trazabilidad.js";
 import { comprobarAgrupacion } from "../dominio/agrupaciones.js";
+import { depurarFuentes, rangoPublicado } from "../dominio/fuentes.js";
 
 const ALMACEN = "evidencia";
 
@@ -136,12 +137,21 @@ export function claveDe({ test, busqueda, entidad, terminos }) {
  * del servidor. Lo necesitan las explicaciones de cada cifra.
  */
 export function enriquecer(ev) {
-  if (!ev || !ev.hayCifras || typeof ev.sn !== "number" || typeof ev.sp !== "number") {
-    return ev ? { ...ev, rv: null } : ev;
+  if (!ev || !ev.hayCifras) return ev;
+
+  // Entre qué valores se mueve cada cifra contando las demás fuentes. Se calcula
+  // aquí, con el dominio, en lugar de en el navegador: una segunda
+  // implementación acabaría divergiendo de esta.
+  const rango = rangoPublicado({ principal: ev, otras: ev.otrasFuentes });
+
+  if (typeof ev.sn !== "number" || typeof ev.sp !== "number") {
+    return { ...ev, rv: null, rango };
   }
+
   const lr = razonesDeVerosimilitud(ev.sn, ev.sp);
   return {
     ...ev,
+    rango,
     rv: {
       positiva: lr.positiva,
       negativa: lr.negativa,
@@ -459,9 +469,21 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
       })
     : null;
 
+  // Las otras cifras publicadas del mismo test. No entran en el cálculo: la
+  // sensibilidad y la especificidad salen de la misma tabla, y combinarlas
+  // entre estudios daría un número que nadie ha medido. Se enseñan al lado para
+  // que se vea entre qué valores se mueve la literatura, que es lo que una
+  // cifra sola esconde.
+  const otrasFuentes = depurarFuentes({
+    candidatas: datos.otrasFuentes,
+    articulos,
+    pmidPrincipal: fuente?.pmid,
+  });
+
   const resultado = {
     hayCifras: true,
     agrupacion,
+    otrasFuentes,
     // Solo se puede calcular probabilidad post-test con las dos cifras.
     interpretable: !parcial,
     parcial,

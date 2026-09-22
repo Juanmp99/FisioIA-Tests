@@ -10,6 +10,7 @@ import { mereceTextoCompleto } from "./ia/evidencia.js";
 import { promete } from "./ia/europepmc.js";
 import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
 import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/redaccion.js";
+import { depurarFuentes, rangoPublicado } from "./dominio/fuentes.js";
 
 let pasadas = 0;
 const cerca = (a, b, t = 0.01) => Math.abs(a - b) < t;
@@ -578,6 +579,77 @@ prueba("no confunde al paciente con la sospecha del fisioterapeuta", () => {
   assert.equal(hablaAlPaciente("Un negativo apenas cambia tu sospecha."), false);
   assert.equal(hablaAlPaciente("Aumenta la probabilidad de que tu paciente tenga la lesión."), false);
   assert.equal(hablaAlPaciente("El test que has hecho no decide por sí solo."), false);
+});
+
+console.log("\nOtras cifras publicadas del mismo test");
+
+const ARTICULOS = [
+  { pmid: "111", titulo: "Estudio A", revista: "Rev A", anio: "2019" },
+  { pmid: "222", titulo: "Estudio B", revista: "Rev B", anio: "2012" },
+  { pmid: "333", titulo: "Estudio C", revista: "Rev C", anio: "2021" },
+];
+
+prueba("acepta una fuente con sus cifras en su propia frase citada", () => {
+  const r = depurarFuentes({
+    candidatas: [{ pmid: "222", sn: 0.45, sp: 0.78, citaLiteral: "sensitivity of 0.45 and specificity of 0.78" }],
+    articulos: ARTICULOS,
+    pmidPrincipal: "111",
+  });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].url, "https://pubmed.ncbi.nlm.nih.gov/222/");
+});
+
+prueba("descarta la que no tiene sus números en la frase", () => {
+  // Es la misma exigencia que a la cifra principal: sin frase que lo respalde,
+  // no se enseña.
+  const r = depurarFuentes({
+    candidatas: [{ pmid: "222", sn: 0.45, sp: 0.78, citaLiteral: "the test performed well in our series" }],
+    articulos: ARTICULOS,
+    pmidPrincipal: "111",
+  });
+  assert.equal(r.length, 0);
+});
+
+prueba("no repite el artículo del que ya salen las cifras principales", () => {
+  const r = depurarFuentes({
+    candidatas: [{ pmid: "111", sn: 0.77, sp: 0.58, citaLiteral: "sensitivity 0.77 and specificity 0.58" }],
+    articulos: ARTICULOS,
+    pmidPrincipal: "111",
+  });
+  assert.equal(r.length, 0);
+});
+
+prueba("descarta un artículo que no estaba entre los leídos", () => {
+  // Si el modelo se inventa un PMID, no hay forma de comprobarlo.
+  const r = depurarFuentes({
+    candidatas: [{ pmid: "999", sn: 0.45, sp: 0.78, citaLiteral: "sensitivity of 0.45 and specificity of 0.78" }],
+    articulos: ARTICULOS,
+    pmidPrincipal: "111",
+  });
+  assert.equal(r.length, 0);
+});
+
+prueba("admite media cifra, como en la principal", () => {
+  const r = depurarFuentes({
+    candidatas: [{ pmid: "333", sn: 0.9, sp: null, citaLiteral: "sensitivity was 90%" }],
+    articulos: ARTICULOS,
+    pmidPrincipal: "111",
+  });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].sp, null);
+});
+
+prueba("el rango solo aparece cuando hay más de un valor distinto", () => {
+  const sinOtras = rangoPublicado({ principal: { sn: 0.77, sp: 0.58 }, otras: [] });
+  assert.equal(sinOtras.sn, null);
+
+  const conOtras = rangoPublicado({
+    principal: { sn: 0.77, sp: 0.58 },
+    otras: [{ sn: 0.45, sp: 0.58 }, { sn: 0.88, sp: null }],
+  });
+  assert.deepEqual(conOtras.sn, { min: 0.45, max: 0.88, estudios: 3 });
+  // La especificidad coincide en los dos, así que no hay rango que enseñar.
+  assert.equal(conOtras.sp, null);
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);

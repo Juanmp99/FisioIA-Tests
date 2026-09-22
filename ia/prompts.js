@@ -143,6 +143,8 @@ Reglas, sin excepción:
 
 5. Si varios textos dan cifras distintas para el mismo test, elige el de mayor jerarquía: revisión sistemática o metaanálisis por delante de estudio primario. Y marca la consistencia como discrepante si las cifras difieren de forma apreciable.
 
+5 bis. Los demás textos que publiquen cifras de ESE test para ESA entidad van en otrasFuentes, hasta tres, cada uno con su PMID y su propia frase copiada palabra por palabra. No se van a mezclar con las que devuelves arriba —la sensibilidad y la especificidad salen de la misma tabla y del mismo grupo de pacientes, así que combinarlas entre estudios daría un número que nadie ha medido—, sino que se enseñan al lado para que se vea entre qué valores se mueve la literatura. No repitas ahí el artículo que ya has elegido. Si ningún otro publica cifras, deja la lista vacía: es una respuesta correcta y frecuente.
+
 6. Valoración de calidad. Rellena estos campos con lo que puedas deducir del propio resumen, sin inventar:
    - tipoEstudio: si es revisión sistemática o metaanálisis, o estudio primario.
    - amstar2: solo para revisiones. Calidad aparente según lo que el resumen deje ver de su método: si describe búsqueda en varias bases, criterios de inclusión explícitos y valoración del riesgo de sesgo de los estudios incluidos, la calidad aparente es alta o moderada. Si no describe método, es baja. Si no es una revisión o no puedes juzgarlo, usa no_valorable.
@@ -188,6 +190,22 @@ export const ESQUEMA_EXTRACCION = {
       description: "Frase del texto, copiada palabra por palabra, donde constan las cifras extraídas.",
     },
     pmid: { type: ["string", "null"], description: "PMID del artículo del que salen las cifras." },
+    otrasFuentes: {
+      type: "array",
+      description:
+        "Otros artículos de los que te he dado que publiquen cifras de este mismo test para esta misma entidad. Máximo tres. Vacío si no hay.",
+      items: {
+        type: "object",
+        properties: {
+          pmid: { type: "string" },
+          sn: { type: ["number", "null"], description: "Sensibilidad como proporción entre 0 y 1." },
+          sp: { type: ["number", "null"], description: "Especificidad como proporción entre 0 y 1." },
+          citaLiteral: { type: "string", description: "La frase de ESE artículo donde constan esas cifras, copiada palabra por palabra." },
+        },
+        required: ["pmid", "sn", "sp", "citaLiteral"],
+        additionalProperties: false,
+      },
+    },
     componentes: {
       type: "array",
       items: { type: "string" },
@@ -205,7 +223,7 @@ export const ESQUEMA_EXTRACCION = {
     "encontrado", "sn", "sp", "lrPositiva", "lrNegativa", "tipoEstudio",
     "amstar2", "quadas2", "consistencia", "intervalos", "numeroEstudios",
     "mismaEntidad", "entidadDeLasCifras", "citaLiteral", "pmid",
-    "componentes", "criterioDelArticulo", "notas",
+    "otrasFuentes", "componentes", "criterioDelArticulo", "notas",
   ],
   additionalProperties: false,
 };
