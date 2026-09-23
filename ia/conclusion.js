@@ -97,13 +97,22 @@ function filtrar(bruto, permitidos, etiqueta) {
 }
 
 /**
- * El veredicto de una combinación concreta. Devuelve null si no se puede
- * redactar: la conclusión calculada se enseña igual, esto es un añadido.
+ * El veredicto de una combinación concreta.
+ *
+ * Devuelve `{ textos, motivo }`. Si no se ha podido redactar, `textos` es null y
+ * `motivo` dice por qué: "plazo", "candado" o "error". La conclusión calculada
+ * se enseña igual, esto es un añadido; pero un hueco en blanco sin explicación
+ * parece una avería, y sin el motivo no hay forma de saber cuál.
+ *
+ * Solo se guarda lo que sale bien. Un veredicto descartado por el candado se
+ * guardaba como vacío y esa combinación quedaba sin veredicto para siempre,
+ * aunque una segunda redacción hubiera pasado el control sin problema.
  */
 export async function veredictoDe({ clave, datos, permitidos, etiqueta, senal }) {
   const guardado = await leer(ALMACEN, clave);
-  if (guardado?.version === VERSION) return guardado.textos;
+  if (guardado?.version === VERSION && guardado.textos) return { textos: guardado.textos, motivo: null };
 
+  const inicio = Date.now();
   try {
     const { datos: bruto } = await pedirJson({
       sistema: SISTEMA,
@@ -114,10 +123,12 @@ export async function veredictoDe({ clave, datos, permitidos, etiqueta, senal })
       senal,
     });
     const textos = filtrar(bruto, permitidos, etiqueta);
+    console.log(`[conclusion] ${etiqueta}: ${textos ? "redactado" : "descartado"} en ${Date.now() - inicio} ms`);
+    if (!textos) return { textos: null, motivo: "candado" };
     await escribir(ALMACEN, clave, { version: VERSION, textos, fecha: new Date().toISOString() });
-    return textos;
+    return { textos, motivo: null };
   } catch (e) {
-    console.warn(`[conclusion] ${etiqueta}: ${e.message}`);
-    return null;
+    console.warn(`[conclusion] ${etiqueta}: ${e.message} (${Date.now() - inicio} ms)`);
+    return { textos: null, motivo: e.porPlazo ? "plazo" : "error" };
   }
 }

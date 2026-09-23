@@ -101,15 +101,17 @@ export default async (req) => {
     resultadosEnDireccionesContrarias: suben.length > 0 && bajan.length > 0,
   };
 
-  const conclusion = await veredictoDe({
+  const { textos, motivo } = await veredictoDe({
     clave: claveConclusion({ entidad, nivel, marcados, huella: huella.sort().join(",") }),
     datos,
     permitidos: numerosPermitidos({ proporciones, razones, otros }),
     etiqueta: `${entidad} · ${marcados.length} marcados`,
-    senal: AbortSignal.timeout(22000),
+    // La función tiene 60 segundos. Cortar a los 22, como se hacía, dejaba sin
+    // veredicto las exploraciones largas justo cuando más falta hacía.
+    senal: AbortSignal.timeout(45000),
   });
 
-  return json({ conclusion });
+  return json({ conclusion: textos, motivo });
 };
 
 export const config = { path: "/api/concluir" };

@@ -780,7 +780,7 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
 /* ============ medidor de probabilidad ============ */
 
-.medidor { margin: 14px 0 2px; }
+.medidor { margin: 34px 0 2px; }
 
 .pista {
   position: relative; height: 10px; border-radius: 999px;
@@ -814,6 +814,16 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
 .aguja { position: absolute; top: 50%; width: 2px; height: 20px; margin-top: -10px; border-radius: 2px; }
 .aguja-pre { background: var(--tinta-tenue); opacity: .8; }
+.marca-pre {
+  position: absolute; bottom: calc(100% + 9px); transform: translateX(-50%);
+  font-family: var(--mono); font-size: .8125rem; font-weight: 600; line-height: 1;
+  color: var(--tinta-media); font-variant-numeric: tabular-nums; white-space: nowrap;
+  /* Aparece cuando la base termina de barrer: primero la barra, luego su cifra. */
+  animation: aparecerMarca .35s .45s var(--curva) both;
+}
+.marca-pre.al-inicio { transform: none; }
+.marca-pre.al-final { transform: translateX(-100%); }
+@keyframes aparecerMarca { from { opacity: 0; translate: 0 4px; } to { opacity: 1; translate: 0 0; } }
 .aguja-post {
   width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
   background: var(--tinta); border: 3px solid var(--fondo);
@@ -1182,6 +1192,7 @@ button.sello.explica { font-size: .8125rem; }
   padding: 15px 17px 14px;
   font-size: .875rem; line-height: 1.5; color: var(--tinta-media);
 }
+.globo.de-paso { pointer-events: none; }
 .globo.entra { animation: aparecerGlobo .22s var(--curva) both; }
 .globo.arriba.entra { animation-name: aparecerGloboArriba; }
 /* La flecha que lo une a la etiqueta que se ha tocado. */
@@ -1239,6 +1250,16 @@ button.sello.explica { font-size: .8125rem; }
 }
 .veredicto-ia-caja small::before { content: "✦ "; color: var(--violeta); }
 .veredicto-ia-caja.cargando { display: grid; gap: 8px; }
+.veredicto-ia-caja.fallida { border-style: dashed; }
+.veredicto-ia-caja.fallida p { font-size: .875rem; color: var(--tinta-tenue); }
+.btn-reintentar {
+  margin-top: 10px; padding: 7px 14px; border-radius: 999px;
+  background: transparent; color: var(--violeta); font: inherit; font-size: .8125rem; font-weight: 650;
+  border: 1px solid color-mix(in srgb, var(--violeta) 45%, transparent); cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.btn-reintentar:hover { background: color-mix(in srgb, var(--violeta) 12%, transparent); border-color: var(--violeta); }
+.btn-reintentar:focus-visible { outline: 2px solid var(--violeta); outline-offset: 2px; }
 .veredicto-ia-caja.cargando .esqueleto { display: block; height: 11px; }
 .veredicto-ia-caja.cargando .esqueleto.corto { width: 55%; }
 
@@ -1822,17 +1843,31 @@ button.sello.explica { font-size: .8125rem; }
     });
   }
 
+  /**
+   * Un fallo que puede no repetirse: la red se ha caído un instante, o la
+   * pasarela ha cortado. Lo que devuelve fetch en ese caso es un "Failed to
+   * fetch" en inglés, que acababa pintado tal cual en la ficha de un test.
+   */
+  function fallaPasajera(mensaje) {
+    var e = new Error(mensaje);
+    e.pasajero = true;
+    return e;
+  }
+
   function pedir(ruta, cuerpo) {
     return fetch(ruta, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-acceso": acceso() },
       body: JSON.stringify(cuerpo)
+    }).catch(function () {
+      throw fallaPasajera("Se ha perdido la conexión con el servidor.");
     }).then(function (r) {
       return leerJson(r).then(function (d) {
         if (r.status === 401) {
           aLaEntrada("caducado");
           throw new Error(d.error || "Tu acceso ya no es válido.");
         }
+        if (r.status >= 500) throw fallaPasajera(d.error || "El servidor ha devuelto un error.");
         if (!r.ok) throw new Error(d.error || "El servidor ha devuelto un error.");
         if (d.error) throw new Error(d.error);
         return d;
@@ -2093,6 +2128,10 @@ button.sello.explica { font-size: .8125rem; }
           // Lo que añade o quita este resultado, del color de su dirección.
           '<span class="recorrido ' + clase + '" style="left:' + izq + '%;width:' + ancho + '%"></span>' +
           '<span class="aguja aguja-pre" style="left:' + a + '%"></span>' +
+          // La cifra de partida, encima de donde acaba la base. Pegada a los
+          // bordes se alinea hacia dentro para no salirse de la tarjeta.
+          '<span class="marca-pre' + (a < 6 ? " al-inicio" : a > 94 ? " al-final" : "") +
+            '" style="left:' + a + '%">' + a + "%</span>" +
           '<span class="aguja aguja-post ' + clase + '" style="--desde:' + a + '%;--hasta:' + b + '%"></span>' +
         "</div>" +
         '<div class="medidor-pies">' +
@@ -2718,6 +2757,7 @@ button.sello.explica { font-size: .8125rem; }
 
   function chipsCifras(ev, nombre) {
     if (!ev) return '<span class="cifra vacia"><span class="esqueleto" style="width:88px;display:inline-block;vertical-align:-2px"></span></span>';
+    if (ev.cortada) return pista("cortada", nombre, "cifra vacia ancha", "búsqueda sin terminar");
     if (!ev.hayCifras) return pista("sin", nombre, "cifra vacia ancha", "sin cifras publicadas");
 
     // Con el nombre entero y no con la abreviatura: "Sn" obliga a traducir
@@ -2818,6 +2858,10 @@ button.sello.explica { font-size: .8125rem; }
       cuerpo = "Nadie ha publicado en cuántas personas <b>con</b> " + ent + " da positivo este test. " +
         "Sin ese dato no se puede saber cuánto descarta un <b>negativo</b>.";
       ia = exp && exp.parcial;
+    } else if (tipo === "cortada") {
+      titulo = "Búsqueda sin terminar";
+      cuerpo = "Se ha perdido la conexión mientras buscábamos este test, así que <b>no sabemos</b> si hay cifras publicadas. " +
+        "Vuelve a lanzar la sospecha: lo que ya se hubiera encontrado aparece al momento.";
     } else if (tipo === "sin") {
       var leidos = (ev.consultados || []).length;
       titulo = "Sin cifras publicadas";
@@ -2897,6 +2941,10 @@ button.sello.explica { font-size: .8125rem; }
     globo.innerHTML = '<span class="globo-titulo">' + esc(c.titulo) + "</span>" +
       '<div class="globo-cuerpo">' + c.cuerpo + "</div>" + capaIa;
     globo.hidden = false;
+    // Abierto al pasar el ratón, el globo es transparente al puntero: el cursor
+    // lo atraviesa hasta lo que haya debajo, que casi siempre son los botones de
+    // Positivo y Negativo. Abierto con un clic sí se deja tocar.
+    globo.classList.toggle("de-paso", !abierta.fijada);
     colocarGlobo(boton);
 
     Array.prototype.forEach.call(salida.querySelectorAll('.explica[aria-expanded="true"]'), function (b) {
@@ -2961,14 +3009,18 @@ button.sello.explica { font-size: .8125rem; }
     });
     salida.addEventListener("mouseout", function (e) {
       var b = e.target.closest && e.target.closest("[data-pista]");
-      if (!b || !abierta || abierta.fijada) return;
+      if (!b || (abierta && abierta.fijada)) return;
+      // Pasar del texto al icono de la misma etiqueta no es salir de ella.
+      if (e.relatedTarget && b.contains(e.relatedTarget)) return;
+      // Si aún no se había abierto, se cancela: cruzar la etiqueta de camino a
+      // otra cosa no debe dejar un globo abriéndose detrás.
       clearTimeout(temporizadorGlobo);
-      temporizadorGlobo = setTimeout(cerrarGlobo, 180);
+      if (abierta) temporizadorGlobo = setTimeout(cerrarGlobo, 180);
     });
-    globo.addEventListener("mouseenter", function () { clearTimeout(temporizadorGlobo); });
-    globo.addEventListener("mouseleave", function () {
-      if (abierta && !abierta.fijada) temporizadorGlobo = setTimeout(cerrarGlobo, 180);
-    });
+    // El globo ya no se mantiene abierto al pasar por encima de él. Al bajar
+    // por la tarjeta, el cursor caía en el globo al salir de la etiqueta y lo
+    // dejaba puesto justo encima de los botones del resultado. Solo manda la
+    // etiqueta: fuera de ella, se cierra.
   }
 
   document.addEventListener("click", function (e) {
@@ -3219,7 +3271,7 @@ button.sello.explica { font-size: .8125rem; }
      * está en la base y contesta a la primera, así que no tiene sentido
      * machacar cada segundo durante medio minuto por los pocos que no.
      */
-    function esperarPor(el, intento) {
+    function esperarPor(el, intento, fallos) {
       return pedir("/api/evidencia", {
         entidad: estado.entidad,
         terminosBusqueda: estado.terminos,
@@ -3238,7 +3290,16 @@ button.sello.explica { font-size: .8125rem; }
 
         var espera = n < 5 ? 1200 : n < 15 ? 2500 : 4000;
         return new Promise(function (listo) { setTimeout(listo, espera); })
-          .then(function () { return esperarPor(el, n); });
+          .then(function () { return esperarPor(el, n, 0); });
+      }, function (err) {
+        // Un sondeo que falla no es una búsqueda que falla: el trabajo sigue en
+        // el servidor, a lo suyo. Antes un solo corte de red, en cualquiera de
+        // las decenas de preguntas que se hacen por test, lo daba por perdido.
+        // Se insiste unas cuantas veces, cada vez más despacio.
+        var f = (fallos || 0) + 1;
+        if (!err.pasajero || f > 5 || estado.entidad !== enCurso) throw err;
+        return new Promise(function (listo) { setTimeout(listo, 1500 * f); })
+          .then(function () { return esperarPor(el, intento || 0, f); });
       });
     }
 
@@ -3246,14 +3307,14 @@ button.sello.explica { font-size: .8125rem; }
       if (siguiente >= elementos.length) return Promise.resolve();
       var el = elementos[siguiente++];
 
-      return esperarPor(el, 0).then(function (ev) {
+      return esperarPor(el, 0, 0).then(function (ev) {
         if (estado.entidad !== enCurso || !ev) return;
         estado.evidencias[el.nombre] = ev;
         pintar();
         if (ev.hayCifras) pedirExplicacion(el);
       }).catch(function (err) {
         if (estado.entidad !== enCurso) return;
-        estado.evidencias[el.nombre] = { hayCifras: false, error: err.message };
+        estado.evidencias[el.nombre] = { hayCifras: false, error: err.message, cortada: Boolean(err.pasajero) };
         pintar();
       }).then(tomarUno);
     }
@@ -3312,6 +3373,13 @@ button.sello.explica { font-size: .8125rem; }
     if (!ev) {
       hueco.innerHTML = veredictoSimple("aguarda", "Anotado · esperando las cifras",
         "Todavía estamos buscando la precisión publicada de este test. En cuanto llegue, verás aquí qué significa este resultado, sin tener que volver a marcarlo.");
+      refrescarConclusion();
+      return;
+    }
+
+    if (ev.cortada) {
+      hueco.innerHTML = veredictoSimple("nulo", "Anotado · búsqueda sin terminar",
+        "La búsqueda de este test se cortó antes de acabar, así que no sabemos si hay cifras publicadas. Vuelve a lanzar la sospecha para completarla.");
       refrescarConclusion();
       return;
     }
@@ -3451,6 +3519,7 @@ button.sello.explica { font-size: .8125rem; }
 
     var conCalculo = [];
     var sinCifras = [];
+    var cortados = [];
     var parciales = [];
     // Marcados con las dos cifras cuya interpretación aún no ha vuelto del
     // servidor. Sin contarlos, durante esos instantes la conclusión decía "nada
@@ -3462,6 +3531,7 @@ button.sello.explica { font-size: .8125rem; }
       var d = estado.interpretaciones[n];
       if (d && d.interpretable) conCalculo.push({ nombre: n, d: d });
       else if (ev && ev.hayCifras && ev.interpretable === false) parciales.push(n);
+      else if (ev && ev.cortada) cortados.push(n);
       else if (ev && !ev.hayCifras) sinCifras.push(n);
       else if (ev && ev.hayCifras && !d) calculando += 1;
       // Marcado antes de que llegaran sus cifras, que con la búsqueda en segundo
@@ -3495,6 +3565,7 @@ button.sello.explica { font-size: .8125rem; }
       utiles: utiles,
       nulos: nulos,
       sinCifras: sinCifras,
+      cortados: cortados,
       parciales: parciales,
       discordante: suben.length > 0 && bajan.length > 0,
       suben: suben,
@@ -3602,6 +3673,14 @@ button.sello.explica { font-size: .8125rem; }
         listaNombres(s.sinCifras) + ". Nadie ha publicado su precisión para esta patología.</span></div>");
     }
 
+    // No es lo mismo que "nadie lo ha publicado": aquí no se sabe.
+    if (s.cortados.length) {
+      hitos.push('<div class="hito">' + icono("info") +
+        "<span><b>" + s.cortados.length + (s.cortados.length === 1 ? " resultado sin evaluar" : " resultados sin evaluar") + ":</b> " +
+        listaNombres(s.cortados) + ". Su búsqueda no llegó a terminar, así que no sabemos si hay cifras. " +
+        "Vuelve a lanzar la sospecha para completarla.</span></div>");
+    }
+
     if (hitos.length) partes.push('<div class="hitos">' + hitos.join("") + "</div>");
 
     partes.push('<p class="nota-cadena">Esta conclusión no encadena los resultados entre sí. ' +
@@ -3679,6 +3758,8 @@ button.sello.explica { font-size: .8125rem; }
     if (notas) caja.insertBefore(hueco, notas); else caja.appendChild(hueco);
 
     var guardado = estado.veredictos[combi.clave];
+    // También si falló: el motivo se queda a la vista, y se reintenta a mano.
+    // Reintentarlo solo a cada repintado gastaría peticiones sin que nadie lo pida.
     if (guardado && guardado !== "pendiente") { pintarVeredicto(guardado); return; }
 
     pintarVeredicto("pendiente");
@@ -3700,8 +3781,8 @@ button.sello.explica { font-size: .8125rem; }
       terminosBusqueda: estado.terminos,
       nivel: estado.nivel,
       marcados: combi.marcados
-    }).then(function (d) { return d.conclusion || null; })
-      .catch(function () { return null; })
+    }).then(function (d) { return d.conclusion || { fallo: d.motivo || "error" }; })
+      .catch(function (err) { return { fallo: err.pasajero ? "red" : "error" }; })
       .then(function (v) {
         if (estado.entidad !== enCurso) return;
         estado.veredictos[combi.clave] = v;
@@ -3710,10 +3791,32 @@ button.sello.explica { font-size: .8125rem; }
       });
   }
 
+  /*
+   * Por qué no hay veredicto. Antes el hueco se quedaba en blanco, y un hueco en
+   * blanco no se distingue de una avería: ni el fisioterapeuta sabía si iba a
+   * aparecer, ni nosotros por qué no había aparecido.
+   */
+  var FALLOS_VEREDICTO = {
+    plazo: "El modelo ha tardado demasiado en redactarlo.",
+    candado: "Lo que ha redactado no ha pasado nuestro control: usaba una cifra que no estaba en tus datos o se dirigía al paciente. Preferimos no enseñarlo.",
+    red: "Se ha perdido la conexión al pedirlo.",
+    error: "No se ha podido redactar ahora mismo."
+  };
+
   function pintarVeredicto(v) {
     var hueco = document.getElementById("veredicto-ia");
     if (!hueco) return;
     if (!v) { hueco.innerHTML = ""; return; }
+
+    if (v.fallo) {
+      hueco.innerHTML = '<div class="veredicto-ia-caja fallida">' +
+        '<span class="globo-ia-rotulo">El veredicto</span>' +
+        "<p>" + esc(FALLOS_VEREDICTO[v.fallo] || FALLOS_VEREDICTO.error) +
+        " El cálculo de arriba no depende de esto.</p>" +
+        '<button type="button" class="btn-reintentar" data-reintentar-veredicto>Volver a intentarlo</button>' +
+      "</div>";
+      return;
+    }
 
     if (v === "pendiente") {
       hueco.innerHTML = '<div class="veredicto-ia-caja cargando">' +
@@ -3729,6 +3832,15 @@ button.sello.explica { font-size: .8125rem; }
       "<small>Redactado con IA sobre el cálculo de arriba</small>" +
     "</div>";
   }
+
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest || !e.target.closest("[data-reintentar-veredicto]")) return;
+    var combi = combinacionActual();
+    if (!combi) return;
+    delete estado.veredictos[combi.clave];
+    pintarVeredicto("pendiente");
+    pedirVeredicto(combi);
+  });
 
   /* ============ el carril de pasos ============ */
 
