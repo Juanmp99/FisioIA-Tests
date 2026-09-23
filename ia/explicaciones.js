@@ -54,7 +54,9 @@ Reglas, sin excepción:
 
 5. Devuelve null SOLO cuando el dato no exista: indirecta si las cifras se midieron sobre la misma patología, parcial si constan las dos cifras. Si una cifra consta en los datos, su campo no puede quedarse vacío.
 
-6. Sobre los resultados positivo y negativo, apóyate en la magnitud que te doy (concluyente, moderado, pequeño, irrelevante). No afirmes que confirma o descarta: eso depende de la sospecha previa, que no conoces.`;
+6. Sobre los resultados positivo y negativo, apóyate en la magnitud que te doy (concluyente, moderado, pequeño, irrelevante). No afirmes que confirma o descarta: eso depende de la sospecha previa, que no conoces.
+
+7. En eleccion explica por qué las cifras salen del artículo citado y no de los otros que también miden el test. La regla es esta y no otra: una revisión sistemática o un metaanálisis pesan más que un estudio primario suelto, porque reúnen a varios. Si el citado reúne más estudios, dilo. Si todos son del mismo tipo, dilo también, en vez de inventar una razón. Y recuerda que las cifras de unos y otros no se mezclan: cada una se midió sobre su propio grupo de pacientes.`;
 
 const campo = (descripcion) => ({ type: ["string", "null"], description: descripcion });
 
@@ -65,6 +67,7 @@ const ESQUEMA = {
     especificidad: campo("Qué implica esta especificidad para un paciente con esta sospecha."),
     calidad: campo("Qué implica la calidad del estudio para fiarse de estas cifras en este caso."),
     indirecta: campo("Qué implica que las cifras se midieran en otra patología. Null si no es indirecta."),
+    eleccion: campo("Por qué las cifras salen del artículo citado y no de los otros que también lo miden. Null si no hay otros."),
     parcial: campo("Qué implica que solo conste una de las dos cifras. Null si constan las dos."),
     positivo: campo("Qué aporta en este caso que el test salga positivo, según su magnitud."),
     negativo: campo("Qué aporta en este caso que el test salga negativo, según su magnitud."),
@@ -91,6 +94,20 @@ function datosDe(ev, { test, entidad }) {
     motivosDeLaCalidad: ev.calidad?.motivos ?? [],
     medidaEnOtraPatologia: ev.indirecta ? ev.entidadDeLasCifras : null,
     fraseDelArticulo: ev.citaLiteral || null,
+    // Para poder explicar la elección: qué es el artículo citado y qué son los
+    // otros que también miden este test.
+    articuloCitado: {
+      tipo: ev.valoracion?.tipoEstudio ?? null,
+      estudiosQueReune: ev.valoracion?.numeroEstudios ?? null,
+      anio: ev.cita?.anio ?? null,
+    },
+    otrosQueTambienLoMiden: (ev.otrasFuentes || []).map((o) => ({
+      tipo: o.tipoEstudio,
+      estudiosQueReune: o.numeroEstudios,
+      anio: o.anio,
+      sensibilidad: o.sn,
+      especificidad: o.sp,
+    })),
   };
 }
 

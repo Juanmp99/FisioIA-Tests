@@ -156,11 +156,6 @@ a { color: var(--azul); text-underline-offset: 3px; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.estado-modelo {
-  font-family: var(--mono); font-size: .6875rem; color: var(--tinta-tenue);
-  white-space: nowrap;
-}
-
 /* ============ consulta ============ */
 
 /* ============ el lanzador ============ */
@@ -670,6 +665,17 @@ a { color: var(--azul); text-underline-offset: 3px; }
   transition: background .2s, border-color .2s, transform .15s var(--curva);
 }
 .btn-cambiar:hover { background: var(--brillo-azul); border-color: var(--azul); transform: translateY(-1px); }
+
+/* El botón que sube a la fase 1 desde un resultado marcado sin sospecha. */
+.btn-subir {
+  margin-top: 12px; font: inherit; font-size: .875rem; font-weight: 650; cursor: pointer;
+  color: var(--azul); background: var(--brillo-azul);
+  border: 1px solid color-mix(in srgb, var(--azul) 45%, transparent);
+  border-radius: 999px; padding: 9px 18px;
+  transition: background .2s, border-color .2s, transform .15s var(--curva);
+}
+.btn-subir:hover { background: color-mix(in srgb, var(--azul) 22%, transparent); border-color: var(--azul); transform: translateY(-1px); }
+.btn-subir::after { content: " ↑"; }
 .tarjeta.pretest.entra { animation: entrar .5s var(--curva) both; }
 
 /* ---- fase 3 ---- */
@@ -719,6 +725,27 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
 /* ============ sospecha previa ============ */
 
+/* Sin contestar, la tarjeta se enciende y respira. Es el paso que más gente se
+   salta y sin él no puede concluirse nada. Se apaga en cuanto se elige. */
+.pretest.pendiente {
+  border-color: color-mix(in srgb, var(--azul) 45%, var(--borde));
+  box-shadow: var(--sombra), 0 0 0 1px color-mix(in srgb, var(--azul) 25%, transparent),
+    0 0 40px -12px var(--azul);
+  animation: respirarBorde 3.2s ease-in-out infinite;
+}
+.pretest-llamada {
+  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  font-size: .6875rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--azul);
+}
+.pretest-llamada::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--azul); box-shadow: 0 0 0 4px var(--brillo-azul);
+  animation: latir 2s ease-in-out infinite;
+}
+/* Cuando se llega aquí desde un test marcado sin sospecha. */
+.pretest.señalada { animation: señalar 1.4s var(--curva) 2; }
+
 .pretest h3 { margin: 0 0 6px; font-size: 1.0625rem; letter-spacing: -.01em; }
 .pretest p { margin: 0 0 18px; color: var(--tinta-media); font-size: .9375rem; max-width: 58ch; }
 
@@ -731,6 +758,8 @@ a { color: var(--azul); text-underline-offset: 3px; }
   transition: border-color .2s, background .2s, transform .15s var(--curva);
 }
 .nivel:hover { border-color: var(--borde-vivo); transform: translateY(-2px); }
+.pretest.pendiente .nivel { border-color: color-mix(in srgb, var(--azul) 30%, var(--borde)); }
+.pretest.pendiente .nivel:hover { border-color: var(--azul); background: var(--brillo-azul); }
 .nivel b { display: block; font-size: .9375rem; }
 .nivel span { display: block; font-size: .75rem; color: var(--tinta-tenue); font-family: var(--mono); }
 .nivel[aria-pressed="true"] {
@@ -754,9 +783,20 @@ a { color: var(--azul); text-underline-offset: 3px; }
 .zona-descarta { left: 0; width: 10%; background: linear-gradient(90deg, var(--brillo-verde), transparent); border-radius: 999px 0 0 999px; }
 .zona-confirma { right: 0; width: 15%; background: linear-gradient(270deg, var(--brillo-verde), transparent); border-radius: 0 999px 999px 0; }
 
+/* De dónde partía la sospecha. Gris a propósito: no lo aporta ningún test, lo
+   trae el fisioterapeuta, y confundirlo con lo que mide la exploración sería
+   atribuirle al test un mérito que no tiene. */
+.base {
+  position: absolute; top: 0; bottom: 0; left: 0; border-radius: 999px;
+  background: color-mix(in srgb, var(--tinta-tenue) 55%, transparent);
+  transform-origin: left center;
+  animation: barrer .55s var(--curva) both;
+}
+
 .recorrido {
   position: absolute; top: 0; bottom: 0; border-radius: 999px;
-  animation: barrer .85s var(--curva) both;
+  /* Entra después de la base: primero de dónde partías, luego lo que cambia. */
+  animation: barrer .7s .35s var(--curva) both;
 }
 .recorrido.sube { background: linear-gradient(90deg, transparent, var(--verde)); transform-origin: left center; }
 .recorrido.baja { background: linear-gradient(270deg, transparent, var(--azul)); transform-origin: right center; }
@@ -767,8 +807,9 @@ a { color: var(--azul); text-underline-offset: 3px; }
 .aguja-post {
   width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%;
   background: var(--tinta); border: 3px solid var(--fondo);
-  animation: deslizar .85s var(--curva) both;
+  animation: deslizar .7s .35s var(--curva) both;
   left: var(--hasta);
+  z-index: 1;
 }
 .aguja-post.sube { background: var(--verde); box-shadow: 0 0 14px var(--verde); }
 .aguja-post.baja { background: var(--azul); box-shadow: 0 0 14px var(--azul); }
@@ -778,6 +819,13 @@ a { color: var(--azul); text-underline-offset: 3px; }
   display: flex; justify-content: space-between; align-items: baseline;
   margin-top: 10px; font-family: var(--mono); font-size: .75rem; color: var(--tinta-tenue);
   font-variant-numeric: tabular-nums;
+}
+/* Un punto del mismo gris que la base, para que se vea de un vistazo cuál de
+   los dos números es de dónde partías. */
+.pie-parte::before {
+  content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  margin-right: 7px; vertical-align: 1px;
+  background: color-mix(in srgb, var(--tinta-tenue) 70%, transparent);
 }
 .destino { font-size: 1.25rem; font-weight: 700; color: var(--tinta); }
 .destino.sube { color: var(--verde); }
@@ -916,12 +964,43 @@ a { color: var(--azul); text-underline-offset: 3px; }
 .franja { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 0 20px 14px; }
 
 .cifra {
-  font-family: var(--mono); font-size: .8125rem; font-variant-numeric: tabular-nums;
+  flex: 1 1 190px; min-width: 0; max-width: 260px;
+  display: block; text-align: left;
+  font-variant-numeric: tabular-nums;
   background: var(--superficie-viva); border: 1px solid var(--borde);
-  border-radius: 8px; padding: 5px 10px; color: var(--tinta);
+  border-radius: var(--radio-s); padding: 12px 14px 13px; color: var(--tinta);
 }
 .cifra i { font-style: normal; color: var(--tinta-tenue); }
 .cifra.vacia { color: var(--tinta-tenue); }
+.cifra.vacia.ancha { flex: 1 1 100%; max-width: none; font-family: var(--mono); font-size: .8125rem; padding: 10px 13px; }
+
+.cifra-nombre {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--ui); font-size: .6875rem; font-weight: 700;
+  letter-spacing: .09em; text-transform: uppercase; color: var(--tinta-tenue);
+}
+.cifra-valor {
+  display: block; margin-top: 4px;
+  font-family: var(--mono); font-size: 1.75rem; font-weight: 700; line-height: 1.1;
+  letter-spacing: -.03em; color: var(--tinta);
+}
+.cifra.vacia .cifra-valor { font-size: .9375rem; font-weight: 600; color: var(--tinta-tenue); letter-spacing: 0; }
+
+/* La barra sitúa el número entre 0 y 1. En gris: una especificidad alta no es
+   "buena" en abstracto, depende de lo que busques y de cómo salga el test.
+   Colorearla sería opinar por el fisioterapeuta. */
+.cifra-barra {
+  display: block; margin-top: 10px; height: 5px; border-radius: 999px;
+  background: color-mix(in srgb, var(--tinta-tenue) 22%, transparent);
+  overflow: hidden;
+}
+.cifra-barra i {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tinta-media) 55%, transparent), var(--tinta-media));
+  transform-origin: left center; animation: barrer .8s var(--curva) both;
+}
+.cifra.explica:hover .cifra-barra i { background: linear-gradient(90deg, color-mix(in srgb, var(--azul) 55%, transparent), var(--azul)); }
+.cifra .explica-ico { width: 14px; height: 14px; }
 
 .sello {
   display: inline-flex; align-items: center; gap: 7px;
@@ -949,28 +1028,33 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
 /* Cada cifra, sello y marbete se toca y explica qué significa. El "?" no es
    adorno: sin él nadie sabría que se puede tocar, y quien no sabe qué es una
-   sensibilidad tampoco sabe que puede preguntarlo. */
-.pista {
+   sensibilidad tampoco sabe que puede preguntarlo.
+
+   Se llama .explica y no .pista, que era el nombre obvio, porque .pista ya era
+   el carril de la barra de probabilidad desde el primer día. Con el nombre
+   repetido, los estilos de la etiqueta convertían la barra en un elemento sin
+   anchura y la conclusión enseñaba un punto suelto en lugar del recorrido. */
+.explica {
   font-family: inherit; cursor: pointer; text-align: left;
   display: inline-flex; align-items: center; gap: 7px;
   transition: border-color .2s, box-shadow .2s, transform .15s var(--curva);
 }
-.cifra.pista { font-family: var(--mono); }
-.pista:hover, .pista[aria-expanded="true"] {
+.cifra.explica { font-family: var(--mono); }
+.explica:hover, .explica[aria-expanded="true"] {
   border-color: var(--borde-vivo);
   box-shadow: 0 0 0 3px var(--brillo-azul);
 }
-.pista:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
-.pista-ico {
+.explica:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+.explica-ico {
   flex: none; display: grid; place-items: center;
   width: 15px; height: 15px; border-radius: 50%;
   font-family: var(--ui); font-size: .625rem; font-weight: 800; line-height: 1;
   color: var(--tinta-tenue); border: 1px solid currentColor; opacity: .7;
   transition: opacity .2s, color .2s;
 }
-.pista:hover .pista-ico, .pista[aria-expanded="true"] .pista-ico { opacity: 1; color: var(--azul); }
-button.marbete.pista { border: 0; }
-button.sello.pista { font-size: .8125rem; }
+.explica:hover .explica-ico, .explica[aria-expanded="true"] .explica-ico { opacity: 1; color: var(--azul); }
+button.marbete.explica { border: 0; }
+button.sello.explica { font-size: .8125rem; }
 
 /* ============ el test mientras se investiga ============ */
 
@@ -1009,7 +1093,7 @@ button.sello.pista { font-size: .8125rem; }
 .investigando-texto small {
   display: block; margin-top: 3px; font-size: .8125rem; color: var(--tinta-tenue);
 }
-.investigando .pista-ico { align-self: flex-start; margin-top: 2px; }
+.investigando .explica-ico { align-self: flex-start; margin-top: 2px; }
 
 /* El halo de la espera, en pequeño: el fisioterapeuta ya asocia ese anillo con
    "está trabajando", así que no hace falta enseñarle otro símbolo. */
@@ -1278,6 +1362,16 @@ button.sello.pista { font-size: .8125rem; }
 }
 .otras-cifras .rangos b { color: var(--tinta); font-family: var(--mono); font-weight: 600; }
 .otras-cifras > p { margin: 10px 0 2px; font-size: .75rem; color: var(--tinta-tenue); max-width: 60ch; }
+.otras-cifras .por-que {
+  margin: 10px 0 0; padding: 10px 12px; border-radius: 8px;
+  font-size: .8125rem; color: var(--tinta-media); max-width: none;
+  background: var(--superficie-viva); border-left: 2px solid color-mix(in srgb, var(--ambar) 55%, transparent);
+}
+.otras-cifras .por-que b { color: var(--tinta); font-weight: 650; }
+.tipo-fuente {
+  font-size: .6875rem; color: var(--tinta-tenue); white-space: nowrap;
+  border: 1px solid var(--borde); border-radius: 999px; padding: 1px 7px; margin-left: 4px;
+}
 .leidos li { margin-bottom: 5px; line-height: 1.45; }
 
 .motivos { margin: 10px 0 0; padding-left: 18px; font-size: .8125rem; color: var(--tinta-tenue); }
@@ -1466,6 +1560,15 @@ button.sello.pista { font-size: .8125rem; }
   to { opacity: 1; transform: none; filter: none; }
 }
 @keyframes barrido { to { transform: translateX(100%); } }
+@keyframes respirarBorde {
+  0%, 100% { box-shadow: var(--sombra), 0 0 0 1px color-mix(in srgb, var(--azul) 25%, transparent), 0 0 40px -12px var(--azul); }
+  50% { box-shadow: var(--sombra), 0 0 0 1px color-mix(in srgb, var(--azul) 45%, transparent), 0 0 52px -8px var(--azul); }
+}
+@keyframes señalar {
+  0%, 100% { transform: none; }
+  30% { transform: translateY(-4px); }
+  60% { transform: translateY(0); }
+}
 @keyframes recorrer { from { transform: translateX(-100%); } to { transform: translateX(230%); } }
 @keyframes aparecerGlobo {
   from { opacity: 0; transform: translateY(-6px) scale(.97); }
@@ -1508,7 +1611,6 @@ button.sello.pista { font-size: .8125rem; }
     <b>Fisio<span>IA</span></b>
     <em>Exploración guiada</em>
   </div>
-  <span class="estado-modelo" id="estado"></span>
 </div>
 
 <div class="marco">
@@ -1624,6 +1726,11 @@ button.sello.pista { font-size: .8125rem; }
       acabaDeAbrir: false,
       // Qué se ha enseñado ya, para no volver a animarlo.
       vistos: {},
+      // Qué desplegables tenía abiertos. La página se repinta entera cada vez
+      // que llega una evidencia, y sin esto todo lo desplegado se cerraba solo:
+      // el fisioterapeuta abría las otras cifras publicadas y, dos segundos
+      // después, al llegar otro test, se le cerraban en la cara.
+      abiertos: {},
       // El estado con el que se pintó cada fase la vez anterior. Se pinta con
       // ese y se cambia al actual un instante después: es lo que permite que la
       // línea se rellene y el check se dibuje en vez de aparecer de golpe.
@@ -1674,7 +1781,6 @@ button.sello.pista { font-size: .8125rem; }
           aLaEntrada("caducado");
           throw new Error(d.error || "Tu acceso ya no es válido.");
         }
-        if (typeof d.restantes === "number") mostrarRestantes(d.restantes);
         if (!r.ok) throw new Error(d.error || "El servidor ha devuelto un error.");
         if (d.error) throw new Error(d.error);
         return d;
@@ -1682,17 +1788,10 @@ button.sello.pista { font-size: .8125rem; }
     });
   }
 
-  var baseEstado = "";
-
-  function mostrarRestantes(n) {
-    var caja = document.getElementById("estado");
-    if (caja) caja.textContent = baseEstado + " · " + n + " consultas hoy";
-  }
-
-  fetch("/api/estado").then(function (r) { return r.json(); }).then(function (d) {
-    baseEstado = d.modelo + " · " + d.enCache + " en caché" + (d.credencial ? "" : " · sin clave");
-    document.getElementById("estado").textContent = baseEstado;
-  }).catch(function () {});
+  /* El modelo y el tamaño de la caché estaban en la cabecera. Eran información
+     para quien construye la herramienta, no para quien la usa: a un
+     fisioterapeuta con un paciente delante no le dice nada saber que hay 214
+     fichas guardadas. El endpoint sigue existiendo para la consola. */
 
   /* ============ iconos ============ */
 
@@ -1936,12 +2035,16 @@ button.sello.pista { font-size: .8125rem; }
         '<div class="pista">' +
           '<span class="zona zona-descarta"></span>' +
           '<span class="zona zona-confirma"></span>' +
+          // De dónde partías: se pinta primero, en gris, y se queda debajo. Es
+          // la sospecha que traía el fisioterapeuta, no lo que aporta el test.
+          '<span class="base" style="width:' + a + '%"></span>' +
+          // Lo que añade o quita este resultado, del color de su dirección.
           '<span class="recorrido ' + clase + '" style="left:' + izq + '%;width:' + ancho + '%"></span>' +
           '<span class="aguja aguja-pre" style="left:' + a + '%"></span>' +
           '<span class="aguja aguja-post ' + clase + '" style="--desde:' + a + '%;--hasta:' + b + '%"></span>' +
         "</div>" +
         '<div class="medidor-pies">' +
-          "<span>partías del " + a + "%</span>" +
+          '<span class="pie-parte">partías del ' + a + "%</span>" +
           '<span class="destino ' + clase + '" data-desde="' + a + '" data-hasta="' + b + '">' + a + "%</span>" +
         "</div>" +
       "</div>";
@@ -1983,10 +2086,18 @@ button.sello.pista { font-size: .8125rem; }
 
     Array.prototype.forEach.call(salida.querySelectorAll("[data-nivel]"), function (b) {
       b.addEventListener("click", function () {
+        var primera = !estado.nivel;
         estado.nivel = b.getAttribute("data-nivel");
         ui.f1Abierta = false;
         ui.acabaDeElegir = true;
         pintar();
+        // La primera vez, la vista baja a la exploración: el paso está hecho y
+        // lo siguiente está abajo. Si solo se está cambiando la sospecha, no:
+        // el fisioterapeuta ya estaba donde quería estar.
+        if (primera) {
+          var fase2 = document.getElementById("paso-2");
+          if (fase2) fase2.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       });
     });
 
@@ -2001,6 +2112,18 @@ button.sello.pista { font-size: .8125rem; }
       });
     }
 
+
+    salida.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-ir-fase1]");
+      if (!b) return;
+      irAlaFase1();
+    });
+
+    Array.prototype.forEach.call(salida.querySelectorAll("[data-recordar]"), function (d) {
+      d.addEventListener("toggle", function () {
+        ui.abiertos[d.getAttribute("data-recordar")] = d.open;
+      });
+    });
 
     Array.prototype.forEach.call(salida.querySelectorAll("[data-ficha]"), function (b) {
       b.addEventListener("click", function () { abrirFicha(b.getAttribute("data-ficha")); });
@@ -2252,7 +2375,12 @@ button.sello.pista { font-size: .8125rem; }
       "</div>";
     }
 
-    return '<div><div class="tarjeta pretest' + (ui.acabaDeAbrir ? " entra" : "") + '">' +
+    // Sin contestar, la tarjeta se enciende y lo pide. Es el paso que más gente
+    // se salta y sin él no puede concluirse nada, así que tiene que verse que
+    // es el primero y que hace falta.
+    var pendiente = !elegido;
+    return '<div><div class="tarjeta pretest' + (pendiente ? " pendiente" : "") + (ui.acabaDeAbrir ? " entra" : "") + '">' +
+      (pendiente ? '<span class="pretest-llamada">Empieza aquí</span>' : "") +
       "<h3>¿Cómo de fuerte es tu sospecha de " + esc(estado.entidad) + "?</h3>" +
       "<p>La conclusión de cada test depende de con cuánta sospecha llegas a él. Se pregunta una sola vez y se aplica a toda la batería.</p>" +
       '<div class="niveles">' +
@@ -2478,8 +2606,8 @@ button.sello.pista { font-size: .8125rem; }
    */
   function pista(tipo, nombre, clase, contenido) {
     if (!nombre) return '<span class="' + clase + '">' + contenido + "</span>";
-    return '<button type="button" class="' + clase + ' pista" data-pista="' + tipo + '" data-test="' + esc(nombre) + '" aria-expanded="false" aria-controls="globo">' +
-      contenido + '<span class="pista-ico" aria-hidden="true">?</span></button>';
+    return '<button type="button" class="' + clase + ' explica" data-pista="' + tipo + '" data-test="' + esc(nombre) + '" aria-expanded="false" aria-controls="globo">' +
+      contenido + '<span class="explica-ico" aria-hidden="true">?</span></button>';
   }
 
   /**
@@ -2499,21 +2627,37 @@ button.sello.pista { font-size: .8125rem; }
       "</span>");
   }
 
+  /**
+   * Una cifra, con el tamaño que merece.
+   *
+   * Son el dato central de la tarjeta y estaban en dos pastillas del mismo
+   * tamaño que la etiqueta de calidad. Ahora el número manda, con su nombre
+   * encima y una barra debajo que lo sitúa entre 0 y 1: ver que un 0,45 no
+   * llega a la mitad se entiende antes que el número.
+   *
+   * La barra va en gris y no en verde o rojo a propósito. Una especificidad
+   * alta no es "buena" en abstracto: depende de lo que estés buscando y de si
+   * el test sale positivo o negativo. Colorearla sería opinar por el
+   * fisioterapeuta.
+   */
+  function bloqueCifra(tipo, nombre, etiqueta, valor) {
+    var hay = valor != null;
+    var cuerpo =
+      '<span class="cifra-nombre">' + etiqueta + "</span>" +
+      '<span class="cifra-valor">' + (hay ? num(valor, true) : "no publicada") + "</span>" +
+      (hay ? '<span class="cifra-barra"><i style="width:' + Math.round(valor * 100) + '%"></i></span>' : "");
+    return pista(tipo, nombre, "cifra" + (hay ? "" : " vacia"), cuerpo);
+  }
+
   function chipsCifras(ev, nombre) {
     if (!ev) return '<span class="cifra vacia"><span class="esqueleto" style="width:88px;display:inline-block;vertical-align:-2px"></span></span>';
-    if (!ev.hayCifras) return pista("sin", nombre, "cifra vacia", "sin cifras publicadas");
+    if (!ev.hayCifras) return pista("sin", nombre, "cifra vacia ancha", "sin cifras publicadas");
 
     // Con el nombre entero y no con la abreviatura: "Sn" obliga a traducir
     // mentalmente antes de entender, y esto lo usa gente que no vive en la
     // medicina basada en la evidencia.
-    var trozos = "";
-    trozos += ev.sn != null
-      ? pista("sn", nombre, "cifra", "<i>Sensibilidad</i> " + num(ev.sn, true))
-      : pista("falta-sn", nombre, "cifra vacia", "<i>Sensibilidad</i> no publicada");
-    trozos += ev.sp != null
-      ? pista("sp", nombre, "cifra", "<i>Especificidad</i> " + num(ev.sp, true))
-      : pista("falta-sp", nombre, "cifra vacia", "<i>Especificidad</i> no publicada");
-    return trozos;
+    return bloqueCifra(ev.sn != null ? "sn" : "falta-sn", nombre, "Sensibilidad", ev.sn) +
+      bloqueCifra(ev.sp != null ? "sp" : "falta-sp", nombre, "Especificidad", ev.sp);
   }
 
   var ADJETIVOS_CALIDAD = { verde: "sólida", ambar: "limitada", rojo: "insuficiente" };
@@ -2688,7 +2832,7 @@ button.sello.pista { font-size: .8125rem; }
     globo.hidden = false;
     colocarGlobo(boton);
 
-    Array.prototype.forEach.call(salida.querySelectorAll('.pista[aria-expanded="true"]'), function (b) {
+    Array.prototype.forEach.call(salida.querySelectorAll('.explica[aria-expanded="true"]'), function (b) {
       if (b !== boton) b.setAttribute("aria-expanded", "false");
     });
     boton.setAttribute("aria-expanded", "true");
@@ -2826,7 +2970,8 @@ button.sello.pista { font-size: .8125rem; }
   function leidos(ev, titulo) {
     var lista = ev.consultados || [];
     if (lista.length < 2) return "";
-    return '<details class="leidos"><summary>' + esc(titulo) + "</summary><ul>" +
+    var id = "leidos:" + (ev.cita ? ev.cita.pmid : titulo);
+    return '<details class="leidos" data-recordar="' + esc(id) + '"' + (ui.abiertos[id] ? " open" : "") + "><summary>" + esc(titulo) + "</summary><ul>" +
       lista.map(function (c) {
         var actual = ev.cita && c.pmid === ev.cita.pmid;
         return "<li>" + (actual ? "<b>" : "") +
@@ -2878,6 +3023,14 @@ button.sello.pista { font-size: .8125rem; }
    * cada una, para enseñar lo que una cifra sola esconde: si la literatura está
    * de acuerdo consigo misma o no.
    */
+  /** A qué test pertenece una ficha, para poder buscar su explicación. */
+  function nombreDelTest(ev) {
+    for (var i = 0; i < estado.tests.length; i++) {
+      if (estado.evidencias[estado.tests[i].nombre] === ev) return estado.tests[i].nombre;
+    }
+    return "";
+  }
+
   function otrasCifras(ev) {
     var otras = ev.otrasFuentes || [];
     if (!otras.length) return "";
@@ -2890,17 +3043,48 @@ button.sello.pista { font-size: .8125rem; }
     };
     var rangos = tramo("sn", "sensibilidad") + tramo("sp", "especificidad");
 
+    var comoEs = function (o) {
+      if (o.tipoEstudio === "revision_sistematica") {
+        return o.numeroEstudios > 1 ? "revisión de " + o.numeroEstudios + " estudios" : "revisión sistemática";
+      }
+      return o.tipoEstudio === "estudio_primario" ? "estudio primario" : "";
+    };
+
     var filas = otras.map(function (o) {
       var cifras = (o.sn != null ? "Sn " + num(o.sn, true) : "Sn —") +
         " · " + (o.sp != null ? "Sp " + num(o.sp, true) : "Sp —");
+      var tipo = comoEs(o);
       return "<li><b>" + cifras + "</b> " +
         '<a href="' + esc(o.url) + '" target="_blank" rel="noopener">' + esc(o.titulo) + "</a>" +
-        (o.anio ? " · " + esc(o.anio) : "") + "</li>";
+        (o.anio ? " · " + esc(o.anio) : "") +
+        (tipo ? ' <span class="tipo-fuente">' + tipo + "</span>" : "") + "</li>";
     }).join("");
 
-    return '<details class="otras-cifras"><summary>' +
+    // Por qué se cita ese y no otro. Sale de una regla dura —una revisión pesa
+    // más que un estudio suelto— así que la frase base se compone con los datos
+    // y no se le pide a nadie. La versión redactada la matiza cuando llega.
+    var exp = estado.explicaciones[nombreDelTest(ev)];
+    var eleccionIa = exp && typeof exp === "object" ? exp.eleccion : null;
+    var citado = ev.valoracion || {};
+    var base = "";
+    if (citado.tipoEstudio === "revision_sistematica") {
+      base = "Se cita este porque es una revisión" +
+        (citado.numeroEstudios > 1 ? " que reúne " + citado.numeroEstudios + " estudios" : " sistemática") +
+        ", y una revisión pesa más que un estudio suelto.";
+    } else if (otras.some(function (o) { return o.tipoEstudio === "estudio_primario"; })) {
+      base = "Todos son estudios primarios: ninguno reúne a los demás, así que las cifras se enseñan por separado.";
+    }
+
+    var porQue = (base || eleccionIa)
+      ? '<p class="por-que">' + (base ? "<b>" + esc(base) + "</b>" : "") +
+          (eleccionIa ? (base ? " " : "") + esc(eleccionIa) : "") + "</p>"
+      : "";
+
+    var id = "otras:" + (ev.cita ? ev.cita.pmid : otras.length);
+    return '<details class="otras-cifras" data-recordar="' + esc(id) + '"' + (ui.abiertos[id] ? " open" : "") + "><summary>" +
         "También lo miden otros " + otras.length + (otras.length === 1 ? " artículo" : " artículos") +
         " · el cálculo usa solo el citado</summary>" +
+      porQue +
       (rangos ? '<ul class="rangos">' + rangos + "</ul>" : "") +
       "<ul>" + filas + "</ul>" +
       "<p>Cada cifra con su artículo. No se mezclan entre sí: la sensibilidad y la especificidad " +
@@ -3041,8 +3225,16 @@ button.sello.pista { font-size: .8125rem; }
 
     // Marcar siempre vale. Lo que cambia es cuánto podemos decirte del resultado.
     if (!estado.nivel) {
-      hueco.innerHTML = veredictoSimple("nulo", "Anotado · falta tu sospecha",
-        "Dinos arriba con cuánta sospecha llegabas y verás qué significa este resultado, y de paso el de todos los tests que ya hayas marcado.");
+      // El resultado se guarda igual. Marcar es un gesto que se hace con el
+      // paciente delante y las manos ocupadas: quitárselo para mandarle arriba
+      // sería perder el dato y el momento. Lo que se hace es avisar y llevarle.
+      hueco.innerHTML =
+        '<div class="veredicto aguarda">' +
+          '<div class="veredicto-cab">' + icono("info") + "<b>Anotado · falta tu sospecha</b></div>" +
+          '<p class="lectura">Sin saber con cuánta sospecha llegabas no puede calcularse qué significa. ' +
+          "Márcala y se interpretan de golpe este y todos los que lleves marcados.</p>" +
+          '<button class="btn-subir" data-ir-fase1>Ir a la fase 1</button>' +
+        "</div>";
       refrescarConclusion();
       return;
     }
@@ -3365,6 +3557,20 @@ button.sello.pista { font-size: .8125rem; }
     if (ui.vistos.conclusion) return " ya";
     ui.vistos.conclusion = true;
     return " llega";
+  }
+
+  /** Sube a la fase 1 y la señala, para que se vea a qué se ha venido. */
+  function irAlaFase1() {
+    ui.f1Abierta = true;
+    pintar();
+    var fase = document.getElementById("paso-1");
+    if (!fase) return;
+    fase.scrollIntoView({ behavior: "smooth", block: "start" });
+    var tarjeta = fase.querySelector(".pretest");
+    if (!tarjeta) return;
+    tarjeta.classList.remove("señalada");
+    void tarjeta.offsetWidth;
+    tarjeta.classList.add("señalada");
   }
 
   /* ============ el veredicto redactado ============ */

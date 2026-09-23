@@ -16,6 +16,8 @@ const MAXIMO = 3;
 
 const esProporcion = (x) => typeof x === "number" && Number.isFinite(x) && x > 0 && x <= 1;
 
+const TIPOS = new Set(["revision_sistematica", "estudio_primario"]);
+
 /**
  * Se queda con las fuentes secundarias que se pueden enseñar.
  *
@@ -57,6 +59,9 @@ export function depurarFuentes({ candidatas, articulos, pmidPrincipal }) {
       url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
       sn,
       sp,
+      // Qué es cada artículo, para poder decir por qué se eligió el otro.
+      tipoEstudio: TIPOS.has(c.tipoEstudio) ? c.tipoEstudio : null,
+      numeroEstudios: Number.isFinite(c.numeroEstudios) && c.numeroEstudios > 0 ? c.numeroEstudios : null,
       citaLiteral: String(c.citaLiteral || ""),
     });
   }
