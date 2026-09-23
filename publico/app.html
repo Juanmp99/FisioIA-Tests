@@ -644,9 +644,23 @@ a { color: var(--azul); text-underline-offset: 3px; }
   font-size: .9375rem; color: var(--tinta-tenue);
 }
 
-/* Aquí iba una píldora con el valor de la fase ("Media · 45%", "1 de 5").
-   Repetía lo que ya dicen el carril y el cuerpo de cada fase, y con forma de
-   botón invitaba a pulsarla sin hacer nada. */
+/* El valor de la fase, a la derecha de su titular: "1 de 5", "96%". La
+   fase 1 no lo lleva: repetía la sospecha que se lee justo debajo, y con
+   forma de botón invitaba a pulsarla sin hacer nada. */
+.fase-valor {
+  position: relative; z-index: 1; flex: none; align-self: center;
+  font-family: var(--mono); font-size: .8125rem; font-variant-numeric: tabular-nums;
+  padding: 7px 14px; border-radius: 999px; white-space: nowrap;
+  color: var(--tinta-tenue); background: var(--superficie);
+  border: 1px solid var(--borde);
+  transition: color .4s var(--curva), background .4s var(--curva), border-color .4s var(--curva);
+}
+.fase-activa .fase-valor {
+  color: var(--azul); background: var(--brillo-azul);
+  border-color: color-mix(in srgb, var(--azul) 40%, transparent);
+}
+.fase-hecha .fase-valor { color: var(--tinta); border-color: var(--borde-vivo); }
+.fase-valor.cambia { animation: latido .6s var(--curva); }
 
 /* La raya bajo el titular: se traza de izquierda a derecha al revelarse. */
 .fase-raya {
@@ -738,6 +752,7 @@ a { color: var(--azul); text-underline-offset: 3px; }
   .fase-cab { gap: 14px; margin-left: 0; }
   .fase-cab::before { font-size: 5rem; top: -22px; right: 0; }
   .fase-nodo { width: 38px; height: 38px; font-size: .9375rem; }
+  .fase-valor { display: none; }
   .fase-raya { left: 0; }
   .fase-sub { font-size: .875rem; }
 }
@@ -1547,6 +1562,49 @@ button.sello.explica { font-size: .8125rem; }
   background: linear-gradient(180deg, var(--superficie-alta), var(--superficie));
   border-radius: 19px; padding: 26px 26px 24px;
 }
+/* Cuántos tests sostienen la conclusión. Arriba del todo: es lo primero que
+   hay que saber para leer lo que viene debajo. */
+.cobertura {
+  display: flex; align-items: center; gap: 16px;
+  margin: -4px 0 22px; padding: 14px 16px; border-radius: 14px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--azul) 10%, var(--superficie-viva)), var(--superficie-viva));
+  border: 1px solid color-mix(in srgb, var(--azul) 26%, transparent);
+}
+.cobertura.completa {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--verde) 10%, var(--superficie-viva)), var(--superficie-viva));
+  border-color: color-mix(in srgb, var(--verde) 30%, transparent);
+}
+.cob-cifra {
+  flex: none; display: flex; align-items: baseline; gap: 1px;
+  font-family: var(--mono); font-variant-numeric: tabular-nums; line-height: 1;
+}
+.cob-cifra b {
+  font-size: 2.5rem; font-weight: 800; letter-spacing: -.04em;
+  background: linear-gradient(160deg, var(--tinta), var(--azul));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.cobertura.completa .cob-cifra b { background-image: linear-gradient(160deg, var(--tinta), var(--verde)); }
+.cob-cifra span { font-size: 1.125rem; font-weight: 600; color: var(--tinta-tenue); }
+.cob-texto { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.cob-rotulo {
+  font-size: .6875rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--azul);
+}
+.cobertura.completa .cob-rotulo { color: var(--verde); }
+.cob-texto > b { font-size: 1rem; font-weight: 650; color: var(--tinta); }
+.cob-tira { display: flex; gap: 4px; margin-top: 6px; }
+.cob-tramo {
+  flex: 1; height: 7px; border-radius: 999px;
+  background: var(--superficie); border: 1px solid var(--borde-vivo);
+}
+.cob-tramo.positivo, .cob-tramo.negativo {
+  border-color: transparent;
+  animation: encenderTramo .45s calc(var(--i) * 60ms + .15s) var(--curva) both;
+}
+.cob-tramo.positivo { background: var(--verde); box-shadow: 0 0 10px -2px color-mix(in srgb, var(--verde) 70%, transparent); }
+.cob-tramo.negativo { background: var(--azul); box-shadow: 0 0 10px -2px color-mix(in srgb, var(--azul) 70%, transparent); }
+/* Al repintarse por otro clic no se vuelve a encender toda la tira. */
+.conclusion.ya .cob-tramo { animation: none; }
+@keyframes encenderTramo { from { opacity: 0; transform: scaleX(.2); } to { opacity: 1; transform: none; } }
 .conclusion h2 { margin: 10px 0 4px; font-size: 1.375rem; letter-spacing: -.025em; }
 .conclusion .sumario { margin: 0; color: var(--tinta-media); }
 
@@ -1599,6 +1657,14 @@ button.sello.explica { font-size: .8125rem; }
   background: var(--superficie-viva); border: 1px solid var(--borde);
   font-size: .9375rem; color: var(--tinta-media);
 }
+.hito-lista > div { min-width: 0; }
+.hito-lista b { color: var(--tinta); }
+.hito-casos { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.hito-casos li {
+  padding: 9px 12px; border-radius: 9px; font-size: .875rem; line-height: 1.55;
+  background: var(--superficie); border: 1px solid var(--borde);
+}
+.hito-casos li b { font-weight: 650; }
 .hito.alerta { border-color: color-mix(in srgb, var(--ambar) 45%, transparent); background: var(--brillo-ambar); color: var(--tinta); }
 .hito b { color: var(--tinta); font-weight: 650; }
 
@@ -1912,6 +1978,9 @@ button.sello.explica { font-size: .8125rem; }
     // sale la conclusión final: se reutiliza el cálculo del dominio en lugar de
     // rehacer la aritmética en el navegador, que acabaría divergiendo.
     interpretaciones: {},
+    // Lo que se sabe de un resultado con media cifra: el techo, o por qué no
+    // lo hay. Lo usa la conclusión para explicar cada caso por su nombre.
+    parciales: {},
     // Explicaciones personalizadas por test: undefined sin pedir, "pendiente",
     // el objeto de textos, o null si no ha habido.
     explicaciones: {},
@@ -2207,6 +2276,7 @@ button.sello.explica { font-size: .8125rem; }
         estado.evidencias = {};
         estado.resultados = {};
         estado.interpretaciones = {};
+        estado.parciales = {};
         estado.explicaciones = {};
         estado.veredictos = {};
         ui = nuevaUi();
@@ -2464,6 +2534,7 @@ button.sello.explica { font-size: .8125rem; }
           '<h2 class="fase-titulo" id="fase-titulo-' + f.n + '">' + f.titulo + "</h2>" +
           '<span class="fase-sub">' + esc(f.sub) + "</span>" +
         "</div>" +
+        (f.n === 1 ? "" : '<span class="fase-valor" data-fase-valor>' + esc(f.valor) + "</span>") +
         '<span class="fase-raya" aria-hidden="true"></span>' +
       "</header>" +
       '<div class="fase-cuerpo">' + cuerpo + "</div>" +
@@ -2497,6 +2568,14 @@ button.sello.explica { font-size: .8125rem; }
         sec.classList.add("fase-" + f.estado);
         var nodo = sec.querySelector(".fase-nodo");
         if (nodo) nodo.innerHTML = nodoFase(n, f.estado === "hecha", true);
+      }
+
+      var valor = sec.querySelector("[data-fase-valor]");
+      if (valor && valor.textContent !== f.valor) {
+        valor.textContent = f.valor;
+        valor.classList.remove("cambia");
+        void valor.offsetWidth;
+        valor.classList.add("cambia");
       }
 
       ui.fasesPrevias[n] = f.estado;
@@ -3625,6 +3704,7 @@ button.sello.explica { font-size: .8125rem; }
 
       // Media cifra: no hay probabilidad, pero sí el techo de lo que puede dar.
       if (d.parcial) {
+        estado.parciales[nombre] = { resultado: resultado, d: d };
         if (!d.acotable) {
           hueco.innerHTML = veredictoSimple("nulo", "Anotado · no se puede acotar", d.motivo);
           refrescarConclusion();
@@ -3844,6 +3924,70 @@ button.sello.explica { font-size: .8125rem; }
     "</div>";
   }
 
+  /*
+   * Un resultado con media cifra, explicado en su caso concreto.
+   *
+   * Antes era una frase genérica —"da un techo, no una cifra"— que solo se
+   * entendía sabiendo qué es un techo. Ahora dice qué cifra falta, qué se
+   * necesitaría para interpretar ESE resultado, y lo único que sí se puede
+   * decir: hasta dónde llegaría como mucho, cuando se puede saber.
+   */
+  function casoParcial(nombre) {
+    var ev = estado.evidencias[nombre] || {};
+    var resultado = estado.resultados[nombre];
+    var tiene = ev.falta === "especificidad" ? "sensibilidad" : "especificidad";
+    var falta = ev.falta === "especificidad" ? "especificidad" : "sensibilidad";
+    var guardado = estado.parciales[nombre];
+    var d = guardado && guardado.resultado === resultado ? guardado.d : null;
+
+    var texto = "De este test solo se ha publicado la " + tiene + ". ";
+    if (d && d.acotable) {
+      var sube = resultado === "positivo";
+      texto += "Con ella no se sabe cuánto " + (sube ? "sube" : "baja") + " tu sospecha un " + resultado +
+        ", pero sí lo máximo: como mucho la dejaría en el <b>" + esc(d.detalle.postTestTexto) + "</b>. " +
+        "El valor real está entre tu " + pct(d.detalle.preTest) + "% de partida y ese " + esc(d.detalle.postTestTexto) + ".";
+    } else {
+      var campo = falta === "especificidad" ? "sp" : "sn";
+      var otroLaTiene = (ev.otrasFuentes || []).some(function (o) { return o[campo] != null; });
+      texto += "Para saber qué hace un " + (resultado || "resultado") + " con tu sospecha haría falta la " + falta +
+        (otroLaTiene
+          ? ", y la que publica otro estudio no puede combinarse con esta: se midieron en pacientes distintos."
+          : ", y ningún estudio de los leídos la publica.") +
+        " Este resultado no se puede interpretar.";
+    }
+    return "<li><b>" + esc(nombre) + " " + esc(resultado || "") + ".</b> " + texto + "</li>";
+  }
+
+  /*
+   * Sobre cuántos tests se sostiene la conclusión.
+   *
+   * Sin esto, una conclusión con un solo test marcado se leía igual que una con
+   * los ocho: el titular no decía que faltaba casi toda la exploración. Una
+   * tira con un tramo por test —verde si salió positivo, azul si negativo,
+   * vacío si no se ha hecho— lo cuenta de un vistazo.
+   */
+  function cobertura() {
+    var total = estado.tests.length;
+    var hechos = 0;
+    var tramos = estado.tests.map(function (t, i) {
+      var r = estado.resultados[t.nombre];
+      if (r) hechos += 1;
+      return '<span class="cob-tramo' + (r ? " " + r : "") + '" style="--i:' + i + '" title="' +
+        esc(t.nombre) + (r ? " · " + r : " · sin hacer") + '"></span>';
+    }).join("");
+    var todos = hechos === total;
+    return '<div class="cobertura' + (todos ? " completa" : "") + '">' +
+      '<div class="cob-cifra"><b>' + hechos + '</b><span>/' + total + "</span></div>" +
+      '<div class="cob-texto">' +
+        '<span class="cob-rotulo">' + (todos ? "Exploración completa" : "Conclusión provisional") + "</span>" +
+        "<b>" + (todos
+          ? "Basada en los " + total + " tests de la batería"
+          : "Basada en " + hechos + " de " + total + " tests explorados") + "</b>" +
+        '<div class="cob-tira" aria-hidden="true">' + tramos + "</div>" +
+      "</div>" +
+    "</div>";
+  }
+
   function listaNombres(ns) {
     return ns.map(function (n) { return esc(n); }).join(", ");
   }
@@ -3896,7 +4040,7 @@ button.sello.explica { font-size: .8125rem; }
       return;
     }
 
-    var partes = [];
+    var partes = [cobertura()];
 
     if (!s.decisivo) {
       partes.push("<h2>Nada de lo explorado decide</h2>");
@@ -3933,10 +4077,10 @@ button.sello.explica { font-size: .8125rem; }
     }
 
     if (s.parciales.length) {
-      hitos.push('<div class="hito">' + icono("info") +
-        "<span><b>" + s.parciales.length + (s.parciales.length === 1 ? " resultado da un techo" : " resultados dan un techo") + ", no una cifra:</b> " +
-        listaNombres(s.parciales) + ". Solo consta una de las dos precisiones, así que de esos sabemos lo más que pueden aportar, " +
-        "pero no cuánto aportan. No entran en la conclusión.</span></div>");
+      hitos.push('<div class="hito hito-lista">' + icono("info") +
+        "<div><b>" + (s.parciales.length === 1 ? "1 resultado no entra en el cálculo" : s.parciales.length + " resultados no entran en el cálculo") +
+        " porque a su test le falta una cifra</b>" +
+        '<ul class="hito-casos">' + s.parciales.map(casoParcial).join("") + "</ul></div></div>");
     }
 
     if (s.sinCifras.length) {
