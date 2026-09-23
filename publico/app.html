@@ -3340,7 +3340,13 @@ button.sello.explica { font-size: .8125rem; }
       return o.tipoEstudio === "revision_sistematica" && (o.numeroEstudios || 1) > nCitado;
     })[0];
     var paso2;
-    if (citadoRevision && !revisionMayor) {
+    if (!citadoDos && otrasConDos.length) {
+      // No debería ocurrir: la regla pone por delante al que publica las dos.
+      // Si ocurre, no se justifica como si fuera la buena elección.
+      paso2 = "Este estudio solo publica una de las dos cifras, y " + (una ? "el otro" : "otro de ellos") +
+        " publica las dos. Con una sola no se puede calcular cuánto cambia tu sospecha: " +
+        "compara con las cifras de abajo antes de apoyarte en este test.";
+    } else if (citadoRevision && !revisionMayor) {
       paso2 = "Es una revisión" + (nCitado > 1 ? " que reúne " + nCitado + " estudios" : " sistemática") +
         ": junta los resultados de varios, y por eso pesa más que un estudio suelto.";
     } else if (revisionMayor && (revisionMayor.sn == null || revisionMayor.sp == null) && citadoDos) {

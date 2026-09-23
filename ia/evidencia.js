@@ -480,6 +480,14 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     pmidPrincipal: fuente?.pmid,
   });
 
+  // La regla de elección pone por delante al estudio que publica las dos
+  // cifras. Si aun así se cita uno con media cifra habiendo otro completo, el
+  // modelo se la ha saltado: no se corrige aquí —faltarían la valoración de
+  // calidad de ese otro estudio—, pero queda anotado para verlo en la revisión.
+  if (parcial && otrasFuentes.some((o) => typeof o.sn === "number" && typeof o.sp === "number")) {
+    console.warn(`[eleccion] ${test}: se cita un estudio con una sola cifra habiendo otro que publica las dos`);
+  }
+
   const resultado = {
     hayCifras: true,
     agrupacion,

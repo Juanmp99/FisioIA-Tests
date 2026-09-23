@@ -19,7 +19,7 @@ import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "../dominio
 const ALMACEN = "explicacion";
 
 /** Se cambia al tocar el prompt, para no servir explicaciones escritas con otro. */
-const VERSION = 3;
+const VERSION = 4;
 
 /**
  * En qué cifras se apoya una explicación.
@@ -56,7 +56,9 @@ Reglas, sin excepción:
 
 6. Sobre los resultados positivo y negativo, apóyate en la magnitud que te doy (concluyente, moderado, pequeño, irrelevante). No afirmes que confirma o descarta: eso depende de la sospecha previa, que no conoces.
 
-7. En eleccion, como mucho 50 palabras, le cuentas al fisioterapeuta qué hacer con los otros estudios que también miden el test. Ya ha leído, justo encima, qué cifras usa el cálculo y la regla por la que se eligió el citado; no la repitas. Tu trabajo es decirle lo que se ve al compararlos en este caso concreto: si las cifras de los demás se parecen a las del citado o se alejan, en cuál de las dos (sensibilidad o especificidad), y qué implica eso para fiarse del resultado del test en su paciente. Si un estudio publica solo una de las dos cifras, dilo. Nunca inventes un motivo de elección que no esté en los datos, y no sugieras mezclar ni promediar cifras de estudios distintos.`;
+7. En eleccion, como mucho 50 palabras, le cuentas al fisioterapeuta qué hacer con los otros estudios que también miden el test. Ya ha leído, justo encima, qué cifras usa el cálculo y la regla por la que se eligió el citado; no la repitas. Tu trabajo es decirle lo que se ve al compararlos en este caso concreto: si las cifras de los demás se parecen a las del citado o se alejan, en cuál de las dos (sensibilidad o especificidad), y qué implica eso para fiarse del resultado del test en su paciente. Si un estudio publica solo una de las dos cifras, dilo. Nunca inventes un motivo de elección que no esté en los datos, y no sugieras mezclar ni promediar cifras de estudios distintos.
+
+7 bis. Compara cada cifra solo con la misma cifra del otro estudio, y solo si los dos la publican. Cada estudio trae en cifrasQueNoPublica las que le faltan: con esas no hay comparación posible. Si el citado no publica la especificidad y el otro sí, no digas que la del otro es más alta ni más baja: di que solo el otro la publica. Nunca agrupes las dos cifras de un estudio en una sola comparación ("sus cifras son más altas") salvo que el otro publique también las dos.`;
 
 const campo = (descripcion) => ({ type: ["string", "null"], description: descripcion });
 
@@ -78,6 +80,15 @@ const ESQUEMA = {
 
 const CAMPOS = Object.keys(ESQUEMA.properties);
 
+/**
+ * Qué cifras no publica un estudio, dicho con todas las letras. Con un null en
+ * el campo el modelo acababa comparando igual: "las cifras del otro son más
+ * altas", cuando el citado ni siquiera tenía especificidad.
+ */
+function faltanEn(x) {
+  return [x.sn == null ? "sensibilidad" : null, x.sp == null ? "especificidad" : null].filter(Boolean);
+}
+
 /** Los datos que se le enseñan al modelo: los de la ficha y nada más. */
 function datosDe(ev, { test, entidad }) {
   return {
@@ -97,12 +108,15 @@ function datosDe(ev, { test, entidad }) {
     // Para poder explicar la elección: qué es el artículo citado y qué son los
     // otros que también miden este test.
     articuloCitado: {
-      publicaLasDosCifras: ev.sn != null && ev.sp != null,
+      sensibilidad: ev.sn ?? null,
+      especificidad: ev.sp ?? null,
+      cifrasQueNoPublica: faltanEn(ev),
       tipo: ev.valoracion?.tipoEstudio ?? null,
       estudiosQueReune: ev.valoracion?.numeroEstudios ?? null,
       anio: ev.cita?.anio ?? null,
     },
     otrosQueTambienLoMiden: (ev.otrasFuentes || []).map((o) => ({
+      cifrasQueNoPublica: faltanEn(o),
       tipo: o.tipoEstudio,
       estudiosQueReune: o.numeroEstudios,
       anio: o.anio,

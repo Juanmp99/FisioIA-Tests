@@ -141,7 +141,12 @@ Reglas, sin excepción:
 
 4. Expresa sensibilidad y especificidad como proporciones entre 0 y 1. Si el texto las da en porcentaje, divide entre cien y nada más.
 
-5. Si varios textos dan cifras distintas para el mismo test, elige el de mayor jerarquía: revisión sistemática o metaanálisis por delante de estudio primario. Y marca la consistencia como discrepante si las cifras difieren de forma apreciable.
+5. Si varios textos dan cifras para el mismo test, elige uno siguiendo este orden, y no otro:
+   1) una revisión sistemática o metaanálisis que publique las dos cifras, sensibilidad y especificidad;
+   2) un estudio primario que publique las dos cifras;
+   3) una revisión sistemática o metaanálisis que publique solo una;
+   4) un estudio primario que publique solo una.
+   Lo primero es que se publiquen las dos: con una sola no se puede calcular cuánto cambia la sospecha, y el test deja de servir para la conclusión. Por eso un estudio primario con las dos cifras va por delante de una revisión con una sola, aunque la revisión sea más fiable. Dentro del mismo escalón, la revisión que reúna más estudios. La revisión con una sola cifra no se pierde: va a otrasFuentes y se enseña al lado. Marca la consistencia como discrepante si las cifras de unos y otros difieren de forma apreciable.
 
 5 bis. Los demás textos que publiquen cifras de ESE test para ESA entidad van en otrasFuentes, hasta tres, cada uno con su PMID y su propia frase copiada palabra por palabra. No se van a mezclar con las que devuelves arriba —la sensibilidad y la especificidad salen de la misma tabla y del mismo grupo de pacientes, así que combinarlas entre estudios daría un número que nadie ha medido—, sino que se enseñan al lado para que se vea entre qué valores se mueve la literatura. No repitas ahí el artículo que ya has elegido. Si ningún otro publica cifras, deja la lista vacía: es una respuesta correcta y frecuente.
 
