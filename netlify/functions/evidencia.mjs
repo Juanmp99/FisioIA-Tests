@@ -53,7 +53,7 @@ export default async (req) => {
     // Se cuenta una sola vez: después se olvida, para que el siguiente intento
     // empiece de cero en vez de heredar el fracaso del anterior.
     await olvidar(k);
-    return json({ estado: "fallo", motivo: marca.motivo });
+    return json({ estado: "fallo", motivo: marca.motivo, reintentable: marca.reintentable !== false });
   }
   if (marca?.estado === "en_curso") {
     return json({ estado: "en_curso", desde: marca.desde });

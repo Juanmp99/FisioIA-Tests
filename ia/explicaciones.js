@@ -19,7 +19,7 @@ import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "../dominio
 const ALMACEN = "explicacion";
 
 /** Se cambia al tocar el prompt, para no servir explicaciones escritas con otro. */
-const VERSION = 2;
+const VERSION = 3;
 
 /**
  * En qué cifras se apoya una explicación.
@@ -34,7 +34,7 @@ function huellaDe(ev) {
   return [ev.sn, ev.sp, ev.cita?.pmid, ev.calidad?.id, (ev.otrasFuentes || []).length].join("|");
 }
 
-const TOPE_CAMPO = 360;
+const TOPE_CAMPO = 420;
 
 const SISTEMA = `Redactas aclaraciones muy breves para un fisioterapeuta que tiene a un paciente delante y está haciendo un test de exploración. Le explicas qué significan, para su paciente, unas cifras que ya ha visto.
 
@@ -56,7 +56,7 @@ Reglas, sin excepción:
 
 6. Sobre los resultados positivo y negativo, apóyate en la magnitud que te doy (concluyente, moderado, pequeño, irrelevante). No afirmes que confirma o descarta: eso depende de la sospecha previa, que no conoces.
 
-7. En eleccion explica por qué las cifras salen del artículo citado y no de los otros que también miden el test. La regla es esta y no otra: una revisión sistemática o un metaanálisis pesan más que un estudio primario suelto, porque reúnen a varios. Si el citado reúne más estudios, dilo. Si todos son del mismo tipo, dilo también, en vez de inventar una razón. Y recuerda que las cifras de unos y otros no se mezclan: cada una se midió sobre su propio grupo de pacientes.`;
+7. En eleccion, como mucho 50 palabras, le cuentas al fisioterapeuta qué hacer con los otros estudios que también miden el test. Ya ha leído, justo encima, qué cifras usa el cálculo y la regla por la que se eligió el citado; no la repitas. Tu trabajo es decirle lo que se ve al compararlos en este caso concreto: si las cifras de los demás se parecen a las del citado o se alejan, en cuál de las dos (sensibilidad o especificidad), y qué implica eso para fiarse del resultado del test en su paciente. Si un estudio publica solo una de las dos cifras, dilo. Nunca inventes un motivo de elección que no esté en los datos, y no sugieras mezclar ni promediar cifras de estudios distintos.`;
 
 const campo = (descripcion) => ({ type: ["string", "null"], description: descripcion });
 
@@ -67,7 +67,7 @@ const ESQUEMA = {
     especificidad: campo("Qué implica esta especificidad para un paciente con esta sospecha."),
     calidad: campo("Qué implica la calidad del estudio para fiarse de estas cifras en este caso."),
     indirecta: campo("Qué implica que las cifras se midieran en otra patología. Null si no es indirecta."),
-    eleccion: campo("Por qué las cifras salen del artículo citado y no de los otros que también lo miden. Null si no hay otros."),
+    eleccion: campo("Qué se ve al comparar el estudio citado con los demás que miden el test, y qué implica para fiarse. Null si no hay otros."),
     parcial: campo("Qué implica que solo conste una de las dos cifras. Null si constan las dos."),
     positivo: campo("Qué aporta en este caso que el test salga positivo, según su magnitud."),
     negativo: campo("Qué aporta en este caso que el test salga negativo, según su magnitud."),
@@ -97,6 +97,7 @@ function datosDe(ev, { test, entidad }) {
     // Para poder explicar la elección: qué es el artículo citado y qué son los
     // otros que también miden este test.
     articuloCitado: {
+      publicaLasDosCifras: ev.sn != null && ev.sp != null,
       tipo: ev.valoracion?.tipoEstudio ?? null,
       estudiosQueReune: ev.valoracion?.numeroEstudios ?? null,
       anio: ev.cita?.anio ?? null,
@@ -116,9 +117,17 @@ function datosDe(ev, { test, entidad }) {
  * el fisioterapeuta, que verá el texto fijo, pero queda anotado en el registro.
  */
 function filtrar(bruto, ev, test) {
+  // Las cifras de los otros estudios también valen: la comparación con ellos
+  // es justo lo que se le pide en `eleccion`. Y los años y el número de
+  // estudios reunidos, que también están en los datos.
+  const otras = ev.otrasFuentes || [];
   const permitidos = numerosPermitidos({
-    proporciones: [ev.sn, ev.sp],
+    proporciones: [ev.sn, ev.sp, ...otras.flatMap((o) => [o.sn, o.sp])],
     razones: [ev.rv?.positiva, ev.rv?.negativa],
+    otros: [
+      ev.valoracion?.numeroEstudios, ev.cita?.anio,
+      ...otras.flatMap((o) => [o.numeroEstudios, o.anio]),
+    ].filter((x) => x != null && x !== ""),
   });
 
   const limpio = {};

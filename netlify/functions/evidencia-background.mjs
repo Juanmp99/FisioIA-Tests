@@ -36,7 +36,7 @@ export default async (req) => {
   // llegue por el camino previsto.
   const puerta = await conAcceso(req);
   if (puerta.respuesta) {
-    await marcarFallo(k, "Tu acceso ya no es válido.");
+    await marcarFallo(k, "Tu acceso ya no es válido.", false);
     return new Response(null, { status: 202 });
   }
 
@@ -45,7 +45,7 @@ export default async (req) => {
   // nada por muchas veces que se repita.
   const cupo = await cobrar(puerta.registro);
   if (cupo.respuesta) {
-    await marcarFallo(k, "La herramienta ha alcanzado su límite de consultas de hoy. Vuelve mañana.");
+    await marcarFallo(k, "La herramienta ha alcanzado su límite de consultas de hoy. Vuelve mañana.", false);
     return new Response(null, { status: 202 });
   }
 

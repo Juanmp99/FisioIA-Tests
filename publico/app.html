@@ -644,20 +644,9 @@ a { color: var(--azul); text-underline-offset: 3px; }
   font-size: .9375rem; color: var(--tinta-tenue);
 }
 
-.fase-valor {
-  position: relative; z-index: 1; flex: none; align-self: center;
-  font-family: var(--mono); font-size: .8125rem; font-variant-numeric: tabular-nums;
-  padding: 7px 14px; border-radius: 999px; white-space: nowrap;
-  color: var(--tinta-tenue); background: var(--superficie);
-  border: 1px solid var(--borde);
-  transition: color .4s var(--curva), background .4s var(--curva), border-color .4s var(--curva);
-}
-.fase-activa .fase-valor {
-  color: var(--azul); background: var(--brillo-azul);
-  border-color: color-mix(in srgb, var(--azul) 40%, transparent);
-}
-.fase-hecha .fase-valor { color: var(--tinta); border-color: var(--borde-vivo); }
-.fase-valor.cambia { animation: latido .6s var(--curva); }
+/* Aquí iba una píldora con el valor de la fase ("Media · 45%", "1 de 5").
+   Repetía lo que ya dicen el carril y el cuerpo de cada fase, y con forma de
+   botón invitaba a pulsarla sin hacer nada. */
 
 /* La raya bajo el titular: se traza de izquierda a derecha al revelarse. */
 .fase-raya {
@@ -749,7 +738,6 @@ a { color: var(--azul); text-underline-offset: 3px; }
   .fase-cab { gap: 14px; margin-left: 0; }
   .fase-cab::before { font-size: 5rem; top: -22px; right: 0; }
   .fase-nodo { width: 38px; height: 38px; font-size: .9375rem; }
-  .fase-valor { display: none; }
   .fase-raya { left: 0; }
   .fase-sub { font-size: .875rem; }
 }
@@ -1001,7 +989,7 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
 .orden {
   flex: none;
-  font-family: var(--mono); font-size: 2.5rem; font-weight: 800; line-height: .9;
+  font-family: var(--mono); font-size: 3.25rem; font-weight: 800; line-height: .9;
   letter-spacing: -.05em; font-variant-numeric: tabular-nums;
   background: linear-gradient(155deg, var(--tono) 0%, color-mix(in srgb, var(--tono) 45%, var(--tinta-tenue)) 50%, transparent 125%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -1015,8 +1003,8 @@ a { color: var(--azul); text-underline-offset: 3px; }
 /* "Test" encima del número. Con fases numeradas en la página, un "01" suelto
    se confundía con la fase 1. */
 .orden small {
-  display: block; margin-bottom: 7px;
-  font-family: var(--ui); font-size: .625rem; font-weight: 800; line-height: 1;
+  display: block; margin-bottom: 8px;
+  font-family: var(--ui); font-size: .8125rem; font-weight: 800; line-height: 1;
   letter-spacing: .22em; text-transform: uppercase; text-indent: .22em;
   color: var(--tinta-tenue);
 }
@@ -1491,22 +1479,53 @@ button.sello.explica { font-size: .8125rem; }
 .otras-cifras summary::-webkit-details-marker { display: none; }
 .otras-cifras summary::before { content: "▸"; font-size: .625rem; transition: transform .15s; }
 .otras-cifras[open] summary::before { transform: rotate(90deg); }
-.otras-cifras ul { margin: 10px 0 0; padding-left: 18px; }
-.otras-cifras li { margin-bottom: 5px; line-height: 1.45; }
-.otras-cifras .rangos { list-style: none; padding: 0; margin: 10px 0 0; }
-.otras-cifras .rangos li {
-  padding: 8px 11px; border-radius: 8px; margin-bottom: 6px;
+.oc-pide { font-weight: 500; opacity: .75; }
+.oc-cuerpo {
+  margin-top: 10px; padding: 14px 16px; border-radius: 12px;
   background: var(--superficie-viva); border: 1px solid var(--borde);
-  color: var(--tinta-media);
+  display: grid; gap: 14px; font-size: .8125rem; color: var(--tinta-media);
 }
-.otras-cifras .rangos b { color: var(--tinta); font-family: var(--mono); font-weight: 600; }
-.otras-cifras > p { margin: 10px 0 2px; font-size: .75rem; color: var(--tinta-tenue); max-width: 60ch; }
-.otras-cifras .por-que {
-  margin: 10px 0 0; padding: 10px 12px; border-radius: 8px;
-  font-size: .8125rem; color: var(--tinta-media); max-width: none;
-  background: var(--superficie-viva); border-left: 2px solid color-mix(in srgb, var(--ambar) 55%, transparent);
+.oc-paso { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; }
+.oc-num {
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  font-family: var(--mono); font-size: .6875rem; font-weight: 700;
+  color: var(--ambar); border: 1px solid color-mix(in srgb, var(--ambar) 45%, transparent);
+  background: var(--brillo-ambar);
 }
-.otras-cifras .por-que b { color: var(--tinta); font-weight: 650; }
+.oc-paso h5 { margin: 1px 0 3px; font-size: .8125rem; font-weight: 700; color: var(--tinta); }
+.oc-paso p { margin: 0; line-height: 1.5; }
+.oc-paso b { color: var(--tinta); font-family: var(--mono); font-weight: 600; }
+.oc-tiras { display: grid; gap: 10px; margin: 8px 0 4px; }
+.oc-tira-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 7px; }
+.oc-tira-cab b { font-family: var(--ui); color: var(--tinta-media); font-size: .75rem; letter-spacing: .06em; text-transform: uppercase; }
+.oc-rango { font-family: var(--mono); color: var(--tinta); font-size: .8125rem; }
+.oc-pista { position: relative; height: 6px; border-radius: 999px; background: var(--superficie); border: 1px solid var(--borde); }
+.oc-hueco { position: absolute; top: -1px; bottom: -1px; border-radius: 999px; }
+.oc-tira.coinciden .oc-hueco { background: color-mix(in srgb, var(--verde) 35%, transparent); }
+.oc-tira.parecidas .oc-hueco { background: color-mix(in srgb, var(--ambar) 30%, transparent); }
+.oc-tira.discrepan .oc-hueco { background: color-mix(in srgb, var(--rojo) 30%, transparent); }
+.oc-punto {
+  position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
+  background: var(--tinta-tenue); border: 2px solid var(--superficie-viva);
+}
+.oc-punto.citado { width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; background: var(--azul); box-shadow: 0 0 10px color-mix(in srgb, var(--azul) 60%, transparent); }
+.oc-lectura { margin: 6px 0 0; font-size: .75rem; }
+.oc-tira.coinciden .oc-lectura { color: var(--verde); }
+.oc-tira.parecidas .oc-lectura { color: var(--ambar); }
+.oc-tira.discrepan .oc-lectura { color: var(--rojo); }
+.oc-lista { margin: 10px 0 0; padding-left: 16px; }
+.oc-lista li { margin-bottom: 5px; line-height: 1.45; }
+.oc-cifras { font-family: var(--mono); color: var(--tinta); font-weight: 600; white-space: nowrap; }
+.oc-leyenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .75rem; color: var(--tinta-tenue); }
+.oc-leyenda .oc-punto { position: static; margin: 0; display: inline-block; }
+.oc-ia {
+  padding: 10px 12px; border-radius: 8px;
+  background: color-mix(in srgb, var(--violeta) 8%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--violeta) 55%, transparent);
+}
+.oc-ia p { margin: 2px 0 4px; color: var(--tinta); line-height: 1.5; }
+.oc-ia small { font-size: .6875rem; color: var(--tinta-tenue); }
+.oc-ia small::before { content: "✦ "; color: var(--violeta); }
 .tipo-fuente {
   font-size: .6875rem; color: var(--tinta-tenue); white-space: nowrap;
   border: 1px solid var(--borde); border-radius: 999px; padding: 1px 7px; margin-left: 4px;
@@ -1534,6 +1553,46 @@ button.sello.explica { font-size: .8125rem; }
 .conclusion-medidor { margin: 22px 0 4px; }
 
 .hitos { display: grid; gap: 10px; margin-top: 22px; }
+
+/* Los que también mueven la sospecha, por debajo del principal: misma lectura
+   —de dónde a dónde— pero en pequeño, una fila por resultado. */
+.tambien-mueven {
+  margin-top: 24px; padding: 16px 18px 14px; border-radius: 12px;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
+}
+.tambien-titulo {
+  margin: 0 0 2px; font-size: .75rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--tinta-media);
+}
+.tambien-nota { margin: 0 0 12px; font-size: .8125rem; color: var(--tinta-tenue); }
+.mueve-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.otro-mueve {
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(90px, 1fr) auto auto;
+  align-items: center; gap: 14px; padding: 9px 0;
+  border-top: 1px solid var(--borde); font-size: .9375rem; color: var(--tinta-media);
+}
+.otro-mueve:first-child { border-top: 0; }
+.mueve-quien b { color: var(--tinta); font-weight: 650; }
+.mueve-barra { position: relative; height: 6px; border-radius: 999px; background: var(--superficie); border: 1px solid var(--borde); }
+.mueve-base { position: absolute; top: 0; bottom: 0; left: 0; border-radius: 999px; background: color-mix(in srgb, var(--tinta-tenue) 45%, transparent); }
+.mueve-tramo { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
+.otro-mueve.sube .mueve-tramo { background: linear-gradient(90deg, transparent, var(--verde)); }
+.otro-mueve.baja .mueve-tramo { background: linear-gradient(270deg, transparent, var(--azul)); }
+.mueve-punto {
+  position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
+  border: 2px solid var(--fondo);
+}
+.otro-mueve.sube .mueve-punto { background: var(--verde); }
+.otro-mueve.baja .mueve-punto { background: var(--azul); }
+.mueve-cifra { font-family: var(--mono); font-size: .8125rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.otro-mueve.sube .mueve-cifra b { color: var(--verde); }
+.otro-mueve.baja .mueve-cifra b { color: var(--azul); }
+.mueve-cuanto { font-size: .8125rem; color: var(--tinta-tenue); white-space: nowrap; }
+@media (max-width: 620px) {
+  .otro-mueve { grid-template-columns: 1fr auto; row-gap: 6px; }
+  .mueve-barra { grid-column: 1 / -1; grid-row: 2; }
+  .mueve-cuanto { display: none; }
+}
 .hito {
   display: flex; gap: 12px; align-items: flex-start;
   padding: 13px 15px; border-radius: 11px;
@@ -2405,7 +2464,6 @@ button.sello.explica { font-size: .8125rem; }
           '<h2 class="fase-titulo" id="fase-titulo-' + f.n + '">' + f.titulo + "</h2>" +
           '<span class="fase-sub">' + esc(f.sub) + "</span>" +
         "</div>" +
-        '<span class="fase-valor" data-fase-valor>' + esc(f.valor) + "</span>" +
         '<span class="fase-raya" aria-hidden="true"></span>' +
       "</header>" +
       '<div class="fase-cuerpo">' + cuerpo + "</div>" +
@@ -2439,14 +2497,6 @@ button.sello.explica { font-size: .8125rem; }
         sec.classList.add("fase-" + f.estado);
         var nodo = sec.querySelector(".fase-nodo");
         if (nodo) nodo.innerHTML = nodoFase(n, f.estado === "hecha", true);
-      }
-
-      var valor = sec.querySelector("[data-fase-valor]");
-      if (valor && valor.textContent !== f.valor) {
-        valor.textContent = f.valor;
-        valor.classList.remove("cambia");
-        void valor.offsetWidth;
-        valor.classList.add("cambia");
       }
 
       ui.fasesPrevias[n] = f.estado;
@@ -2964,7 +3014,7 @@ button.sello.explica { font-size: .8125rem; }
       ia = exp && exp.parcial;
     } else if (tipo === "cortada") {
       titulo = "Búsqueda sin terminar";
-      cuerpo = "Se ha perdido la conexión mientras buscábamos este test, así que <b>no sabemos</b> si hay cifras publicadas. " +
+      cuerpo = "La búsqueda de este test no ha podido completarse, así que <b>no sabemos</b> si hay cifras publicadas. " +
         "Vuelve a lanzar la sospecha: lo que ya se hubiera encontrado aparece al momento.";
     } else if (tipo === "sin") {
       var leidos = (ev.consultados || []).length;
@@ -3254,17 +3304,81 @@ button.sello.explica { font-size: .8125rem; }
     return "";
   }
 
+  /*
+   * Las otras cifras publicadas del mismo test, explicadas en tres pasos.
+   *
+   * La versión anterior era correcta pero solo se entendía sabiendo cómo
+   * funciona la herramienta: un rótulo, una regla, dos rangos y una lista. Un
+   * fisioterapeuta nuevo no sabía qué cifras usaba el cálculo ni qué hacer con
+   * las demás. Ahora contesta, por orden, las tres preguntas que se hace:
+   * qué cifras uso, por qué esas y no las otras, y qué dicen las otras.
+   *
+   * Las tres respuestas base se componen aquí con los datos, sin modelo. La
+   * redacción con IA, cuando llega, añade la lectura de este caso concreto.
+   */
   function otrasCifras(ev) {
     var otras = ev.otrasFuentes || [];
     if (!otras.length) return "";
+    var una = otras.length === 1;
 
-    var tramo = function (campo, nombre) {
-      var r = ev.rango && ev.rango[campo];
-      if (!r) return "";
-      return "<li>La <b>" + nombre + "</b> publicada va de <b>" + num(r.min, true) +
-        "</b> a <b>" + num(r.max, true) + "</b> entre " + r.estudios + " estudios.</li>";
+    // 1 · Qué usa el cálculo.
+    var usadas = [];
+    if (ev.sn != null) usadas.push("sensibilidad <b>" + num(ev.sn, true) + "</b>");
+    if (ev.sp != null) usadas.push("especificidad <b>" + num(ev.sp, true) + "</b>");
+    var paso1 = "Las del estudio citado arriba: " + usadas.join(" y ") + ". " +
+      (una ? "El otro estudio no entra en el cálculo." : "Los otros " + otras.length + " no entran en el cálculo.");
+
+    // 2 · Por qué ese. La regla es dura —una revisión pesa más que un estudio
+    // suelto, y hacen falta las dos cifras del mismo grupo— y cuando no decide
+    // nada se dice tal cual, en vez de fingir un motivo.
+    var citado = ev.valoracion || {};
+    var nCitado = citado.numeroEstudios || 1;
+    var citadoRevision = citado.tipoEstudio === "revision_sistematica";
+    var citadoDos = ev.sn != null && ev.sp != null;
+    var otrasConDos = otras.filter(function (o) { return o.sn != null && o.sp != null; });
+    var revisionMayor = otras.filter(function (o) {
+      return o.tipoEstudio === "revision_sistematica" && (o.numeroEstudios || 1) > nCitado;
+    })[0];
+    var paso2;
+    if (citadoRevision && !revisionMayor) {
+      paso2 = "Es una revisión" + (nCitado > 1 ? " que reúne " + nCitado + " estudios" : " sistemática") +
+        ": junta los resultados de varios, y por eso pesa más que un estudio suelto.";
+    } else if (revisionMayor && (revisionMayor.sn == null || revisionMayor.sp == null) && citadoDos) {
+      paso2 = "Entre los demás hay una revisión más amplia, pero solo publica una de las dos cifras. " +
+        "Para calcular hacen falta las dos, y del mismo grupo de pacientes.";
+    } else if (citadoDos && !otrasConDos.length) {
+      paso2 = "Es el único que publica las dos cifras. Para calcular cuánto cambia tu sospecha hacen falta " +
+        "la sensibilidad y la especificidad medidas en el mismo grupo de pacientes.";
+    } else {
+      paso2 = "Ninguno se impone por diseño: son estudios del mismo nivel. Se usa uno solo porque las dos " +
+        "cifras tienen que salir del mismo grupo de pacientes, y promediarlos mezclaría grupos distintos.";
+    }
+
+    // 3 · Qué dicen los demás: dónde cae cada estudio, y si coinciden.
+    var tira = function (campo, nombre) {
+      var valores = [];
+      if (ev[campo] != null) valores.push({ v: ev[campo], citado: true });
+      otras.forEach(function (o) { if (o[campo] != null) valores.push({ v: o[campo], citado: false }); });
+      if (valores.length < 2) return "";
+      var min = Math.min.apply(null, valores.map(function (x) { return x.v; }));
+      var max = Math.max.apply(null, valores.map(function (x) { return x.v; }));
+      var dif = max - min;
+      var lectura = dif <= 0.10 ? ["coinciden", "Coinciden: la cifra es estable entre estudios."]
+        : dif <= 0.20 ? ["parecidas", "Se parecen, con algo de variación entre estudios."]
+        : ["discrepan", "Discrepan bastante: la cifra depende mucho del estudio. Tómala con cautela."];
+      return '<div class="oc-tira ' + lectura[0] + '">' +
+        '<div class="oc-tira-cab"><b>' + nombre + "</b>" +
+          '<span class="oc-rango">' + (dif ? num(min, true) + " – " + num(max, true) : num(min, true)) + "</span></div>" +
+        '<div class="oc-pista" aria-hidden="true">' +
+          (dif ? '<span class="oc-hueco" style="left:' + Math.round(min * 100) + "%;width:" + Math.round(dif * 100) + '%"></span>' : "") +
+          valores.map(function (x) {
+            return '<span class="oc-punto' + (x.citado ? " citado" : "") + '" style="left:' + Math.round(x.v * 100) + '%"></span>';
+          }).join("") +
+        "</div>" +
+        '<p class="oc-lectura">' + lectura[1] + "</p>" +
+      "</div>";
     };
-    var rangos = tramo("sn", "sensibilidad") + tramo("sp", "especificidad");
+    var tiras = tira("sn", "Sensibilidad") + tira("sp", "Especificidad");
 
     var comoEs = function (o) {
       if (o.tipoEstudio === "revision_sistematica") {
@@ -3272,47 +3386,36 @@ button.sello.explica { font-size: .8125rem; }
       }
       return o.tipoEstudio === "estudio_primario" ? "estudio primario" : "";
     };
-
     var filas = otras.map(function (o) {
-      var cifras = (o.sn != null ? "Sn " + num(o.sn, true) : "Sn —") +
-        " · " + (o.sp != null ? "Sp " + num(o.sp, true) : "Sp —");
       var tipo = comoEs(o);
-      return "<li><b>" + cifras + "</b> " +
+      return "<li>" +
+        '<span class="oc-cifras">Sn ' + (o.sn != null ? num(o.sn, true) : "—") + " · Sp " + (o.sp != null ? num(o.sp, true) : "—") + "</span> " +
         '<a href="' + esc(o.url) + '" target="_blank" rel="noopener">' + esc(o.titulo) + "</a>" +
         (o.anio ? " · " + esc(o.anio) : "") +
         (tipo ? ' <span class="tipo-fuente">' + tipo + "</span>" : "") + "</li>";
     }).join("");
 
-    // Por qué se cita ese y no otro. Sale de una regla dura —una revisión pesa
-    // más que un estudio suelto— así que la frase base se compone con los datos
-    // y no se le pide a nadie. La versión redactada la matiza cuando llega.
     var exp = estado.explicaciones[nombreDelTest(ev)];
     var eleccionIa = exp && typeof exp === "object" ? exp.eleccion : null;
-    var citado = ev.valoracion || {};
-    var base = "";
-    if (citado.tipoEstudio === "revision_sistematica") {
-      base = "Se cita este porque es una revisión" +
-        (citado.numeroEstudios > 1 ? " que reúne " + citado.numeroEstudios + " estudios" : " sistemática") +
-        ", y una revisión pesa más que un estudio suelto.";
-    } else if (otras.some(function (o) { return o.tipoEstudio === "estudio_primario"; })) {
-      base = "Todos son estudios primarios: ninguno reúne a los demás, así que las cifras se enseñan por separado.";
-    }
-
-    var porQue = (base || eleccionIa)
-      ? '<p class="por-que">' + (base ? "<b>" + esc(base) + "</b>" : "") +
-          (eleccionIa ? (base ? " " : "") + esc(eleccionIa) : "") + "</p>"
-      : "";
 
     var id = "otras:" + (ev.cita ? ev.cita.pmid : otras.length);
     return '<details class="otras-cifras" data-recordar="' + esc(id) + '"' + (ui.abiertos[id] ? " open" : "") + "><summary>" +
-        "También lo miden otros " + otras.length + (otras.length === 1 ? " artículo" : " artículos") +
-        " · el cálculo usa solo el citado</summary>" +
-      porQue +
-      (rangos ? '<ul class="rangos">' + rangos + "</ul>" : "") +
-      "<ul>" + filas + "</ul>" +
-      "<p>Cada cifra con su artículo. No se mezclan entre sí: la sensibilidad y la especificidad " +
-      "se miden juntas, en el mismo grupo de pacientes, y combinarlas entre estudios daría un número " +
-      "que nadie ha publicado.</p>" +
+        (una ? "Otro estudio también lo ha medido" : "Otros " + otras.length + " estudios también lo han medido") +
+        '<span class="oc-pide"> · por qué usamos este</span></summary>' +
+      '<div class="oc-cuerpo">' +
+        '<div class="oc-paso"><span class="oc-num">1</span><div><h5>Qué cifras usa el cálculo</h5><p>' + paso1 + "</p></div></div>" +
+        '<div class="oc-paso"><span class="oc-num">2</span><div><h5>Por qué ese y no ' + (una ? "el otro" : "los otros") + "</h5><p>" + esc(paso2) + "</p></div></div>" +
+        '<div class="oc-paso"><span class="oc-num">3</span><div><h5>Qué dice' + (una ? " el otro" : "n los otros") + "</h5>" +
+          (tiras ? '<div class="oc-tiras">' + tiras + "</div>" : "") +
+          '<ul class="oc-lista">' + filas + "</ul>" +
+          '<p class="oc-leyenda"><span class="oc-punto citado"></span> el citado <span class="oc-punto"></span> ' + (una ? "el otro" : "los otros") +
+            " · No se mezclan: cada cifra se midió sobre su propio grupo de pacientes.</p>" +
+        "</div></div>" +
+        (eleccionIa
+          ? '<div class="oc-ia"><span class="globo-ia-rotulo">En este caso</span><p>' + esc(eleccionIa) + "</p>" +
+            "<small>Redactado con IA a partir de estas cifras</small></div>"
+          : "") +
+      "</div>" +
     "</details>";
   }
 
@@ -3375,7 +3478,7 @@ button.sello.explica { font-size: .8125rem; }
      * está en la base y contesta a la primera, así que no tiene sentido
      * machacar cada segundo durante medio minuto por los pocos que no.
      */
-    function esperarPor(el, intento, fallos) {
+    function esperarPor(el, intento, fallos, relanzados) {
       return pedir("/api/evidencia", {
         entidad: estado.entidad,
         terminosBusqueda: estado.terminos,
@@ -3384,7 +3487,18 @@ button.sello.explica { font-size: .8125rem; }
         if (estado.entidad !== enCurso) return null;
 
         if (d.estado === "listo") return d.evidencia;
-        if (d.estado === "fallo") return { hayCifras: false, error: d.motivo };
+        if (d.estado === "fallo") {
+          // Un tropiezo del servidor —PubMed cortando un momento— se relanza
+          // solo, dos veces como mucho. Preguntar de nuevo basta: el fallo se
+          // consume al leerlo, y la siguiente pregunta arranca otra búsqueda.
+          var r = relanzados || 0;
+          if (d.reintentable && r < 2) {
+            return new Promise(function (listo) { setTimeout(listo, 4000 * (r + 1)); })
+              .then(function () { return esperarPor(el, 0, 0, r + 1); });
+          }
+          // No es "sin cifras": es que no se ha podido mirar.
+          return { hayCifras: false, error: d.motivo, cortada: true };
+        }
 
         // Sigue en marcha. Se abandona pasados unos minutos: a esas alturas el
         // trabajador está muerto y su marca caducará sola, así que insistir
@@ -3394,7 +3508,7 @@ button.sello.explica { font-size: .8125rem; }
 
         var espera = n < 5 ? 1200 : n < 15 ? 2500 : 4000;
         return new Promise(function (listo) { setTimeout(listo, espera); })
-          .then(function () { return esperarPor(el, n, 0); });
+          .then(function () { return esperarPor(el, n, 0, relanzados); });
       }, function (err) {
         // Un sondeo que falla no es una búsqueda que falla: el trabajo sigue en
         // el servidor, a lo suyo. Antes un solo corte de red, en cualquiera de
@@ -3403,7 +3517,7 @@ button.sello.explica { font-size: .8125rem; }
         var f = (fallos || 0) + 1;
         if (!err.pasajero || f > 5 || estado.entidad !== enCurso) throw err;
         return new Promise(function (listo) { setTimeout(listo, 1500 * f); })
-          .then(function () { return esperarPor(el, intento || 0, f); });
+          .then(function () { return esperarPor(el, intento || 0, f, relanzados); });
       });
     }
 
@@ -3677,6 +3791,53 @@ button.sello.explica { font-size: .8125rem; }
     };
   }
 
+  var MAGNITUD_CORTA = { concluyente: "cambio grande", moderado: "cambio moderado", pequeno: "cambio pequeño" };
+
+  /*
+   * Los demás resultados que sí mueven la sospecha, aunque menos que el
+   * principal. Antes solo se nombraba el que más pesaba y los que no contaban,
+   * y los de en medio desaparecían: un Jobe positivo que la sube al 70% no
+   * salía en ninguna parte.
+   *
+   * Cada uno se calcula por separado desde la sospecha inicial, igual que el
+   * principal, y se dice así: sumarlos sería encadenarlos, que es justo lo que
+   * esta conclusión se niega a hacer.
+   */
+  function tambienMueven(s) {
+    var fuerza = function (d) { var lr = d.detalle.razonDeVerosimilitud; return lr >= 1 ? lr : 1 / lr; };
+    var otros = s.utiles
+      .filter(function (x) { return x !== s.decisivo; })
+      .sort(function (a, b) { return fuerza(b.d) - fuerza(a.d); });
+    if (!otros.length) return "";
+
+    var pre = pct(s.decisivo.d.detalle.preTest);
+    var filas = otros.map(function (x) {
+      var det = x.d.detalle;
+      var post = pct(det.postTest);
+      var sube = det.postTest > det.preTest;
+      var izq = Math.min(pre, post), ancho = Math.abs(post - pre);
+      return '<li class="otro-mueve ' + (sube ? "sube" : "baja") + '">' +
+        '<span class="mueve-quien"><b>' + esc(x.nombre) + "</b> " + esc(x.d.resultado) + "</span>" +
+        '<span class="mueve-barra" aria-hidden="true">' +
+          '<span class="mueve-base" style="width:' + pre + '%"></span>' +
+          '<span class="mueve-tramo" style="left:' + izq + "%;width:" + ancho + '%"></span>' +
+          '<span class="mueve-punto" style="left:' + post + '%"></span>' +
+        "</span>" +
+        '<span class="mueve-cifra">' + pre + "% → <b>" + post + "%</b></span>" +
+        '<span class="mueve-cuanto">' + (MAGNITUD_CORTA[det.magnitud.nivel] || "") + "</span>" +
+      "</li>";
+    }).join("");
+
+    return '<div class="tambien-mueven">' +
+      '<h3 class="tambien-titulo">' + (otros.length === 1 ? "También mueve tu sospecha" : "También mueven tu sospecha") + "</h3>" +
+      '<p class="tambien-nota">' + (otros.length === 1 ? "Calculado por separado" : "Cada uno calculado por separado") +
+        ", desde el " + pre + "% con el que llegaste. No se suma" + (otros.length === 1 ? "" : "n") +
+        " al principal: se enseña" + (otros.length === 1 ? "" : "n") + " para que veas hacia dónde apunta" +
+        (otros.length === 1 ? "" : "n") + ".</p>" +
+      '<ul class="mueve-lista">' + filas + "</ul>" +
+    "</div>";
+  }
+
   function listaNombres(ns) {
     return ns.map(function (n) { return esc(n); }).join(", ");
   }
@@ -3745,6 +3906,7 @@ button.sello.explica { font-size: .8125rem; }
         "<b>" + esc(s.decisivo.nombre) + " " + esc(s.decisivo.d.resultado) + "</b>. " +
         "Es el que más mueve tu sospecha, y esto es lo que hace con ella:</p>");
       partes.push('<div class="conclusion-medidor">' + medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") + "</div>");
+      partes.push(tambienMueven(s));
     }
 
     var hitos = [];

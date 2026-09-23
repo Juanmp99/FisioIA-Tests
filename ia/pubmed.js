@@ -34,15 +34,37 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 /** La clave viaja como parámetro, que es como la pide E-utilities. */
 const conClave = (url) => (CLAVE ? `${url}&api_key=${encodeURIComponent(CLAVE)}` : url);
 
+/**
+ * Una petición a E-utilities, con paciencia ante el 429.
+ *
+ * El tope es por segundo, así que un 429 casi nunca es definitivo: basta con
+ * esperar un poco. Antes el primero tumbaba la búsqueda entera del test, y el
+ * fisioterapeuta veía "sin cifras publicadas" en un test que ni se había
+ * llegado a buscar. Ocurría incluso con clave: tres tests en paralelo, cada
+ * uno en su función, no saben unos de otros y pueden coincidir en el mismo
+ * segundo.
+ */
 async function pedir(url, senal) {
-  const respuesta = await fetch(conClave(url), { signal: senal });
-  // El 429 tiene arreglo y conviene decirlo con nombre y apellidos: es el tope
-  // por segundo de PubMed, y lo levanta la clave.
-  if (respuesta.status === 429) {
-    throw new Error("PubMed ha cortado por exceso de peticiones por segundo. Define NCBI_API_KEY para subir el tope.");
+  const esperas = [800, 1800, 3500];
+  for (let intento = 0; ; intento++) {
+    const respuesta = await fetch(conClave(url), { signal: senal });
+    if (respuesta.status === 429 && intento < esperas.length) {
+      // Algo de azar para que las funciones que chocaron no vuelvan a chocar
+      // en el mismo instante.
+      await esperar(esperas[intento] + Math.random() * 400);
+      if (senal?.aborted) throw senal.reason ?? new Error("Cortado por plazo.");
+      continue;
+    }
+    if (respuesta.status === 429) {
+      throw new Error(
+        CLAVE
+          ? "PubMed está recibiendo demasiadas peticiones ahora mismo."
+          : "PubMed ha cortado por exceso de peticiones por segundo. Define NCBI_API_KEY para subir el tope.",
+      );
+    }
+    if (!respuesta.ok) throw new Error(`PubMed respondió ${respuesta.status}`);
+    return respuesta;
   }
-  if (!respuesta.ok) throw new Error(`PubMed respondió ${respuesta.status}`);
-  return respuesta;
 }
 
 function entidades(texto) {
