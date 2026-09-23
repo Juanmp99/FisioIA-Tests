@@ -1,4 +1,4 @@
-# FisioIA · Exploración guiada
+# FisioIA · Copiloto de Exploración
 
 El fisioterapeuta escribe una sospecha diagnóstica en lenguaje clínico y la herramienta devuelve
 la batería de tests con la que verificarla, cómo ejecutar cada uno, y qué permite concluir cada

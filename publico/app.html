@@ -1,6 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Exploración guiada · FisioIA</title>
+<title>Copiloto de Exploración · FisioIA</title>
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#070a11">
 
@@ -142,7 +142,7 @@ a { color: var(--azul); text-underline-offset: 3px; }
   /* Tres columnas iguales a los lados para que el título quede centrado de
      verdad respecto a la pantalla, y no desplazado por lo que ocupe la marca. */
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;
-  padding: 14px 24px;
+  padding: 16px 24px;
   background: color-mix(in srgb, var(--fondo) 82%, transparent);
   backdrop-filter: blur(14px) saturate(1.4);
   -webkit-backdrop-filter: blur(14px) saturate(1.4);
@@ -153,17 +153,38 @@ a { color: var(--azul); text-underline-offset: 3px; }
 .marca b { font-size: 1.0625rem; font-weight: 800; letter-spacing: -.03em; }
 .marca b span { color: var(--verde); }
 
-/* El nombre de la herramienta, centrado y con peso propio. Entra una vez, al
-   cargar, y se queda quieto: esto se usa con un paciente esperando, y una
-   animación que se repite cada visita se vuelve un peaje. */
+/* El nombre de la herramienta, como el rótulo de una película.
+   Mayúsculas muy espaciadas a propósito: todo lo de abajo son titulares en
+   minúscula y negrita, y un nombre escrito igual competiría con ellos. En otro
+   registro no compite; se lee como lo que es, la firma de la herramienta.
+   Entra una vez al cargar —se cierra el espaciado, se enfoca, pasa un brillo—
+   y se queda quieto: esto se usa con un paciente esperando. */
 .titulo-herramienta {
-  justify-self: center; text-align: center; white-space: nowrap;
-  font-style: normal; font-size: 1.0625rem; font-weight: 700;
-  letter-spacing: .01em;
-  background: linear-gradient(100deg, var(--tinta) 15%, color-mix(in srgb, var(--verde) 65%, var(--tinta)) 55%, var(--tinta) 95%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  animation: entrarTitulo 1.1s var(--curva) both;
+  justify-self: center; display: flex; align-items: center; gap: 16px;
+  white-space: nowrap; font-style: normal;
 }
+.titulo-herramienta::before, .titulo-herramienta::after {
+  content: ""; width: 44px; height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--verde) 60%, transparent));
+  animation: abrirRaya 1s .5s var(--curva) both;
+}
+.titulo-herramienta::after { transform-origin: left center; background: linear-gradient(270deg, transparent, color-mix(in srgb, var(--verde) 60%, transparent)); }
+.titulo-herramienta::before { transform-origin: right center; }
+.titulo-texto {
+  font-size: 1.125rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .32em; margin-right: -.32em; /* el espaciado del final no descentra */
+  /* Un brillo verde que cruza una vez y se va. Antes y después, el texto es
+     de un solo color: la gradiente está hecha para que sus dos extremos sean
+     iguales. */
+  background: linear-gradient(100deg,
+    var(--tinta) 0%, var(--tinta) 38%,
+    color-mix(in srgb, var(--verde) 85%, white) 50%,
+    var(--tinta) 62%, var(--tinta) 100%);
+  background-size: 300% 100%; background-position: 100% 0;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: entrarTitulo 1.2s var(--curva) both, brilloTitulo 1.6s .9s ease-in-out both;
+}
+.titulo-texto b { font-weight: 300; }
 .barra-hueco { display: block; }
 
 /* ============ consulta ============ */
@@ -1272,19 +1293,72 @@ button.sello.explica { font-size: .8125rem; }
 
 /* ============ acciones del test ============ */
 
-.test-acciones {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-  padding: 0 20px 18px;
+/* ============ las tres partes de un test ============ */
+
+/* El rótulo de cada parte. Con su icono en una pastilla y una raya que se
+   apaga hacia la derecha: tiene que leerse como el título de un bloque, no
+   como una etiqueta más de las que hay dentro. */
+.parte-rotulo {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 12px;
+  font-size: .75rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--parte-tinta, var(--tinta-media));
 }
-.test-acciones .rotulo { margin-right: 4px; }
+.parte-rotulo::after {
+  content: ""; flex: 1; height: 1px; min-width: 20px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--parte-color, var(--tinta-tenue)) 40%, transparent), transparent);
+}
+.parte-ico {
+  flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px;
+  color: var(--parte-color, var(--tinta-media));
+  background: color-mix(in srgb, var(--parte-color, var(--tinta-tenue)) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--parte-color, var(--tinta-tenue)) 30%, transparent);
+}
+.parte-ico .icono { width: 16px; height: 16px; }
+
+/* 1 · Lo que dice la evidencia. Sobre la tarjeta, sin fondo propio. Su color
+   es el tono de la tarjeta, que ya sale de la calidad de esa evidencia. */
+.parte-evidencia { --parte-color: var(--tono); padding: 6px 20px 18px; }
+.parte-evidencia .franja { padding: 0; }
+
+/* 2 · Tu resultado. La única parte con fondo y borde de color: es donde
+   decide el fisioterapeuta, y la vista tiene que caer ahí sola. */
+.parte-tu {
+  --parte-color: var(--azul); --parte-tinta: var(--azul);
+  margin: 0 12px; padding: 16px; border-radius: 14px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--azul) 9%, var(--superficie-viva)), color-mix(in srgb, var(--azul) 4%, var(--superficie)));
+  border: 1px solid color-mix(in srgb, var(--azul) 34%, transparent);
+  /* Quieto a propósito: con ocho tarjetas en pantalla, ocho halos respirando
+     serían ruido. La que respira es la fase 1 mientras falta. */
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--azul) 9%, transparent), 0 0 34px -12px color-mix(in srgb, var(--azul) 55%, transparent);
+  transition: box-shadow .3s, border-color .3s;
+}
+.parte-tu.hecha { box-shadow: none; border-color: color-mix(in srgb, var(--azul) 22%, transparent); }
+.parte-tu-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.parte-tu-cab .parte-rotulo { margin: 0; flex: 1 1 auto; white-space: nowrap; }
+.tu-botones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.parte-tu .hueco:not(:empty) { margin-top: 14px; }
+.parte-tu .veredicto { margin: 0; }
+
+/* 3 · De dónde salen las cifras. El pie: disponible para comprobar, sin pedir
+   atención. */
+.parte-fuente {
+  margin-top: 18px; padding: 16px 20px 18px;
+  border-top: 1px solid var(--borde);
+  background: color-mix(in srgb, var(--fondo) 35%, transparent);
+}
+.parte-fuente .fuente { margin: 0; padding: 0; border: 0; background: none; }
+.parte-fuente .fuente > .icono { display: none; }
 
 .btn-res {
-  background: var(--superficie-viva); border: 1px solid var(--borde);
-  border-radius: 10px; padding: 9px 18px; font: inherit; font-weight: 600;
-  color: var(--tinta-media); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  background: var(--superficie); border: 1px solid var(--borde-vivo);
+  border-radius: 12px; padding: 14px 18px; font: inherit; font-size: 1.0625rem; font-weight: 700;
+  color: var(--tinta); cursor: pointer;
   transition: all .18s var(--curva);
 }
-.btn-res:hover { border-color: var(--borde-vivo); color: var(--tinta); }
+.btn-res .icono { width: 20px; height: 20px; opacity: .75; }
+.btn-res[aria-pressed="true"] .icono { opacity: 1; }
+.btn-res:hover { border-color: color-mix(in srgb, var(--azul) 55%, transparent); background: var(--superficie-viva); }
 .btn-res[data-valor="positivo"][aria-pressed="true"] {
   background: var(--brillo-verde); border-color: var(--verde); color: var(--verde);
   box-shadow: 0 0 18px -6px var(--verde);
@@ -1295,16 +1369,15 @@ button.sello.explica { font-size: .8125rem; }
 }
 
 .btn-ficha {
-  margin-left: auto;
-  background: var(--superficie-viva); border: 1px solid var(--borde-vivo);
-  border-radius: 10px; font: inherit; font-size: .9375rem; font-weight: 600;
-  color: var(--tinta-media); cursor: pointer; padding: 9px 16px;
-  display: inline-flex; align-items: center; gap: 8px;
+  flex: none;
+  background: transparent; border: 1px solid var(--borde-vivo);
+  border-radius: 999px; font: inherit; font-size: .8125rem; font-weight: 650;
+  color: var(--tinta-media); cursor: pointer; padding: 7px 13px 7px 10px;
+  display: inline-flex; align-items: center; gap: 7px;
   transition: all .18s var(--curva);
 }
+.btn-ficha .icono { width: 16px; height: 16px; color: var(--azul); }
 .btn-ficha:hover { color: var(--azul); border-color: var(--azul); background: var(--brillo-azul); }
-.btn-ficha::after { content: "›"; font-size: 1.15rem; line-height: 1; transition: transform .2s var(--curva); }
-.btn-ficha:hover::after { transform: translateX(3px); }
 
 /* ============ veredicto de un resultado ============ */
 
@@ -1631,9 +1704,14 @@ button.sello.explica { font-size: .8125rem; }
   50% { box-shadow: var(--sombra), 0 0 0 1px color-mix(in srgb, var(--azul) 45%, transparent), 0 0 52px -8px var(--azul); }
 }
 @keyframes entrarTitulo {
-  from { opacity: 0; transform: translateY(-6px); letter-spacing: .24em; filter: blur(3px); }
-  to { opacity: 1; transform: none; letter-spacing: .01em; filter: none; }
+  from { opacity: 0; letter-spacing: .75em; filter: blur(8px); }
+  to { opacity: 1; letter-spacing: .32em; filter: none; }
 }
+@keyframes brilloTitulo {
+  from { background-position: 100% 0; }
+  to { background-position: 0% 0; }
+}
+@keyframes abrirRaya { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: none; } }
 @keyframes señalar {
   0%, 100% { transform: none; }
   30% { transform: translateY(-4px); }
@@ -1668,11 +1746,13 @@ button.sello.explica { font-size: .8125rem; }
      debajo, centrado, sin perder su entrada. */
   .barra { grid-template-columns: 1fr; justify-items: center; gap: 4px; padding: 10px 16px; }
   .barra-hueco { display: none; }
-  .titulo-herramienta { font-size: .9375rem; }
+  .titulo-herramienta::before, .titulo-herramienta::after { width: 22px; }
+  .titulo-herramienta { gap: 10px; }
+  .titulo-texto { font-size: .875rem; letter-spacing: .22em; margin-right: -.22em; animation: none; }
 
   .paso { grid-template-columns: 1fr; gap: 2px; }
   .niveles { grid-template-columns: 1fr; }
-  .btn-ficha { margin-left: 0; width: 100%; justify-content: center; }
+  .parte-tu-cab { flex-wrap: wrap; gap: 10px; }
   .conclusion-dentro { padding: 22px 18px; }
 
 }
@@ -1682,7 +1762,7 @@ button.sello.explica { font-size: .8125rem; }
   <div class="marca">
     <b>Fisio<span>IA</span></b>
   </div>
-  <em class="titulo-herramienta">Exploración guiada</em>
+  <em class="titulo-herramienta"><span class="titulo-texto">Copiloto <b>de</b> Exploración</span></em>
   <span class="barra-hueco" aria-hidden="true"></span>
 </div>
 
@@ -1888,6 +1968,11 @@ button.sello.explica { font-size: .8125rem; }
     if (tipo === "mueve") return trazo + '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
     if (tipo === "nulo") return trazo + '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>';
     if (tipo === "alerta") return trazo + '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>';
+    if (tipo === "barras") return trazo + '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></svg>';
+    if (tipo === "mano") return trazo + '<path d="M9 11V5a2 2 0 0 1 4 0v6"/><path d="M13 10.5V9a2 2 0 0 1 4 0v3"/><path d="M17 11.5a2 2 0 0 1 4 0V15a7 7 0 0 1-7 7h-1.5a7 7 0 0 1-5.3-2.4L4 16.5a2 2 0 0 1 3-2.6L9 16V11"/></svg>';
+    if (tipo === "mas") return trazo + '<circle cx="12" cy="12" r="9"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>';
+    if (tipo === "menos") return trazo + '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>';
+    if (tipo === "play") return trazo + '<circle cx="12" cy="12" r="9"/><path d="m10 8.5 5 3.5-5 3.5z"/></svg>';
     if (tipo === "libro") return trazo + '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
     return trazo + '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
   }
@@ -2630,18 +2715,37 @@ button.sello.explica { font-size: .8125rem; }
           '<div class="objetivo">' + esc(t.objetivo) + "</div>" +
         "</div>" +
       "</div>" +
+      // Tres partes con tres pesos distintos: lo que dice la literatura, lo que
+      // decides tú y de dónde sale. Antes iban seguidas y pesaban lo mismo, y
+      // los botones del resultado —lo único que depende del fisioterapeuta—
+      // quedaban en tierra de nadie entre las cifras y la cita.
+      '<section class="parte parte-evidencia">' +
+        rotuloParte("barras", "Qué dice la evidencia") +
+        (ev
+          ? '<div class="franja">' + chipsCifras(ev, t.nombre) + selloCalidad(ev, t.nombre) + marbetes(ev, t.nombre) + "</div>"
+          : investigando(t.nombre)) +
+      "</section>" +
+      '<section class="parte parte-tu' + (marcado ? " hecha" : "") + '">' +
+        '<div class="parte-tu-cab">' +
+          rotuloParte("mano", "Tu resultado") +
+          '<button class="btn-ficha" data-ficha="' + id + '">' + icono("play") + "¿Cómo se hace?</button>" +
+        "</div>" +
+        // Con icono ⊕ y ⊖, no ✓ y ✗: un positivo no es un acierto ni una buena
+        // noticia, solo el resultado de la maniobra.
+        '<div class="tu-botones">' +
+          '<button class="btn-res" data-marcar="' + id + '" data-valor="positivo" aria-pressed="' + (marcado === "positivo") + '">' + icono("mas") + "Positivo</button>" +
+          '<button class="btn-res" data-marcar="' + id + '" data-valor="negativo" aria-pressed="' + (marcado === "negativo") + '">' + icono("menos") + "Negativo</button>" +
+        "</div>" +
+        '<div class="hueco" data-hueco="' + id + '"></div>' +
+      "</section>" +
       (ev
-        ? '<div class="franja">' + chipsCifras(ev, t.nombre) + selloCalidad(ev, t.nombre) + marbetes(ev, t.nombre) + "</div>"
-        : investigando(t.nombre)) +
-      '<div class="test-acciones">' +
-        '<span class="rotulo">Resultado</span>' +
-        '<button class="btn-res" data-marcar="' + id + '" data-valor="positivo" aria-pressed="' + (marcado === "positivo") + '">Positivo</button>' +
-        '<button class="btn-res" data-marcar="' + id + '" data-valor="negativo" aria-pressed="' + (marcado === "negativo") + '">Negativo</button>' +
-        '<button class="btn-ficha" data-ficha="' + id + '">¿Cómo se hace?</button>' +
-      "</div>" +
-      '<div class="hueco" data-hueco="' + id + '"></div>' +
-      fuente(ev) +
+        ? '<section class="parte parte-fuente">' + rotuloParte("libro", "De dónde salen las cifras") + fuente(ev) + "</section>"
+        : "") +
     "</div>";
+  }
+
+  function rotuloParte(tipoIcono, texto) {
+    return '<h4 class="parte-rotulo"><span class="parte-ico">' + icono(tipoIcono) + "</span>" + texto + "</h4>";
   }
 
   function paso(etiqueta, texto) {
