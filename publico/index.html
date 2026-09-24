@@ -660,6 +660,9 @@ button.enviar:active { transform: scale(.99); }
 button.enviar:disabled { opacity: .6; cursor: default; }
 
 .letra-pequena { margin: 14px 0 0; text-align: center; font-size: .8125rem; color: var(--tinta-tenue); }
+.letra-pequena a, .barra-legal a, footer a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.letra-pequena a:hover, .barra-legal a:hover, footer a:hover { color: var(--verde); }
+.barra-legal { margin: 6px 4px 0; font-size: .6875rem; line-height: 1.35; color: var(--tinta-tenue); text-align: center; }
 
 .aviso {
   margin: 0 0 18px; padding: 13px 15px;
@@ -1250,7 +1253,7 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
           </div>
           <span class="aro"><button class="enviar" id="enviar" type="submit">Quiero mi acceso gratuito &nbsp;→</button></span>
         </form>
-        <p class="letra-pequena">Te enviamos tu acceso directo por correo. Al solicitarlo, aceptas unirte a nuestra lista.</p>
+        <p class="letra-pequena">Te enviamos tu acceso directo por correo. Al solicitarlo, aceptas unirte a nuestra lista de correo y la <a href="https://fisioia.app/privacidad" target="_blank" rel="noopener">política de privacidad</a>.</p>
         </div>
 
         <!-- La herramienta, en una pantalla y en bucle: sospecha, tests,
@@ -1465,7 +1468,7 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
           <span class="aro"><button class="enviar" type="submit">Quiero mi acceso gratuito &nbsp;→</button></span>
         </div>
       </form>
-      <p class="letra-pequena">Al solicitarlo, aceptas unirte a nuestra lista.</p>
+      <p class="letra-pequena">Al solicitarlo, aceptas unirte a nuestra lista de correo y la <a href="https://fisioia.app/privacidad" target="_blank" rel="noopener">política de privacidad</a>.</p>
     </div>
   </section>
 
@@ -1474,7 +1477,9 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
       Herramienta de apoyo al razonamiento clínico. No emite diagnósticos ni sustituye el juicio
       del profesional: la decisión y la responsabilidad clínica son siempre del fisioterapeuta.
     </p>
-    <p>© <span id="anio">2026</span> FisioIA</p>
+    <p>© <span id="anio">2026</span> FisioIA, marca operada por Sanavia Digital OÜ ·
+      <a href="https://fisioia.app/privacidad" target="_blank" rel="noopener">Privacidad</a> ·
+      <a href="https://fisioia.app/terminos" target="_blank" rel="noopener">Términos</a></p>
   </footer>
 </main>
 
@@ -1487,6 +1492,7 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
       <input type="email" name="email" autocomplete="email" required placeholder="Tu correo electrónico" aria-label="Tu correo electrónico" tabindex="-1">
       <span class="aro"><button class="enviar" type="submit" aria-label="Quiero mi acceso gratuito" tabindex="-1"><span class="largo">Quiero mi acceso gratuito &nbsp;→</span><span class="corto">Acceso gratis →</span></button></span>
     </div>
+    <p class="barra-legal">Al enviarlo, aceptas unirte a nuestra lista de correo y la <a href="https://fisioia.app/privacidad" target="_blank" rel="noopener">política de privacidad</a>.</p>
   </form>
 </div>
 

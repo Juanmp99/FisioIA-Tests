@@ -5,7 +5,7 @@
 // revés se perderían contactos por un fallo del proveedor de correo.
 
 import { emitir, correoValido, normalizarCorreo } from "../../lib/acceso.js";
-import { guardarContacto } from "../../lib/contactos.js";
+import { guardarContacto, desbloquearTransaccional, envioBloqueado } from "../../lib/contactos.js";
 import { enviarAcceso, proveedorCorreo } from "../../lib/correo.js";
 import { leer, escribir } from "../../lib/almacen.js";
 import { json, error, cuerpoJson } from "../../lib/http.js";
@@ -68,8 +68,25 @@ export default async (req, context) => {
       return error("El envío de correo no está configurado. Avisa a FisioIA.", 503);
     }
 
+    // Quien pulsó «Darse de baja» alguna vez está bloqueado para todo lo que
+    // mande Brevo, también para el acceso que acaba de pedir.
+    if (proveedorCorreo() === "brevo") {
+      const bloqueo = await desbloquearTransaccional(correo);
+      if (bloqueo === "desbloqueado") console.log(`[acceso] ${correo} estaba bloqueado; desbloqueado para enviarle su acceso.`);
+    }
+
     const base = process.env.URL_PUBLICA || new URL(req.url).origin;
-    await enviarAcceso({ correo, enlace: `${base}/app?acceso=${encodeURIComponent(token)}` });
+    const envio = await enviarAcceso({ correo, enlace: `${base}/app?acceso=${encodeURIComponent(token)}` });
+
+    // Decir «revisa tu bandeja» cuando el correo no va a llegar es lo peor que
+    // puede pasar aquí: el usuario espera algo que nunca aparece.
+    if (proveedorCorreo() === "brevo" && (await envioBloqueado(envio?.messageId))) {
+      console.error(`[acceso] Brevo bloqueó el envío a ${correo} pese al desbloqueo.`);
+      return error(
+        "No hemos podido enviarte el correo de acceso. Escríbenos a hola@fisioia.app y te lo mandamos a mano.",
+        502,
+      );
+    }
 
     await contarOrigen(ORIGENES.has(cuerpo.origen) ? cuerpo.origen : "otro", dia);
 

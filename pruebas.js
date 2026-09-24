@@ -11,6 +11,7 @@ import { promete } from "./ia/europepmc.js";
 import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
 import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/redaccion.js";
 import { depurarFuentes, rangoPublicado } from "./dominio/fuentes.js";
+import { debeReactivar } from "./lib/contactos.js";
 
 let pasadas = 0;
 const cerca = (a, b, t = 0.01) => Math.abs(a - b) < t;
@@ -650,6 +651,32 @@ prueba("el rango solo aparece cuando hay más de un valor distinto", () => {
   assert.deepEqual(conOtras.sn, { min: 0.45, max: 0.88, estudios: 3 });
   // La especificidad coincide en los dos, así que no hay rango que enseñar.
   assert.equal(conOtras.sp, null);
+});
+
+console.log("\nReactivación de quien se dio de baja");
+
+const conReactivacion = { activo: true, newsletter: 10 };
+
+prueba("a un contacto nuevo no se le toca: va por la secuencia", () => {
+  assert.equal(debeReactivar(null, conReactivacion), false);
+});
+
+prueba("quien se dio de baja de la newsletter vuelve a ella", () => {
+  assert.equal(debeReactivar({ baja: true, listas: [5, 10] }, conReactivacion), true);
+});
+
+prueba("quien se fue a mitad de la secuencia entra directo en la newsletter", () => {
+  // No está en la 10 y la automatización no le deja reentrar: sin esto,
+  // nunca llegaría a la newsletter.
+  assert.equal(debeReactivar({ baja: false, listas: [5] }, conReactivacion), true);
+});
+
+prueba("quien ya está en la newsletter sin baja se queda como está", () => {
+  assert.equal(debeReactivar({ baja: false, listas: [8, 10] }, conReactivacion), false);
+});
+
+prueba("con el interruptor apagado no se reactiva a nadie", () => {
+  assert.equal(debeReactivar({ baja: true, listas: [5, 10] }, { activo: false, newsletter: 10 }), false);
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);
