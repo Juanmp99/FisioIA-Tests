@@ -1877,6 +1877,48 @@ button.sello.explica { font-size: .8125rem; }
   .parte-tu-cab { flex-wrap: wrap; gap: 10px; }
   .conclusion-dentro { padding: 22px 18px; }
 
+  /* ---- Pantalla de trabajo en un móvil ----
+     Arriba se quedaban fijos la cabecera y el carril de pasos, y entre los
+     dos ocupaban casi un tercio de la pantalla. La cabecera ya no se queda
+     fija —el nombre de la herramienta no hace falta mientras exploras— y el
+     carril se compacta. */
+  .barra { position: static; }
+  .carril { top: 0; padding: 8px 16px; margin: 0 -16px 14px; }
+  .alerta-banderas { padding: 7px 11px; margin-bottom: 8px; font-size: .75rem; }
+  .paso-num { width: 24px; height: 24px; font-size: .6875rem; }
+  .paso-carril { gap: 4px; }
+  .paso-carril:not(:last-child)::before { left: 30px; top: 12px; }
+  .paso-texto b { font-size: .75rem; }
+  .paso-valor { margin-top: 1px; }
+
+  .buscador .btn { width: 100%; }
+
+  /* Tarjeta de test: menos márgenes anidados, que en 375 px dejaban el texto
+     del veredicto en una columna estrecha. */
+  .test-cab { padding: 20px 16px 12px; gap: 14px; }
+  .parte-evidencia { padding: 4px 14px 16px; }
+  .parte-tu { margin: 0 6px; padding: 12px; }
+  .parte-fuente { padding: 14px 14px 16px; }
+  .parte-rotulo { letter-spacing: .1em; font-size: .6875rem; gap: 8px; }
+  .parte-ico { width: 24px; height: 24px; }
+  .parte-tu .veredicto { padding: 14px; }
+
+  /* Sensibilidad y especificidad lado a lado, con el nombre encima del número. */
+  .parte-evidencia .cifra { display: block; flex: 1 1 calc(50% - 4px); max-width: none; padding: 11px 12px 12px; }
+  .parte-evidencia .cifra-valor { font-size: 1.5rem; }
+  .parte-evidencia .cifra { position: relative; }
+  .parte-evidencia .cifra > .explica-ico { position: absolute; top: 10px; right: 10px; }
+
+  /* El rótulo de los otros estudios, como texto seguido y no en dos columnas. */
+  .otras-cifras summary { display: block; line-height: 1.45; padding: 5px 11px; border-radius: 12px; }
+  .otras-cifras summary::before { margin-right: 6px; }
+  .oc-cuerpo { padding: 12px; }
+
+  /* Conclusión. */
+  .tambien-mueven { padding: 14px; }
+  .hito { padding: 12px; }
+  .hito-lista > .icono { display: none; }
+  .hito-casos li { padding: 8px 10px; }
 }
 </style>
 
