@@ -1562,53 +1562,47 @@ button.sello.explica { font-size: .8125rem; }
   background: linear-gradient(180deg, var(--superficie-alta), var(--superficie));
   border-radius: 19px; padding: 26px 26px 24px;
 }
-/* Cuántos tests sostienen la conclusión. Arriba del todo: es lo primero que
-   hay que saber para leer lo que viene debajo. */
+/* Cuántos tests sostienen la conclusión. Una línea discreta encima de la
+   tarjeta: contexto para leerla, sin competir con el titular ni con la barra. */
 .cobertura {
-  display: flex; align-items: center; gap: 16px;
-  margin: -4px 0 22px; padding: 14px 16px; border-radius: 14px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--azul) 10%, var(--superficie-viva)), var(--superficie-viva));
-  border: 1px solid color-mix(in srgb, var(--azul) 26%, transparent);
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px;
+  margin: 0 6px 12px; font-size: .8125rem; color: var(--tinta-tenue);
 }
-.cobertura.completa {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--verde) 10%, var(--superficie-viva)), var(--superficie-viva));
-  border-color: color-mix(in srgb, var(--verde) 30%, transparent);
-}
-.cob-cifra {
-  flex: none; display: flex; align-items: baseline; gap: 1px;
-  font-family: var(--mono); font-variant-numeric: tabular-nums; line-height: 1;
-}
-.cob-cifra b {
-  font-size: 2.5rem; font-weight: 800; letter-spacing: -.04em;
-  background: linear-gradient(160deg, var(--tinta), var(--azul));
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-}
-.cobertura.completa .cob-cifra b { background-image: linear-gradient(160deg, var(--tinta), var(--verde)); }
-.cob-cifra span { font-size: 1.125rem; font-weight: 600; color: var(--tinta-tenue); }
-.cob-texto { flex: 1; min-width: 0; display: grid; gap: 3px; }
 .cob-rotulo {
   font-size: .6875rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--azul);
 }
 .cobertura.completa .cob-rotulo { color: var(--verde); }
-.cob-texto > b { font-size: 1rem; font-weight: 650; color: var(--tinta); }
-.cob-tira { display: flex; gap: 4px; margin-top: 6px; }
+.cob-cuenta { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.cob-cuenta b { color: var(--tinta); font-weight: 700; }
+.cob-tira { display: flex; gap: 3px; flex: 1; min-width: 120px; max-width: 260px; margin-left: auto; }
 .cob-tramo {
-  flex: 1; height: 7px; border-radius: 999px;
-  background: var(--superficie); border: 1px solid var(--borde-vivo);
+  flex: 1; height: 5px; border-radius: 999px;
+  background: var(--superficie-viva); border: 1px solid var(--borde);
 }
 .cob-tramo.positivo, .cob-tramo.negativo {
   border-color: transparent;
   animation: encenderTramo .45s calc(var(--i) * 60ms + .15s) var(--curva) both;
 }
-.cob-tramo.positivo { background: var(--verde); box-shadow: 0 0 10px -2px color-mix(in srgb, var(--verde) 70%, transparent); }
-.cob-tramo.negativo { background: var(--azul); box-shadow: 0 0 10px -2px color-mix(in srgb, var(--azul) 70%, transparent); }
+.cob-tramo.positivo { background: var(--verde); }
+.cob-tramo.negativo { background: var(--azul); }
 /* Al repintarse por otro clic no se vuelve a encender toda la tira. */
-.conclusion.ya .cob-tramo { animation: none; }
+.cobertura.ya .cob-tramo { animation: none; }
 @keyframes encenderTramo { from { opacity: 0; transform: scaleX(.2); } to { opacity: 1; transform: none; } }
-.conclusion h2 { margin: 10px 0 4px; font-size: 1.375rem; letter-spacing: -.025em; }
+/* El titular es lo gordo de toda la herramienta: lo que sale de la
+   exploración. Tiene que ser lo más grande de la tarjeta. */
+.conclusion h2 { margin: 4px 0 8px; font-size: clamp(1.5rem, 3.4vw, 2rem); line-height: 1.18; letter-spacing: -.03em; }
 .conclusion .sumario { margin: 0; color: var(--tinta-media); }
 
-.conclusion-medidor { margin: 22px 0 4px; }
+.conclusion-medidor { margin: 26px 0 4px; }
+/* La barra de la conclusión, más gruesa y con cifras más grandes que la de
+   cada test: es la misma lectura, pero la que resume todo. */
+.conclusion-medidor .medidor { margin-top: 40px; }
+.conclusion-medidor .pista { height: 14px; }
+.conclusion-medidor .aguja { height: 26px; margin-top: -13px; }
+.conclusion-medidor .aguja-post { width: 20px; height: 20px; margin: -10px 0 0 -10px; }
+.conclusion-medidor .marca-pre { font-size: 1rem; bottom: calc(100% + 11px); }
+.conclusion-medidor .medidor-pies { margin-top: 12px; font-size: .8125rem; }
+.conclusion-medidor .destino { font-size: 2.25rem; line-height: 1; letter-spacing: -.03em; }
 
 .hitos { display: grid; gap: 10px; margin-top: 22px; }
 
@@ -2502,7 +2496,9 @@ button.sello.explica { font-size: .8125rem; }
         valorCarril: marcados ? marcados + " de " + total : total + " tests"
       },
       {
-        n: 3, estado: e3, titulo: "Tu conclusión",
+        // "La" y no "Tu": las fases 1 y 2 son del fisioterapeuta, pero esta la
+        // saca la herramienta con lo que él ha marcado.
+        n: 3, estado: e3, titulo: "La conclusión",
         sub: "Qué hace lo explorado con tu sospecha",
         valor: s.fase === "sin_marcar" ? "Marca un resultado" : s.fase === "sin_nivel" ? "Falta tu sospecha" : s.calculando && !post ? "Calculando…" : (post || "Nada decide"),
         valorCarril: s.fase === "sin_marcar" ? "—" : s.fase === "sin_nivel" ? "falta sospecha" : s.calculando && !post ? "calculando…" : (post || "nada decide"),
@@ -2534,7 +2530,7 @@ button.sello.explica { font-size: .8125rem; }
           '<h2 class="fase-titulo" id="fase-titulo-' + f.n + '">' + f.titulo + "</h2>" +
           '<span class="fase-sub">' + esc(f.sub) + "</span>" +
         "</div>" +
-        (f.n === 1 ? "" : '<span class="fase-valor" data-fase-valor>' + esc(f.valor) + "</span>") +
+        (f.n !== 2 ? "" : '<span class="fase-valor" data-fase-valor>' + esc(f.valor) + "</span>") +
         '<span class="fase-raya" aria-hidden="true"></span>' +
       "</header>" +
       '<div class="fase-cuerpo">' + cuerpo + "</div>" +
@@ -3976,15 +3972,12 @@ button.sello.explica { font-size: .8125rem; }
         esc(t.nombre) + (r ? " · " + r : " · sin hacer") + '"></span>';
     }).join("");
     var todos = hechos === total;
-    return '<div class="cobertura' + (todos ? " completa" : "") + '">' +
-      '<div class="cob-cifra"><b>' + hechos + '</b><span>/' + total + "</span></div>" +
-      '<div class="cob-texto">' +
-        '<span class="cob-rotulo">' + (todos ? "Exploración completa" : "Conclusión provisional") + "</span>" +
-        "<b>" + (todos
-          ? "Basada en los " + total + " tests de la batería"
-          : "Basada en " + hechos + " de " + total + " tests explorados") + "</b>" +
-        '<div class="cob-tira" aria-hidden="true">' + tramos + "</div>" +
-      "</div>" +
+    // Encima de la tarjeta y en pequeño: es contexto para leer la conclusión,
+    // no la conclusión. En grande y dentro le robaba el sitio al titular.
+    return '<div class="cobertura' + (todos ? " completa" : "") + (ui.vistos.conclusion ? " ya" : "") + '">' +
+      '<span class="cob-rotulo">' + (todos ? "Exploración completa" : "Conclusión provisional") + "</span>" +
+      '<span class="cob-cuenta"><b>' + hechos + "</b>/" + total + " tests explorados</span>" +
+      '<span class="cob-tira" aria-hidden="true">' + tramos + "</span>" +
     "</div>";
   }
 
@@ -4040,7 +4033,7 @@ button.sello.explica { font-size: .8125rem; }
       return;
     }
 
-    var partes = [cobertura()];
+    var partes = [];
 
     if (!s.decisivo) {
       partes.push("<h2>Nada de lo explorado decide</h2>");
@@ -4104,7 +4097,8 @@ button.sello.explica { font-size: .8125rem; }
       "sus razones de verosimilitud daría una certeza que la evidencia no respalda. Lo que ves es " +
       "el resultado que más mueve tu sospecha, interpretado contra la sospecha con la que llegaste.</p>");
 
-    caja.innerHTML = '<div class="conclusion' + entradaConclusion() + '"><div class="conclusion-dentro">' + partes.join("") + "</div></div>";
+    caja.innerHTML = cobertura() +
+      '<div class="conclusion' + entradaConclusion() + '"><div class="conclusion-dentro">' + partes.join("") + "</div></div>";
     animarCifras(caja);
     montarVeredicto();
     actualizarCarril();
