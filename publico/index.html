@@ -6,20 +6,28 @@
 <title>Copiloto de Exploración · FisioIA</title>
 <meta name="description" content="Escribe tu sospecha y ten la exploración resuelta: qué tests hacer, cómo se ejecuta cada uno, cuánto puedes fiarte y qué concluir. Con la evidencia publicada delante.">
 <meta name="theme-color" content="#070a11">
+<meta name="color-scheme" content="dark">
 
 <meta property="og:title" content="Nadie se sabe 300 tests de memoria. Ahora no hace falta.">
 <meta property="og:description" content="Tu copiloto a pie de camilla: qué tests hacer, cómo se ejecutan, cuánto puedes fiarte de cada resultado y qué concluir. Gratis para fisioterapeutas.">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="es_ES">
 
-<!-- Una sola fuente de fuera, y solo en cursiva: la del arranque del título
-     del formulario. Si no carga, cae a una serifa del sistema y sigue
-     funcionando. -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@1&display=swap">
+<!-- La cursiva de «La herramienta que» se sirve desde aquí, no desde Google:
+     así nadie más recibe la IP de quien visita la página. Es Instrument Serif,
+     con licencia SIL Open Font License (fuentes/OFL.txt). Solo el juego
+     latino, que cubre el castellano. -->
+<link rel="preload" href="/fuentes/instrument-serif-cursiva.woff2" as="font" type="font/woff2" crossorigin>
 
 <style>
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fuentes/instrument-serif-cursiva.woff2") format("woff2");
+}
+
 /* ============================================================================
    Mismo sistema visual que la herramienta, a propósito: quien deja su correo
    aquí y entra después no debe notar que cambia de sitio.
@@ -58,42 +66,10 @@
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --fondo: #f2f6fc;
-    --superficie: #ffffff;
-    --superficie-alta: #ffffff;
-    --superficie-viva: #f2f6fd;
-    --borde: #dde5f0;
-    --borde-vivo: #c4d2e6;
-
-    --tinta: #0c1626;
-    --tinta-media: #44566f;
-    --tinta-tenue: #6b7c94;
-
-    --azul: #1668d6;
-    --azul-hondo: #0d4ea8;
-    --verde: #0f9a74;
-    --ambar: #b57314;
-    --rojo: #c8382b;
-
-    --brillo-azul: rgba(22, 104, 214, .08);
-    --brillo-verde: rgba(15, 154, 116, .09);
-    --brillo-ambar: rgba(181, 115, 20, .09);
-    --brillo-rojo: rgba(200, 56, 43, .08);
-
-    --sombra: 0 1px 2px rgba(16, 34, 61, .05), 0 16px 36px -26px rgba(16, 34, 61, .4);
-
-    --captura-base: #ffffff;
-  }
-
-  /* El verde de modo claro es oscuro, así que el texto del botón se invierte.
-     En oscuro el verde es luminoso y el texto va en negro. */
-  :root button.enviar { color: #fff; }
-  .hero::after { opacity: .05; mix-blend-mode: multiply; }
-  .trama::after { opacity: 0; }
-  :root .girando { border-color: rgba(255,255,255,.35); border-top-color: #fff; }
-}
+/* Siempre oscura, como la herramienta. Hubo un modo claro que seguía al del
+   sistema, y en un móvil en modo claro la landing y la herramienta parecían
+   dos productos distintos. */
+:root { color-scheme: dark; }
 
 * { box-sizing: border-box; }
 
@@ -107,12 +83,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* El mismo lienzo que la herramienta: azul pizarra algo más claro que las
+   tarjetas, para que oscuro sobre oscuro no se confundan. */
 body::before {
   content: "";
   position: fixed; inset: 0; pointer-events: none; z-index: 0;
   background:
-    radial-gradient(70% 45% at 20% -5%, var(--brillo-verde) 0%, transparent 68%),
-    radial-gradient(60% 40% at 95% 5%, var(--brillo-azul) 0%, transparent 70%);
+    radial-gradient(70% 45% at 20% -5%, rgba(47, 214, 166, .15) 0%, transparent 68%),
+    radial-gradient(60% 40% at 95% 5%, rgba(77, 159, 255, .16) 0%, transparent 70%),
+    linear-gradient(180deg, #1c2536 0%, #161e2d 50%, #121927 100%);
 }
 
 
@@ -1735,8 +1714,6 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
   // medio; se vuelve a medir cuando ya está en su sitio.
   setTimeout(medir, 2000);
 
-  var tema = window.matchMedia("(prefers-color-scheme: light)");
-  if (tema.addEventListener) tema.addEventListener("change", function () { leerColores(); if (quieto) pintar(ENTRAR + 800, 0); });
 
   hero.addEventListener("pointermove", function (ev) {
     if (ev.pointerType !== "mouse") return;
