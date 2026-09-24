@@ -3,6 +3,7 @@
 <title>Copiloto de Exploración · FisioIA</title>
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#070a11">
+<meta name="color-scheme" content="dark">
 
 <script>
 // Guardia de acceso. Va aquí arriba, antes de cualquier contenido, para que
@@ -68,39 +69,11 @@
   --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 }
 
-:root[data-tema="claro"],
-html:not([data-tema="oscuro"]) body.claro {
-  --fondo: #f4f7fc;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-tema="oscuro"]) {
-    --fondo: #f2f6fc;
-    --superficie: #ffffff;
-    --superficie-alta: #ffffff;
-    --superficie-viva: #f2f6fd;
-    --borde: #dde5f0;
-    --borde-vivo: #c4d2e6;
-
-    --tinta: #0c1626;
-    --tinta-media: #44566f;
-    --tinta-tenue: #6b7c94;
-
-    --azul: #1668d6;
-    --azul-hondo: #0d4ea8;
-    --verde: #0f9a74;
-    --ambar: #b57314;
-    --rojo: #c8382b;
-    --violeta: #7048d6;
-
-    --brillo-azul: rgba(22, 104, 214, .08);
-    --brillo-verde: rgba(15, 154, 116, .09);
-    --brillo-ambar: rgba(181, 115, 20, .09);
-    --brillo-rojo: rgba(200, 56, 43, .08);
-
-    --sombra: 0 1px 2px rgba(16, 34, 61, .05), 0 16px 36px -26px rgba(16, 34, 61, .4);
-  }
-}
+/* Siempre oscuro. Hubo un tema claro que seguía el del sistema, y en un móvil
+   en modo claro la herramienta parecía otro producto: todo el diseño se ha
+   pulido en oscuro, y el color significa (verde confirma, azul descarta,
+   ámbar avisa), cosa que sobre blanco se apaga. */
+:root { color-scheme: dark; }
 
 * { box-sizing: border-box; }
 
