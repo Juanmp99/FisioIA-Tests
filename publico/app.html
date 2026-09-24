@@ -88,8 +88,11 @@ body {
   padding-bottom: 40px;
 }
 
-/* Profundidad del fondo: dos focos de luz muy tenues que evitan que la pantalla
-   sea un plano liso. Fijos, para que no compitan con el contenido al desplazar. */
+/* El lienzo. Un azul pizarra algo más claro que las tarjetas, que se apaga
+   hacia abajo, con dos focos de luz tenues. Antes era casi negro, muy cerca
+   del color de las tarjetas, y oscuro sobre oscuro las tarjetas no se
+   despegaban del fondo. Las tarjetas no cambian: es el fondo el que se aleja
+   de ellas. Fijo, para que no compita con el contenido al desplazar. */
 body::before {
   content: "";
   position: fixed;
@@ -97,8 +100,9 @@ body::before {
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(70% 50% at 15% -5%, var(--brillo-azul) 0%, transparent 70%),
-    radial-gradient(60% 45% at 100% 8%, rgba(167, 139, 250, .09) 0%, transparent 70%);
+    radial-gradient(70% 50% at 15% -5%, rgba(77, 159, 255, .16) 0%, transparent 70%),
+    radial-gradient(60% 45% at 100% 8%, rgba(167, 139, 250, .12) 0%, transparent 70%),
+    linear-gradient(180deg, #1c2536 0%, #161e2d 50%, #121927 100%);
 }
 
 .marco { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 0 20px 60px; transition: max-width .6s var(--curva); }
@@ -929,7 +933,9 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
 /* ============ tarjeta de test ============ */
 
-.tests { display: grid; gap: 14px; }
+/* Aire entre un test y el siguiente: cada tarjeta es una decisión aparte, y
+   pegadas se leían como un solo bloque. */
+.tests { display: grid; gap: 36px; }
 
 .test {
   background: linear-gradient(180deg, var(--superficie-alta) 0%, var(--superficie) 100%);
@@ -1851,6 +1857,7 @@ button.sello.explica { font-size: .8125rem; }
   .paso { grid-template-columns: 1fr; gap: 2px; }
   .niveles { grid-template-columns: 1fr; }
   .parte-tu-cab { flex-wrap: wrap; gap: 10px; }
+  .tests { gap: 28px; }
   .conclusion-dentro { padding: 22px 18px; }
 
   /* ---- Pantalla de trabajo en un móvil ----
