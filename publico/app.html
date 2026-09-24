@@ -945,7 +945,6 @@ a { color: var(--azul); text-underline-offset: 3px; }
   animation: entrarCine .65s var(--curva) both;
   transition: border-color .25s, box-shadow .25s;
 }
-.test.marcado { border-color: var(--borde-vivo); }
 
 /* El tono de cada tarjeta. No es decoración: sale de la calidad de la evidencia
    de ese test, así que un vistazo al listado ya dice dónde hay literatura
@@ -958,6 +957,13 @@ a { color: var(--azul); text-underline-offset: 3px; }
     radial-gradient(120% 70% at 0% 0%, color-mix(in srgb, var(--tono) 9%, transparent) 0%, transparent 62%),
     linear-gradient(180deg, var(--superficie-alta) 0%, var(--superficie) 100%);
 }
+/* El borde entero lleva el tono, para que se vea de un vistazo dónde empieza
+   y dónde acaba cada test. Con el marcado se aviva un poco más. */
+.test {
+  border: 1.5px solid color-mix(in srgb, var(--tono) 62%, transparent);
+  box-shadow: var(--sombra), 0 0 30px -14px color-mix(in srgb, var(--tono) 55%, transparent);
+}
+.test.marcado { border-color: color-mix(in srgb, var(--tono) 88%, transparent); }
 .test.tono-verde { --tono: var(--verde); }
 .test.tono-ambar { --tono: var(--ambar); }
 .test.tono-rojo { --tono: var(--tinta-tenue); }
