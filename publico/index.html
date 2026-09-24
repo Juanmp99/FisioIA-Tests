@@ -263,8 +263,6 @@ a { color: var(--azul); text-underline-offset: 3px; }
    donde tiene que ir la vista: un fondo propio, más claro y teñido de verde,
    que se despega del fondo de la página en lugar de fundirse con él; un halo
    detrás y un filo de luz que recorre el borde sin parar. */
-@property --giro { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
-
 .hero .captura {
   position: relative; width: 100%; max-width: 1020px;
   text-align: left; padding: 32px 32px 30px; border-radius: 26px;
@@ -570,39 +568,60 @@ a { color: var(--azul); text-underline-offset: 3px; }
 }
 /* Un aro de luz que recorre el botón sin parar, y un halo detrás que
    respira: es lo único de la página que se mueve siempre, para que la vista
-   vuelva ahí. */
+   vuelva ahí.
+
+   Está hecho para que el navegador solo tenga que girar y fundir piezas ya
+   pintadas. El degradado es un cuadrado grande que gira (.aro-luz), recortado
+   por el borde del botón; el halo, un desenfoque fijo al que solo le cambia
+   la opacidad. Animar el ángulo del degradado obligaba a repintarlo en cada
+   fotograma, y en el móvil se notaba. */
 .aro {
   position: relative; display: block; margin-top: 12px; padding: 3px;
   border-radius: 16px; isolation: isolate;
 }
-.aro::before, .aro::after {
-  content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: -1;
-  background: conic-gradient(from var(--giro),
+.aro-luz {
+  position: absolute; inset: 0; z-index: -1; border-radius: inherit; overflow: hidden;
+}
+.aro-luz::before {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 160%; aspect-ratio: 1;
+  background: conic-gradient(
     var(--verde) 0deg,
     color-mix(in srgb, var(--verde) 40%, white) 50deg,
     var(--azul) 110deg,
     transparent 170deg, transparent 250deg,
     var(--verde) 360deg);
-  animation: girarFilo 3.4s linear infinite;
+  transform: translate(-50%, -50%);
+  animation: giroLuz 3.4s linear infinite;
+  will-change: transform;
 }
 .aro::after {
-  inset: -8px; filter: blur(18px); opacity: .7;
-  animation: girarFilo 3.4s linear infinite, respirarAro 2.6s ease-in-out infinite;
+  content: ""; position: absolute; inset: -6px; z-index: -2; border-radius: inherit;
+  background: linear-gradient(90deg, var(--verde), var(--azul));
+  filter: blur(18px); opacity: .5;
+  animation: respirarAro 2.6s ease-in-out infinite;
+  will-change: opacity;
 }
 .aro button.enviar { display: block; margin-top: 0; border-radius: 13px; }
 
 .hero button.enviar:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 34px -12px var(--verde); }
 
-.hero .captura::before {
-  content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px;
-  pointer-events: none;
-  background: conic-gradient(from var(--giro),
+/* El filo que recorre el borde del recuadro: igual que el aro, un cuadrado
+   con el degradado que gira, visto solo a través de un marco de 1 px. */
+.filo {
+  position: absolute; inset: -1px; border-radius: inherit; padding: 1px;
+  pointer-events: none; overflow: hidden;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.filo::before {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 150%; aspect-ratio: 1;
+  background: conic-gradient(
     transparent 0deg, transparent 230deg,
     color-mix(in srgb, var(--verde) 80%, transparent) 300deg,
     var(--azul) 335deg, transparent 360deg);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor; mask-composite: exclude;
-  animation: girarFilo 7s linear infinite;
+  transform: translate(-50%, -50%);
+  animation: giroLuz 7s linear infinite;
+  will-change: transform;
 }
 .hero .captura::after {
   content: ""; position: absolute; inset: 18% 8% -14%; z-index: -1; pointer-events: none;
@@ -1127,7 +1146,7 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
 }
 
 @keyframes girar { to { transform: rotate(360deg); } }
-@keyframes girarFilo { to { --giro: 360deg; } }
+@keyframes giroLuz { to { transform: translate(-50%, -50%) rotate(360deg); } }
 @keyframes destello { 0% { background-position: 100% 0; } 40%, 100% { background-position: 0% 0; } }
 @keyframes entrarAntetitulo {
   from { opacity: 0; filter: blur(8px); letter-spacing: .18em; }
@@ -1188,6 +1207,26 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
   .app { padding: 12px; }
 }
 
+/* ============ móvil: el mismo diseño, más barato ============ */
+/* En el móvil todo iba a tirones, la demo del monitor también. No por el
+   número de animaciones sino por las que obligan a repintar en cada fotograma:
+   el grano que se mezcla con el fondo, los cristales esmerilados que
+   desenfocan lo que tienen detrás y las luces del fondo en movimiento. Aquí se
+   quitan o se dejan quietas; la constelación, ya quieta, la resuelve el guion. */
+@media (max-width: 860px), (pointer: coarse) {
+  .hero::before { animation: none; }
+  .hero::after { display: none; }
+  .ver-como, .veredicto, .barra-fija { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ver-como { background: var(--superficie); }
+  .veredicto { background: var(--superficie-alta); }
+  .barra-fija { background: color-mix(in srgb, var(--fondo) 96%, var(--superficie)); }
+  /* En un recuadro alto y estrecho el cuadrado que gira tiene que ser mayor
+     para llegar a las esquinas. */
+  .filo::before { width: 300%; }
+  /* Las entradas por escena y el cambio de caso de la demo, sin desenfoque. */
+  [data-revelar], .app.fuera { filter: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   [data-revelar] { opacity: 1; transform: none; filter: none; }
@@ -1212,6 +1251,7 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
     <span class="insignia insignia-hero"><i></i>Gratis para fisioterapeutas</span>
 
     <div class="captura" id="captura">
+      <span class="filo" aria-hidden="true"></span>
       <span class="foco" aria-hidden="true"></span>
       <span class="trama" aria-hidden="true"></span>
       <div id="oferta" class="oferta">
@@ -1230,7 +1270,7 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
             <input id="correo" type="email" name="email" autocomplete="email" required
                    placeholder="Tu correo electrónico" aria-label="Tu correo electrónico">
           </div>
-          <span class="aro"><button class="enviar" id="enviar" type="submit">Quiero mi acceso gratuito &nbsp;→</button></span>
+          <span class="aro"><span class="aro-luz" aria-hidden="true"></span><button class="enviar" id="enviar" type="submit">Quiero mi acceso gratuito &nbsp;→</button></span>
         </form>
         <p class="letra-pequena">Te enviamos tu acceso directo por correo. Al solicitarlo, aceptas unirte a nuestra lista de correo y la <a href="/privacidad" target="_blank" rel="noopener">política de privacidad</a>.</p>
         </div>
@@ -1444,7 +1484,7 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m2 7 10 6 10-6"></path></svg>
             <input type="email" name="email" autocomplete="email" required placeholder="Tu correo electrónico" aria-label="Tu correo electrónico">
           </div>
-          <span class="aro"><button class="enviar" type="submit">Quiero mi acceso gratuito &nbsp;→</button></span>
+          <span class="aro"><span class="aro-luz" aria-hidden="true"></span><button class="enviar" type="submit">Quiero mi acceso gratuito &nbsp;→</button></span>
         </div>
       </form>
       <p class="letra-pequena">Al solicitarlo, aceptas unirte a nuestra lista de correo y la <a href="/privacidad" target="_blank" rel="noopener">política de privacidad</a>.</p>
@@ -1470,7 +1510,7 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
     <div class="avisos"></div>
     <div class="barra-fila">
       <input type="email" name="email" autocomplete="email" required placeholder="Tu correo electrónico" aria-label="Tu correo electrónico" tabindex="-1">
-      <span class="aro"><button class="enviar" type="submit" aria-label="Quiero mi acceso gratuito" tabindex="-1"><span class="largo">Quiero mi acceso gratuito &nbsp;→</span><span class="corto">Acceso gratis →</span></button></span>
+      <span class="aro"><span class="aro-luz" aria-hidden="true"></span><button class="enviar" type="submit" aria-label="Quiero mi acceso gratuito" tabindex="-1"><span class="largo">Quiero mi acceso gratuito &nbsp;→</span><span class="corto">Acceso gratis →</span></button></span>
     </div>
     <p class="barra-legal">Al enviarlo, aceptas unirte a nuestra lista de correo y la <a href="/privacidad" target="_blank" rel="noopener">política de privacidad</a>.</p>
   </form>
@@ -1490,6 +1530,10 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
   var hero = lienzo.parentNode;
   var zonasTexto = [document.getElementById("marca"), document.getElementById("hero-centro")];
   var quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // En móvil, una versión sencilla: puntos y red dibujados una sola vez, sin
+  // movimiento ni escenas. Redibujar el lienzo en cada fotograma obligaba a
+  // repintar todo lo que tiene encima y la demo del monitor iba a tirones.
+  var sencilla = window.matchMedia("(max-width: 860px), (pointer: coarse)").matches;
 
   var GRUPOS = [
     { sospecha: "Rotura del LCA", tests: ["Lachman", "Pivot shift", "Cajón anterior", "Lever sign"] },
@@ -1542,7 +1586,9 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
   }
 
   function sembrar() {
-    var n = Math.round(Math.min(300, Math.max(90, w * h / 3400)));
+    var n = sencilla
+      ? Math.round(Math.min(80, Math.max(40, w * h / 6000)))
+      : Math.round(Math.min(300, Math.max(90, w * h / 3400)));
     puntos = [];
     for (var i = 0; i < n; i++) {
       puntos.push({
@@ -1633,6 +1679,7 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
       }
     }
 
+    if (sencilla && !quieto) return;
     if (!escena || t - escena.t0 > ENTRAR + QUEDARSE + SALIR + PAUSA) nuevaEscena(t);
     var e = t - escena.t0, ids = escena.ids;
     if (!ids.length) return;
@@ -1689,7 +1736,7 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
     if (visible && !document.hidden) pedido = requestAnimationFrame(bucle);
   }
   function arrancar() {
-    if (quieto || pedido || !visible || document.hidden) return;
+    if (quieto || sencilla || pedido || !visible || document.hidden) return;
     anterior = 0; pedido = requestAnimationFrame(bucle);
   }
 
@@ -1697,22 +1744,28 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
   medir();
   sembrar();
 
-  if (quieto) {
-    // Sin movimiento: una sola escena ya formada, quieta.
-    nuevaEscena(0);
-    pintar(ENTRAR + 800, 0);
-  } else {
-    arrancar();
+  // Sin movimiento: o una escena ya formada, quieta, o (en móvil) solo el campo.
+  function pintarQuieto() {
+    if (quieto) { nuevaEscena(0); pintar(ENTRAR + 800, 0); }
+    else if (sencilla) pintar(0, 0);
   }
+  if (quieto || sencilla) pintarQuieto();
+  else arrancar();
 
-  var espera;
+  // En el móvil el alto cambia al aparecer y esconderse la barra del navegador
+  // mientras se hace scroll; volver a sembrar ahí haría saltar los puntos.
+  var espera, anchoSembrado = w;
   window.addEventListener("resize", function () {
     clearTimeout(espera);
-    espera = setTimeout(function () { medir(); sembrar(); if (quieto) { nuevaEscena(0); pintar(ENTRAR + 800, 0); } }, 150);
+    espera = setTimeout(function () {
+      medir();
+      if (w !== anchoSembrado) { sembrar(); anchoSembrado = w; }
+      pintarQuieto();
+    }, 150);
   });
   // Las animaciones de entrada mueven el texto durante el primer segundo y
   // medio; se vuelve a medir cuando ya está en su sitio.
-  setTimeout(medir, 2000);
+  setTimeout(function () { medir(); pintarQuieto(); }, 2000);
 
 
   hero.addEventListener("pointermove", function (ev) {
