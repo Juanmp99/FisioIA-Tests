@@ -8,62 +8,7 @@
 <meta name="theme-color" content="#070a11">
 <meta name="robots" content="noindex">
 
-<style>
-/* Mismos colores que la landing y la herramienta; una página para leer, sin
-   más adorno que el necesario para que se lea bien. */
-:root {
-  --fondo: #070a11;
-  --superficie: #0d1320;
-  --borde: #1c2637;
-  --tinta: #e9eff8;
-  --tinta-media: #a3b2c9;
-  --tinta-tenue: #66758d;
-  --verde: #2fd6a6;
-  --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-}
-@media (prefers-color-scheme: light) {
-  :root {
-    --fondo: #f2f6fc;
-    --superficie: #ffffff;
-    --borde: #dde5f0;
-    --tinta: #0c1626;
-    --tinta-media: #44566f;
-    --tinta-tenue: #6b7c94;
-    --verde: #0f9a74;
-  }
-}
-* { box-sizing: border-box; }
-body {
-  margin: 0; background: var(--fondo); color: var(--tinta-media);
-  font-family: var(--ui); font-size: 16px; line-height: 1.65;
-  -webkit-font-smoothing: antialiased;
-}
-.pagina { max-width: 760px; margin: 0 auto; padding: 40px 20px 70px; }
-.volver { font-size: .875rem; color: var(--tinta-tenue); text-decoration: none; }
-.volver:hover { color: var(--verde); }
-.marca { margin: 26px 0 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -.03em; color: var(--tinta); }
-.marca span { color: var(--verde); }
-h1 { margin: 10px 0 6px; font-size: clamp(1.9rem, 5vw, 2.6rem); line-height: 1.1; letter-spacing: -.04em; color: var(--tinta); }
-.fecha { margin: 0 0 30px; font-size: .875rem; color: var(--tinta-tenue); }
-.resumen {
-  margin: 0 0 34px; padding: 18px 20px; border-radius: 14px;
-  background: var(--superficie); border: 1px solid var(--borde); border-left: 3px solid var(--verde);
-}
-.resumen p { margin: 0 0 8px; }
-.resumen p:last-child { margin: 0; }
-h2 { margin: 38px 0 10px; font-size: 1.25rem; letter-spacing: -.02em; color: var(--tinta); }
-h3 { margin: 22px 0 6px; font-size: 1rem; color: var(--tinta); }
-p, li { color: var(--tinta-media); }
-b, strong { color: var(--tinta); }
-ul { padding-left: 20px; }
-li { margin-bottom: 6px; }
-a { color: var(--verde); text-underline-offset: 3px; }
-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .9375rem; }
-th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--borde); }
-th { color: var(--tinta); font-weight: 650; }
-.tabla { overflow-x: auto; }
-footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid var(--borde); font-size: .8125rem; color: var(--tinta-tenue); }
-</style>
+<link rel="stylesheet" href="/legal.css">
 </head>
 <body>
 <main class="pagina">
@@ -112,7 +57,7 @@ footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid var(--borde)
   </ul>
   <p>
     Se guardan en el almacenamiento local del navegador y son imprescindibles para que la herramienta funcione. No usamos
-    cookies de analítica ni de publicidad.
+    cookies de analítica ni de publicidad. Lo detallamos en la <a href="/cookies">política de cookies</a>.
   </p>
 
   <h2>3. Para qué los usamos y con qué base legal</h2>
@@ -208,6 +153,7 @@ footer { margin-top: 50px; padding-top: 20px; border-top: 1px solid var(--borde)
 
   <footer>
     © <span id="anio">2026</span> FisioIA, marca operada por Sanavia Digital OÜ (Reg. 17576365, Estonia).
+    <nav class="legales"><a href="/privacidad">Privacidad</a><a href="/terminos">Términos de uso</a><a href="/cookies">Cookies</a></nav>
   </footer>
 </main>
 <script>document.getElementById("anio").textContent = new Date().getFullYear();</script>

@@ -19,7 +19,7 @@
 
 # Las rutas de cada función se declaran en la propia función con
 # `export const config = { path: ... }`. Aquí solo queda la página de la
-# aplicación, para que /app funcione sin la extensión .html.
+# aplicación y las legales, para que funcionen sin la extensión .html.
 [[redirects]]
   from = "/app"
   to = "/app.html"
@@ -28,6 +28,16 @@
 [[redirects]]
   from = "/privacidad"
   to = "/privacidad.html"
+  status = 200
+
+[[redirects]]
+  from = "/terminos"
+  to = "/terminos.html"
+  status = 200
+
+[[redirects]]
+  from = "/cookies"
+  to = "/cookies.html"
   status = 200
 
 [[headers]]

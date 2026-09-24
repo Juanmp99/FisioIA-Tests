@@ -52,7 +52,7 @@ const TIPOS = {
 /** Página estática, resolviendo /app igual que el redirect de netlify.toml. */
 async function estatico(ruta, res) {
   let relativa = ruta === "/" ? "index.html" : ruta.replace(/^\/+/, "");
-  if (relativa === "app" || relativa === "privacidad") relativa += ".html";
+  if (["app", "privacidad", "terminos", "cookies"].includes(relativa)) relativa += ".html";
 
   // Sin esto, una ruta como /../.env saldría de publico/.
   const destino = path.join(PUBLICO, relativa);
