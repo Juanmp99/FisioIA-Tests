@@ -1464,6 +1464,9 @@ button.sello.explica { font-size: .8125rem; }
   display: flex; gap: 10px; align-items: flex-start;
 }
 .fuente a { color: var(--tinta-media); }
+.fuente-matiz {
+  display: block; margin-top: 6px; font-size: .75rem; color: var(--ambar);
+}
 .fuente a:hover { color: var(--azul); }
 
 /* Los otros catorce artículos. Plegados por defecto: el que importa es el que
@@ -3357,6 +3360,12 @@ button.sello.explica { font-size: .8125rem; }
       '<a href="' + esc(ev.cita.url) + '" target="_blank" rel="noopener">' + esc(ev.cita.titulo) + "</a> · " +
       esc(ev.cita.revista) + " " + esc(ev.cita.anio) +
       (ev.trazable === false ? " · <b>cifra no localizada en la frase citada, compruébala</b>" : "") +
+      // Una revisión citada, pero la cifra es la de uno de sus estudios, sacada
+      // de una tabla. Sin decirlo, el título hacía pensar que era la agrupada.
+      (ev.valoracion && ev.valoracion.tipoEstudio === "estudio_primario" &&
+        /systematic review|meta-?analy|revisi[oó]n sistem|metaan[aá]lisis/i.test(ev.cita.titulo || "")
+        ? '<span class="fuente-matiz">La cifra es la de uno de los estudios que reúne esta revisión, no la agrupada.</span>'
+        : "") +
       otrasCifras(ev) +
       resto +
     "</span></div>";

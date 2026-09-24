@@ -139,6 +139,8 @@ Reglas, sin excepción:
 
 3 bis. Con la entidad el criterio es otro. Si las cifras son del test correcto pero medidas sobre una entidad relacionada y no sobre la que se pregunta —por ejemplo precisión del Hawkins-Kennedy para pinzamiento subacromial cuando se pregunta por rotura del manguito—, sí se aprovechan, pero marcando mismaEntidad en falso y anotando en entidadDeLasCifras la entidad exacta sobre la que se midieron. Es información útil siempre que quede claro a qué se refiere. Si la entidad medida no tiene ninguna relación con la preguntada, entonces no vale.
 
+3 ter. Lo mismo vale cuando las cifras se midieron sobre un subgrupo o una combinación concreta de lesiones y no sobre la entidad preguntada en general: solo roturas del subescapular, o roturas combinadas de infraespinoso y supraespinoso, cuando se pregunta por rotura del manguito rotador. Marca mismaEntidad en falso y anota en entidadDeLasCifras el subgrupo exacto. Mira siempre las abreviaturas de las tablas y la definición de caso del estudio antes de decidir. No cuenta como subgrupo la forma habitual de la entidad o su definición estándar en la literatura: roturas de espesor completo, cuando se pregunta por rotura del manguito, son la misma entidad.
+
 4. Expresa sensibilidad y especificidad como proporciones entre 0 y 1. Si el texto las da en porcentaje, divide entre cien y nada más.
 
 5. Si varios textos dan cifras para el mismo test, elige uno siguiendo este orden, y no otro:

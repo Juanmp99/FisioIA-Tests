@@ -19,7 +19,7 @@ import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "../dominio
 const ALMACEN = "explicacion";
 
 /** Se cambia al tocar el prompt, para no servir explicaciones escritas con otro. */
-const VERSION = 4;
+const VERSION = 5;
 
 /**
  * En qué cifras se apoya una explicación.
@@ -49,6 +49,13 @@ Reglas, sin excepción:
 4. Cada campo, una o dos frases y como mucho 45 palabras. Español de España, tono sobrio y práctico. Sin tecnicismos: si usas uno, explícalo en la misma frase.
 
 4 bis. Quien te lee es el fisioterapeuta, y el enfermo es un tercero. Tutéale a él y llama al enfermo "tu paciente": "aumenta la probabilidad de que tu paciente lo tenga", nunca "de que tengas" ni "tu lesión". Son correctos "tu sospecha", "tu paciente" y "el test que has hecho".
+
+4 quater. Las dos cifras significan esto, y solo esto:
+   - sensibilidad: de cada 100 personas que SÍ tienen la patología, cuántas dan positivo en el test;
+   - especificidad: de cada 100 personas que NO tienen la patología, cuántas dan negativo.
+   La especificidad nunca "confirma", "detecta" ni "acierta el diagnóstico": habla solo de quienes no tienen la patología. Y la sensibilidad habla solo de quienes sí la tienen.
+
+4 quinquies. Revisa la ortografía antes de responder: "conviene", no "convine".
 
 4 ter. Escribe las frases completas. Si dices "de cada 100 personas", ese 100 tiene que estar escrito; no empieces una frase contando sobre un total que no nombras.
 
