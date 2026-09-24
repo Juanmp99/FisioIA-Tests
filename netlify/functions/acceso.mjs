@@ -13,6 +13,31 @@ import { json, error, cuerpoJson } from "../../lib/http.js";
 /** Altas por dirección IP y día. Frena el registro automatizado masivo. */
 const ALTAS_POR_IP = Number(process.env.ALTAS_POR_IP) || 8;
 
+/**
+ * Desde qué formulario de la landing llega el alta. Lista cerrada: lo que no
+ * esté aquí cuenta como "otro", para que nadie pueda llenar el almacén de
+ * claves inventadas.
+ */
+const ORIGENES = new Set(["arriba", "final", "barra"]);
+
+/**
+ * Cuenta el alta por formulario y día, para saber cuál convierte.
+ *
+ * Va aparte de Brevo a propósito: un atributo que no exista en la cuenta hace
+ * que Brevo rechace la petición entera, y el contacto se guardaría sin su
+ * token. Y es lo último que se hace y nunca lanza: un recuento perdido no
+ * puede costar un alta.
+ */
+async function contarOrigen(origen, dia) {
+  try {
+    const clave = `origen:${dia}:${origen}`;
+    const previo = (await leer("acceso", clave)) || { altas: 0 };
+    await escribir("acceso", clave, { altas: previo.altas + 1 });
+  } catch (e) {
+    console.warn("[acceso] No se pudo contar el origen:", e.message);
+  }
+}
+
 export default async (req, context) => {
   if (req.method !== "POST") return error("Ruta no encontrada.", 404);
 
@@ -45,6 +70,8 @@ export default async (req, context) => {
 
     const base = process.env.URL_PUBLICA || new URL(req.url).origin;
     await enviarAcceso({ correo, enlace: `${base}/app?acceso=${encodeURIComponent(token)}` });
+
+    await contarOrigen(ORIGENES.has(cuerpo.origen) ? cuerpo.origen : "otro", dia);
 
     return json({ ok: true, correo });
   } catch (e) {
