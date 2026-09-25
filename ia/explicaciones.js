@@ -15,11 +15,12 @@
 import { leer, escribir } from "../lib/almacen.js";
 import { pedirJson } from "./cliente.js";
 import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "../dominio/redaccion.js";
+import { interpretar, acotarParcial, PRE_TEST, UMBRAL_CONFIRMA, UMBRAL_DESCARTA } from "../dominio/probabilidad.js";
 
 const ALMACEN = "explicacion";
 
 /** Se cambia al tocar el prompt, para no servir explicaciones escritas con otro. */
-const VERSION = 8;
+const VERSION = 9;
 
 /**
  * En qué cifras se apoya una explicación.
@@ -61,7 +62,7 @@ Reglas, sin excepción:
 
 5. Devuelve null SOLO cuando el dato no exista: indirecta si las cifras se midieron sobre la misma patología, parcial si constan las dos cifras. Si una cifra consta en los datos, su campo no puede quedarse vacío.
 
-6. Sobre los resultados positivo y negativo, apóyate en la clase de señal que te doy: señal muy clara, señal clara, señal débil o no sirve como señal. Usa esas mismas palabras, que son las que el fisioterapeuta ve en pantalla, y no hables de "poder diagnóstico". Es una propiedad del test, no del cambio en el paciente: cuánto se mueva la sospecha depende también de la sospecha de partida, que no conoces, y con una sospecha intermedia incluso una señal débil la mueve bastantes puntos. Por eso nunca califiques el cambio ("aumenta de forma pequeña", "un cambio pequeño"): di qué clase de señal es y hacia dónde empuja ("un positivo es una señal débil a favor de la rotura: empuja la sospecha hacia arriba, pero por sí solo no la confirma"). No hables de confirmar ni de descartar en ningún sentido: ni "confirma" ni "no la confirma", ni "descarta" ni "no la descarta". Eso depende de la sospecha de partida, que tú no conoces y la pantalla sí: el fisioterapeuta lo lee en el título, y si tú dices lo contrario os contradecís en la misma tarjeta.
+6. No hables de qué aporta un resultado positivo o negativo: eso se explica aparte, cuando se conoce la sospecha de partida.
 
 7. En eleccion, como mucho 50 palabras, le cuentas al fisioterapeuta qué hacer con los otros estudios que también miden el test. Ya ha leído, justo encima, qué cifras usa el cálculo y la regla por la que se eligió el citado; no la repitas. Tu trabajo es decirle lo que se ve al compararlos en este caso concreto: si las cifras de los demás se parecen a las del citado o se alejan, en cuál de las dos (sensibilidad o especificidad), y qué implica eso para fiarse del resultado del test en su paciente. Si un estudio publica solo una de las dos cifras, dilo. Nunca inventes un motivo de elección que no esté en los datos, y no sugieras mezclar ni promediar cifras de estudios distintos.
 
@@ -78,10 +79,8 @@ const ESQUEMA = {
     indirecta: campo("Qué implica que las cifras se midieran en otra patología. Null si no es indirecta."),
     eleccion: campo("Qué se ve al comparar el estudio citado con los demás que miden el test, y qué implica para fiarse. Null si no hay otros."),
     parcial: campo("Qué implica que solo conste una de las dos cifras. Null si constan las dos."),
-    positivo: campo("Qué aporta que el test salga positivo, según la clase de señal que es."),
-    negativo: campo("Qué aporta que el test salga negativo, según la clase de señal que es."),
   },
-  required: ["sensibilidad", "especificidad", "calidad", "indirecta", "parcial", "positivo", "negativo"],
+  required: ["sensibilidad", "especificidad", "calidad", "indirecta", "parcial"],
   additionalProperties: false,
 };
 
@@ -181,14 +180,6 @@ function filtrar(bruto, ev, test) {
       motivos.push(`en ${c} te dirigiste al enfermo; quien lee es el fisioterapeuta, y al enfermo se le llama "tu paciente"`);
       continue;
     }
-    // Lo mismo con confirmar y descartar: la tarjeta ya lo dice en su título,
-    // sabiendo la sospecha de partida, y el texto no puede llevarle la contraria.
-    if ((c === "positivo" || c === "negativo") && /(confirm|descart)/i.test(texto)) {
-      console.warn(`[explicacion] ${test} · ${c}: descartado, habla de confirmar o descartar`);
-      limpio[c] = null;
-      motivos.push(`en ${c} hablaste de confirmar o descartar, que no puedes saber`);
-      continue;
-    }
     limpio[c] = texto;
   }
   return { limpio, motivos };
@@ -235,5 +226,190 @@ export async function explicacionDe(clave, ev, { test, entidad, senal }) {
   }
   if (!mejor) return null;
   await escribir(ALMACEN, clave, { version: VERSION, huella, test, entidad, textos: mejor, fecha: new Date().toISOString() });
+  return mejor;
+}
+
+/* ============ qué significa el resultado, con la sospecha de partida ============ */
+
+/*
+ * La explicación de arriba se escribe en cuanto llegan las cifras, sin saber
+ * con qué sospecha llega el fisioterapeuta. Para las cifras da igual, pero para
+ * decir qué significa un positivo o un negativo, no: escribía a ciegas, y bajo
+ * un título que decía "Confirma" llegó a poner "aunque no la confirma".
+ *
+ * Esta se pide cuando se conoce la sospecha, y se guarda por test y por nivel:
+ * cambiar de idea en la fase 1 la rehace una vez, y volver a un nivel ya visto
+ * no cuesta nada. El cálculo lo hace el dominio y se le da hecho; el modelo
+ * solo lo explica.
+ */
+
+const VERSION_RESULTADO = 1;
+
+const SISTEMA_RESULTADO = `Explicas a un fisioterapeuta, que tiene al paciente delante, qué significa el resultado del test que está haciendo. Conoces con qué sospecha llega y lo que la herramienta ha calculado para un positivo y para un negativo.
+
+Reglas, sin excepción:
+
+1. Solo puedes usar los datos que te doy. No añadas ningún hecho clínico que no salga de ellos: nada de anatomía, mecanismos, epidemiología, otros tests ni tratamientos.
+
+2. No escribas ningún número que no esté en los datos, y no calcules nada nuevo.
+
+3. No contradigas loQueDiceLaPantalla, que es lo que el fisioterapeuta lee justo encima de tu texto. Si dice que confirma, no digas que no confirma; si dice que refuerza pero no confirma, no la des por confirmada. Lo mismo al descartar.
+
+4. El fisioterapeuta ya ve en pantalla el porcentaje al que llega su sospecha y los puntos que se mueve. No los repitas: explica el porqué, uniendo la sospecha de partida con la clase de señal que es el resultado. Por ejemplo: "Partías de una sospecha media y es una señal muy clara: con un positivo basta para darla por confirmada." O: "La señal es débil, pero como partías de una sospecha baja, basta para descartarla."
+
+5. La clase de señal se dice con estas palabras, que son las de la pantalla: señal muy clara, señal clara, señal débil, no sirve como señal. Nunca "poder diagnóstico".
+
+6. Si solo se conoce una de las dos cifras, di que no se puede saber del todo cuánto cambia la sospecha y, si hay techo, que como mucho llegaría hasta ahí.
+
+7. Quien te lee es el fisioterapeuta, y el enfermo es un tercero: "tu paciente", nunca "tú tienes" ni "tu lesión".
+
+8. Nunca digas qué hacer a continuación.
+
+9. Cada campo, una o dos frases y como mucho 35 palabras. Español de España, tono sobrio.`;
+
+const ESQUEMA_RESULTADO = {
+  type: "object",
+  properties: {
+    positivo: campo("Qué significa para este paciente, con esta sospecha de partida, que el test salga positivo."),
+    negativo: campo("Qué significa para este paciente, con esta sospecha de partida, que el test salga negativo."),
+  },
+  required: ["positivo", "negativo"],
+  additionalProperties: false,
+};
+
+const pct = (p) => Math.round(p * 100);
+
+/** Lo calculado para un resultado, dicho para el modelo, y los números que usa. */
+function calculado(ev, nivel, resultado) {
+  if (!ev.parcial) {
+    const d = interpretar({ nivelPreTest: nivel, sn: ev.sn, sp: ev.sp, resultado });
+    if (!d.interpretable) return { datos: null, numeros: [] };
+    const x = d.detalle;
+    const mov = pct(x.postTest) - pct(x.preTest);
+    return {
+      datos: {
+        claseDeSenal: x.magnitud.texto,
+        loQueDiceLaPantalla: d.lectura,
+        laSospechaQuedaEn: `${pct(x.postTest)}%`,
+        puntosQueSeMueve: `${mov > 0 ? "+" : "-"}${Math.abs(mov)}`,
+      },
+      numeros: [pct(x.postTest), Math.abs(mov), x.razonDeVerosimilitud],
+    };
+  }
+  const a = acotarParcial({ nivelPreTest: nivel, sn: ev.sn, sp: ev.sp, resultado });
+  if (!a.acotable) {
+    return { datos: { soloSeConoceUnaCifra: true, loQueDiceLaPantalla: a.motivo }, numeros: [] };
+  }
+  return {
+    datos: {
+      soloSeConoceUnaCifra: true,
+      claseDeSenalComoMucho: a.detalle.magnitud.texto,
+      loQueDiceLaPantalla: a.lectura,
+      comoMuchoLlegariaA: a.detalle.postTestTexto,
+    },
+    numeros: [pct(a.detalle.postTest), a.detalle.razonDeVerosimilitud],
+  };
+}
+
+function filtrarResultado(bruto, permitidos, lecturas, test) {
+  const limpio = {};
+  const motivos = [];
+  for (const c of ["positivo", "negativo"]) {
+    const texto = typeof bruto?.[c] === "string" ? bruto[c].trim() : "";
+    if (!texto || !lecturas[c]) { limpio[c] = null; continue; }
+    if (texto.length > TOPE_CAMPO) {
+      limpio[c] = null;
+      motivos.push(`${c} era demasiado largo`);
+      continue;
+    }
+    const r = comprobarNumeros(texto, permitidos);
+    if (!r.valido) {
+      console.warn(`[lectura] ${test} · ${c}: números que no venían en los datos: ${r.intrusos.join(", ")}`);
+      limpio[c] = null;
+      motivos.push(`en ${c} escribiste ${r.intrusos.join(", ")}, que no está en los datos`);
+      continue;
+    }
+    if (hablaAlPaciente(texto)) {
+      console.warn(`[lectura] ${test} · ${c}: le habla al paciente`);
+      limpio[c] = null;
+      motivos.push(`en ${c} te dirigiste al enfermo; quien lee es el fisioterapeuta, y al enfermo se le llama "tu paciente"`);
+      continue;
+    }
+    // Que no le lleve la contraria al título: si la pantalla confirma, el texto
+    // no puede decir que no confirma, y lo mismo al descartar.
+    const pantalla = lecturas[c];
+    const contradice =
+      (/^Confirma/.test(pantalla) && /no\s+(la\s+|lo\s+)?confirma/i.test(texto)) ||
+      (/^Descarta/.test(pantalla) && /no\s+(la\s+|lo\s+)?descarta/i.test(texto)) ||
+      (!/^Confirma/.test(pantalla) && /\b(la\s+)?confirma\b(?!r)/i.test(texto) && !/no\s+(la\s+)?confirma/i.test(texto)) ||
+      (!/^Descarta/.test(pantalla) && /\b(la\s+)?descarta\b(?!r)/i.test(texto) && !/no\s+(la\s+)?descarta/i.test(texto));
+    if (contradice) {
+      console.warn(`[lectura] ${test} · ${c}: contradice a la pantalla`);
+      limpio[c] = null;
+      motivos.push(`en ${c} contradijiste lo que dice la pantalla ("${pantalla}")`);
+      continue;
+    }
+    limpio[c] = texto;
+  }
+  return { limpio, motivos };
+}
+
+/**
+ * Qué significa un positivo y un negativo de este test, para esta sospecha de
+ * partida. De la base si ya está, o redactado ahora.
+ */
+export async function lecturaResultadoDe(clave, ev, { test, entidad, nivel, senal }) {
+  if (!ev?.hayCifras || !PRE_TEST[nivel]) return null;
+
+  const k = `${clave}|resultado|${nivel}`;
+  const huella = huellaDe(ev);
+  const guardada = await leer(ALMACEN, k);
+  if (guardada?.version === VERSION_RESULTADO && guardada.huella === huella) return guardada.textos;
+
+  const pos = calculado(ev, nivel, "positivo");
+  const neg = calculado(ev, nivel, "negativo");
+  if (!pos.datos && !neg.datos) return null;
+
+  const datos = {
+    test,
+    patologia: entidad,
+    sospechaDePartida: `${PRE_TEST[nivel].etiqueta}, ${PRE_TEST[nivel].detalle}`,
+    umbrales: `se habla de confirmar por encima del ${pct(UMBRAL_CONFIRMA)}% y de descartar por debajo del ${pct(UMBRAL_DESCARTA)}%`,
+    sensibilidad: ev.sn,
+    especificidad: ev.sp,
+    siSalePositivo: pos.datos,
+    siSaleNegativo: neg.datos,
+  };
+  const permitidos = numerosPermitidos({
+    proporciones: [ev.sn, ev.sp, PRE_TEST[nivel].valor],
+    razones: [...pos.numeros, ...neg.numeros].filter((n) => typeof n === "number"),
+    otros: [pct(UMBRAL_CONFIRMA), pct(UMBRAL_DESCARTA), ...pos.numeros, ...neg.numeros],
+  });
+  const lecturas = { positivo: pos.datos?.loQueDiceLaPantalla, negativo: neg.datos?.loQueDiceLaPantalla };
+
+  const base = `Datos:\n${JSON.stringify(datos, null, 2)}`;
+  let mejor = null;
+  let aviso = "";
+  for (let intento = 1; intento <= 2; intento++) {
+    try {
+      const { datos: bruto } = await pedirJson({
+        sistema: SISTEMA_RESULTADO,
+        mensaje: base + aviso,
+        esquema: ESQUEMA_RESULTADO,
+        esfuerzo: "low",
+        maxTokens: 800,
+        senal,
+      });
+      const { limpio, motivos } = filtrarResultado(bruto, permitidos, lecturas, test);
+      if (!mejor || utiles(limpio) > utiles(mejor)) mejor = limpio;
+      if (!motivos.length) break;
+      aviso = `\n\nTu respuesta anterior no se ha podido usar entera: ${motivos.join("; ")}. Vuelve a redactarla corrigiendo eso y respetando todas las reglas.`;
+    } catch (e) {
+      console.warn(`[lectura] ${test}: intento ${intento}: ${e.message}`);
+      if (e.porPlazo) break;
+    }
+  }
+  if (!mejor) return null;
+  await escribir(ALMACEN, k, { version: VERSION_RESULTADO, huella, test, entidad, nivel, textos: mejor, fecha: new Date().toISOString() });
   return mejor;
 }

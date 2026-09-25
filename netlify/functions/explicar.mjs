@@ -6,7 +6,7 @@
 // herramienta.
 
 import { claveDe, deLaBase, enriquecer } from "../../ia/evidencia.js";
-import { explicacionDe } from "../../ia/explicaciones.js";
+import { explicacionDe, lecturaResultadoDe } from "../../ia/explicaciones.js";
 import { json, error, cuerpoJson, conAcceso } from "../../lib/http.js";
 
 export default async (req) => {
@@ -32,6 +32,18 @@ export default async (req) => {
   const k = claveDe({ test: elemento.nombre, busqueda: elemento.busqueda, entidad, terminos });
   const ev = enriquecer(await deLaBase(k));
   if (!ev?.hayCifras) return json({ explicacion: null });
+
+  // Con la sospecha de partida, lo que se pide es qué significa un positivo y
+  // un negativo para esa sospecha. Sin ella, la explicación de las cifras.
+  if (cuerpo.nivel) {
+    const resultado = await lecturaResultadoDe(k, ev, {
+      test: elemento.nombre,
+      entidad,
+      nivel: String(cuerpo.nivel),
+      senal: AbortSignal.timeout(45000),
+    });
+    return json({ resultado });
+  }
 
   const explicacion = await explicacionDe(k, ev, {
     test: elemento.nombre,

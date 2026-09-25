@@ -238,8 +238,8 @@ export function acotarParcial({ nivelPreTest, sn, sp, resultado }) {
 }
 
 /** Umbrales a partir de los cuales hablamos de confirmar o descartar en la práctica. */
-const UMBRAL_CONFIRMA = 0.85;
-const UMBRAL_DESCARTA = 0.10;
+export const UMBRAL_CONFIRMA = 0.85;
+export const UMBRAL_DESCARTA = 0.10;
 
 /**
  * El porcentaje que se escribe en pantalla. Nunca 0 ni 100.

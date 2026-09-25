@@ -2145,6 +2145,12 @@ button.sello.explica { font-size: .8125rem; }
     // Explicaciones personalizadas por test: undefined sin pedir, "pendiente",
     // el objeto de textos, o null si no ha habido.
     explicaciones: {},
+    // Qué significa un positivo y un negativo de cada test, redactado con la
+    // sospecha de partida delante. Por test y nivel: "Lachman|media".
+    lecturasIa: {},
+    // Los tests con cifras, tal como se pidieron, para poder volver a pedir su
+    // lectura cuando cambia la sospecha.
+    elementos: {},
     // Veredictos de la conclusión, por combinación de sospecha y resultados.
     // Volver a una combinación ya vista no vuelve a pedirlo.
     veredictos: {}
@@ -2486,6 +2492,8 @@ button.sello.explica { font-size: .8125rem; }
         estado.interpretaciones = {};
         estado.parciales = {};
         estado.explicaciones = {};
+        estado.lecturasIa = {};
+        estado.elementos = {};
         estado.veredictos = {};
         ui = nuevaUi();
         cerrarGlobo();
@@ -2604,6 +2612,9 @@ button.sello.explica { font-size: .8125rem; }
         ui.f1Abierta = false;
         ui.acabaDeElegir = true;
         pintar();
+        // Con la sospecha ya elegida, la IA puede decir qué significa cada
+        // resultado para ella. Si se cambia, se piden las del nivel nuevo.
+        Object.keys(estado.elementos).forEach(pedirLecturaIa);
         // La primera vez, la vista baja a la exploración: el paso está hecho y
         // lo siguiente está abajo. Si solo se está cambiando la sospecha, no:
         // el fisioterapeuta ya estaba donde quería estar.
@@ -3541,9 +3552,50 @@ button.sello.explica { font-size: .8125rem; }
         if (trabajo.entidad === estado.entidad) {
           estado.explicaciones[nombre] = exp;
           if (abierta && abierta.test === nombre) pintarGlobo();
-          if (estado.resultados[nombre]) interpretarTest(nombre);
         }
         siguienteExplicacion();
+      });
+  }
+
+  /*
+   * Lo que significa el resultado de cada test, con la sospecha de partida.
+   *
+   * Se pide en cuanto hay sospecha y cifras, antes de que se pulse Positivo o
+   * Negativo: así, al pulsar, ya está. Si cambia la sospecha, se pide la del
+   * nivel nuevo; volver a un nivel ya visto no pide nada.
+   */
+  var colaLecturas = [];
+  var leyendo = 0;
+
+  function pedirLecturaIa(nombre) {
+    var el = estado.elementos[nombre];
+    var nivel = estado.nivel;
+    if (!el || el.tipo !== "test" || !nivel) return;
+    var clave = nombre + "|" + nivel;
+    if (estado.lecturasIa[clave] !== undefined) return;
+    estado.lecturasIa[clave] = "pendiente";
+    colaLecturas.push({ el: el, nivel: nivel, clave: clave, entidad: estado.entidad, terminos: estado.terminos });
+    siguienteLectura();
+  }
+
+  function siguienteLectura() {
+    if (leyendo >= 2 || !colaLecturas.length) return;
+    var trabajo = colaLecturas.shift();
+    if (trabajo.entidad !== estado.entidad) { siguienteLectura(); return; }
+    leyendo += 1;
+    var nombre = trabajo.el.nombre;
+    pedir("/api/explicar", { entidad: trabajo.entidad, terminosBusqueda: trabajo.terminos, elemento: trabajo.el, nivel: trabajo.nivel })
+      .then(function (d) { return d.resultado || null; })
+      .catch(function () { return null; })
+      .then(function (textos) {
+        leyendo -= 1;
+        if (trabajo.entidad === estado.entidad) {
+          estado.lecturasIa[trabajo.clave] = textos;
+          // Si el test ya está marcado con esta misma sospecha, su tarjeta se
+          // repinta para que aparezca el texto.
+          if (estado.nivel === trabajo.nivel && estado.resultados[nombre]) interpretarTest(nombre);
+        }
+        siguienteLectura();
       });
   }
 
@@ -3863,7 +3915,11 @@ button.sello.explica { font-size: .8125rem; }
         if (estado.entidad !== enCurso || !ev) return;
         estado.evidencias[el.nombre] = ev;
         pintar();
-        if (ev.hayCifras) pedirExplicacion(el);
+        if (ev.hayCifras) {
+          estado.elementos[el.nombre] = el;
+          pedirExplicacion(el);
+          pedirLecturaIa(el.nombre);
+        }
       }).catch(function (err) {
         if (estado.entidad !== enCurso) return;
         estado.evidencias[el.nombre] = { hayCifras: false, error: err.message, cortada: Boolean(err.pasajero) };
@@ -4099,12 +4155,12 @@ button.sello.explica { font-size: .8125rem; }
     return (x.postTest > x.preTest ? "Sube tu sospecha" : "Baja tu sospecha") + " · " + tramo;
   }
 
-  /** La línea redactada para este test y esta patología, si ha llegado y ha pasado el candado. */
+  /** La línea redactada para este test, este resultado y esta sospecha, si ha llegado y ha pasado el candado. */
   function lineaIa(nombre, resultado) {
-    var exp = estado.explicaciones[nombre];
-    var texto = exp && typeof exp === "object" ? exp[resultado] : null;
+    var lectura = estado.lecturasIa[nombre + "|" + estado.nivel];
+    var texto = lectura && typeof lectura === "object" ? lectura[resultado] : null;
     if (!texto) return "";
-    return '<p class="veredicto-ia">' + esc(texto) + "<small>Redactado con IA a partir de estas cifras</small></p>";
+    return '<p class="veredicto-ia">' + esc(texto) + "<small>Redactado con IA a partir de estas cifras y de tu sospecha</small></p>";
   }
 
   function veredictoSimple(clase, titulo, texto) {
