@@ -12,7 +12,7 @@ import { mereceTextoCompleto, utilidad, coherencia, trazable, ordenarPorPromesa 
 import { promete } from "./ia/europepmc.js";
 import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
 import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/redaccion.js";
-import { depurarFuentes, rangoPublicado } from "./dominio/fuentes.js";
+import { depurarFuentes, rangoPublicado, comparableConCitado } from "./dominio/fuentes.js";
 import { debeReactivar } from "./lib/contactos.js";
 
 let pasadas = 0;
@@ -856,6 +856,34 @@ prueba("otro estudio que mide un subgrupo se marca, y no abre el rango", () => {
   assert.equal(otras[0].entidadDeLasCifras, "roturas posterosuperiores");
   // El 0,77 de un subgrupo no convierte el 0,60 en un rango "0,60–0,77".
   assert.equal(rangoPublicado({ principal: { sn: 0.6, sp: 0.63 }, otras }).sn, null);
+});
+
+prueba("se compara con los que miden lo mismo que el citado: la patología entera, o la misma parte", () => {
+  const entera = { mismaEntidad: true };
+  const supra = { mismaEntidad: false, mismaParteQueElCitado: true };
+  const subesc = { mismaEntidad: false, mismaParteQueElCitado: false };
+  const citadoEntero = { sn: 0.6, sp: 0.63, indirecta: false };
+  const citadoSupra = { sn: 0.88, sp: 0.62, indirecta: true };
+  assert.equal(comparableConCitado(entera, citadoEntero), true);
+  assert.equal(comparableConCitado(supra, citadoEntero), false);
+  assert.equal(comparableConCitado(entera, citadoSupra), false);
+  assert.equal(comparableConCitado(supra, citadoSupra), true);
+  assert.equal(comparableConCitado(subesc, citadoSupra), false);
+  // Si el citado mide solo el supraespinoso, una cifra de la patología entera no abre su rango.
+  assert.equal(rangoPublicado({ principal: citadoSupra, otras: [{ ...entera, sn: 0.45 }] }).sn, null);
+  assert.deepEqual(rangoPublicado({ principal: citadoSupra, otras: [{ ...supra, sn: 0.7 }] }).sn, { min: 0.7, max: 0.88, estudios: 2 });
+});
+
+prueba("\"la misma parte\" solo cuenta si las dos miden una parte", () => {
+  const otras = depurarFuentes({
+    pmidPrincipal: "1",
+    articulos: [{ pmid: "1" }, { pmid: "2" }],
+    candidatas: [{
+      pmid: "2", sn: 0.7, sp: null, mismaEntidad: true, mismaParteQueElElegido: true,
+      citaLiteral: "sensitivity of 0.7",
+    }],
+  });
+  assert.equal(otras[0].mismaParteQueElCitado, false);
 });
 
 prueba("lo que responde a otra pregunta es lo último, pero algo", () => {

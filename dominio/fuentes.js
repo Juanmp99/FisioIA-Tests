@@ -67,11 +67,24 @@ export function depurarFuentes({ candidatas, articulos, pmidPrincipal }) {
       // discreparan. Si el modelo no lo dice, se da por la misma.
       mismaEntidad: c.mismaEntidad !== false,
       entidadDeLasCifras: c.mismaEntidad === false && c.entidadDeLasCifras ? String(c.entidadDeLasCifras) : null,
+      // Si los dos miden una parte, si es la misma: solo entonces se comparan.
+      mismaParteQueElCitado: c.mismaEntidad === false && c.mismaParteQueElElegido === true,
       citaLiteral: String(c.citaLiteral || ""),
     });
   }
 
   return salida;
+}
+
+/**
+ * ¿Mide esta fuente lo mismo que la citada? Si la citada mide la entidad
+ * entera, las que también la miden entera; si mide una parte, las que miden esa
+ * misma parte. Lo demás responde a otra pregunta, y compararlo haría pasar por
+ * desacuerdo lo que no lo es.
+ */
+export function comparableConCitado(otra, principal) {
+  if (principal?.indirecta) return otra?.mismaEntidad === false && otra?.mismaParteQueElCitado === true;
+  return otra?.mismaEntidad !== false;
 }
 
 /**
@@ -81,9 +94,10 @@ export function depurarFuentes({ candidatas, articulos, pmidPrincipal }) {
  * hay una cifra, y decir "entre 0,77 y 0,77" sería ruido.
  */
 export function rangoPublicado({ principal, otras }) {
-  // Solo las que miden lo mismo: un subgrupo abriría un rango que no es tal.
+  // Solo las que miden lo mismo que la citada: una parte abriría un rango que no es tal.
   const reunir = (campo) =>
-    [principal?.[campo], ...(otras || []).filter((o) => o.mismaEntidad !== false).map((o) => o[campo])].filter(esProporcion);
+    [principal?.[campo], ...(otras || []).filter((o) => comparableConCitado(o, principal)).map((o) => o[campo])]
+      .filter(esProporcion);
 
   const tramo = (campo) => {
     const valores = reunir(campo);

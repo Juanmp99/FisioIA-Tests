@@ -139,7 +139,9 @@ Reglas, sin excepción:
 
 3 bis. Con la entidad el criterio es otro. Si las cifras son del test correcto pero medidas sobre una entidad relacionada y no sobre la que se pregunta —por ejemplo precisión del Hawkins-Kennedy para pinzamiento subacromial cuando se pregunta por rotura del manguito—, sí se aprovechan, pero marcando mismaEntidad en falso y anotando en entidadDeLasCifras la entidad exacta sobre la que se midieron. Es información útil siempre que quede claro a qué se refiere. Si la entidad medida no tiene ninguna relación con la preguntada, entonces no vale.
 
-3 ter. Lo mismo vale cuando las cifras se midieron sobre un subgrupo o una combinación concreta de lesiones y no sobre la entidad preguntada en general: solo roturas del subescapular, o roturas combinadas de infraespinoso y supraespinoso, cuando se pregunta por rotura del manguito rotador. Marca mismaEntidad en falso y anota en entidadDeLasCifras el subgrupo exacto. Mira siempre las abreviaturas de las tablas y la definición de caso del estudio antes de decidir. No cuenta como subgrupo la forma habitual de la entidad o su definición estándar en la literatura: roturas de espesor completo, cuando se pregunta por rotura del manguito, son la misma entidad.
+3 ter. Lo mismo vale cuando las cifras se midieron sobre una parte de la entidad preguntada y no sobre ella entera: un tendón concreto, una localización o un tipo concreto de lesión. Por ejemplo, cuando se pregunta por rotura del manguito rotador, son una parte las roturas solo del supraespinoso, solo del subescapular, solo del infraespinoso, las posterosuperiores o las parciales de lado bursal. Marca mismaEntidad en falso y anota en entidadDeLasCifras cuál. Mira siempre la frase que citas, las abreviaturas de las tablas y la definición de caso del estudio antes de decidir: si la frase dice "supraspinatus tears", el estudio mide una parte, aunque el título hable del manguito.
+   No cuenta como una parte la forma habitual de la entidad o su definición estándar en la literatura: roturas de espesor completo, cuando se pregunta por rotura del manguito, son la misma entidad. Tampoco la población o el contexto del estudio: pacientes agudos, deportistas, atención primaria o candidatos a cirugía siguen midiendo la misma entidad.
+   Este criterio es uno solo y vale igual para el artículo que eliges y para los de otrasFuentes. Un mismo artículo no puede ser la entidad preguntada cuando lo eliges y una parte cuando va entre los otros. Antes de responder, compruébalo: si pusieras tu artículo elegido en otrasFuentes, ¿lo marcarías como una parte? Entonces también lo es arriba.
 
 3 quater. Distingue una entidad parecida de otra pregunta diagnóstica. Hay estudios que miden el test para responder algo distinto de "¿tiene el paciente esta entidad?": por ejemplo, distinguir quién tiene una rotura dentro del tendón entre pacientes que ya tienen tendinopatía lateral del codo, o detectar una complicación o una fractura oculta. Sus cifras no dicen cuánto cambia la sospecha de la entidad preguntada, y usarlas daría un número que responde a otra cosa. En ese caso marca otraPregunta en verdadero y explica en otraPreguntaMotivo, en una frase y en español, qué pregunta responde el estudio. Si hay otro texto que sí mida la entidad preguntada, elige ese y deja otraPregunta en falso.
 
@@ -154,10 +156,11 @@ Reglas, sin excepción:
    4) una sola cifra, medida sobre una entidad relacionada;
    5) cifras que responden a otra pregunta diagnóstica, solo si no hay nada de lo anterior.
    Dentro de cada escalón, una revisión sistemática o metaanálisis va por delante de un estudio primario, y entre revisiones, la que reúna más estudios.
-   Lo primero es que se publiquen las dos: con una sola no se puede calcular cuánto cambia la sospecha, y el test deja de servir para la conclusión. Por eso un estudio primario con las dos cifras va por delante de una revisión con una sola, aunque la revisión sea más fiable. Y lo segundo, que se hayan medido sobre la entidad preguntada: un estudio primario sobre la entidad preguntada va por delante de una revisión sobre otra parecida, porque responde a la pregunta del fisioterapeuta. La revisión con una sola cifra no se pierde: va a otrasFuentes y se enseña al lado. Marca la consistencia como discrepante si las cifras de unos y otros difieren de forma apreciable.
+   Entre dos artículos del mismo escalón, el que mide la entidad entera va siempre por delante del que mide una parte, aunque el de la parte tenga mejores cifras.
+   Lo primero es que se publiquen las dos: con una sola no se puede calcular cuánto cambia la sospecha, y el test deja de servir para la conclusión. Por eso un estudio primario con las dos cifras va por delante de una revisión con una sola, aunque la revisión sea más fiable. Y lo segundo, que se hayan medido sobre la entidad preguntada: un estudio primario sobre la entidad preguntada va por delante de una revisión sobre otra parecida, porque responde a la pregunta del fisioterapeuta. La revisión con una sola cifra no se pierde: va a otrasFuentes y se enseña al lado. Marca la consistencia como discrepante si las cifras de unos y otros difieren de forma apreciable, comparando solo con los que miden lo mismo que el elegido: la entidad entera si el elegido la mide entera, o la misma parte si mide una parte.
 
 5 bis. Los demás textos que publiquen cifras de ESE test para ESA entidad van en otrasFuentes, hasta tres, cada uno con su PMID y su propia frase copiada palabra por palabra. No se van a mezclar con las que devuelves arriba —la sensibilidad y la especificidad salen de la misma tabla y del mismo grupo de pacientes, así que combinarlas entre estudios daría un número que nadie ha medido—, sino que se enseñan al lado para que se vea entre qué valores se mueve la literatura. No repitas ahí el artículo que ya has elegido. Si ningún otro publica cifras, deja la lista vacía: es una respuesta correcta y frecuente.
-   Para cada uno, dime con el mismo criterio de las reglas 3 bis y 3 ter qué mide exactamente: mismaEntidad en verdadero si mide la entidad preguntada, y en falso si mide una entidad relacionada o un subgrupo (solo roturas posterosuperiores, solo subescapular…), anotando en entidadDeLasCifras, en español y en pocas palabras, cuál. Es lo que evita que dos cifras que responden a preguntas distintas se lean como una contradicción.
+   Para cada uno, dime con el mismo criterio de las reglas 3 bis y 3 ter —el mismo que has aplicado al elegido— qué mide exactamente: mismaEntidad en verdadero si mide la entidad preguntada entera, y en falso si mide una entidad relacionada o una parte (solo roturas posterosuperiores, solo subescapular…), anotando en entidadDeLasCifras, en español y en pocas palabras, cuál. Si tanto el elegido como ese artículo miden una parte, dime además en mismaParteQueElElegido si es la misma parte. Es lo que evita que dos cifras que responden a preguntas distintas se lean como una contradicción.
 
 6. Valoración de calidad. Rellena estos campos con lo que puedas deducir del propio resumen, sin inventar:
    - tipoEstudio: si es revisión sistemática o metaanálisis, o estudio primario.
@@ -193,7 +196,7 @@ export const ESQUEMA_EXTRACCION = {
     numeroEstudios: { type: "number" },
     mismaEntidad: {
       type: "boolean",
-      description: "Verdadero si las cifras se midieron sobre la entidad preguntada; falso si sobre una entidad relacionada.",
+      description: "Verdadero si las cifras se midieron sobre la entidad preguntada entera; falso si sobre una entidad relacionada o una parte de ella.",
     },
     entidadDeLasCifras: {
       type: "string",
@@ -230,15 +233,19 @@ export const ESQUEMA_EXTRACCION = {
           numeroEstudios: { type: "number", description: "Cuántos estudios reúne ESE artículo. 1 si es un estudio primario." },
           mismaEntidad: {
             type: "boolean",
-            description: "Verdadero si ESE artículo mide la entidad preguntada; falso si una entidad relacionada o un subgrupo.",
+            description: "Verdadero si ESE artículo mide la entidad preguntada entera; falso si una entidad relacionada o una parte de ella.",
           },
           entidadDeLasCifras: {
             type: ["string", "null"],
             description: "Si mismaEntidad es falso, qué mide ESE artículo, en español y en pocas palabras. Null si no.",
           },
+          mismaParteQueElElegido: {
+            type: "boolean",
+            description: "Verdadero solo si el artículo elegido y ESE miden la misma parte de la entidad (los dos con mismaEntidad en falso, y sobre lo mismo). Falso en cualquier otro caso.",
+          },
           citaLiteral: { type: "string", description: "La frase de ESE artículo donde constan esas cifras, copiada palabra por palabra." },
         },
-        required: ["pmid", "sn", "sp", "tipoEstudio", "numeroEstudios", "mismaEntidad", "entidadDeLasCifras", "citaLiteral"],
+        required: ["pmid", "sn", "sp", "tipoEstudio", "numeroEstudios", "mismaEntidad", "entidadDeLasCifras", "mismaParteQueElElegido", "citaLiteral"],
         additionalProperties: false,
       },
     },

@@ -1699,6 +1699,7 @@ button.sello.explica { font-size: .8125rem; }
 .oc-lista li { margin-bottom: 5px; line-height: 1.45; }
 .oc-cifras { font-family: var(--mono); color: var(--tinta); font-weight: 600; white-space: nowrap; }
 .oc-otra-cosa { display: block; margin-top: 3px; font-size: .75rem; color: var(--ambar); }
+    .oc-misma-parte { display: block; margin-top: 3px; font-size: .75rem; color: var(--tinta-tenue); }
 .oc-leyenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .75rem; color: var(--tinta-tenue); }
 .oc-leyenda .oc-punto { position: static; margin: 0; display: inline-block; }
 .oc-ia {
@@ -3941,13 +3942,32 @@ button.sello.explica { font-size: .8125rem; }
     }
 
     // 3 · Qué dicen los demás: dónde cae cada estudio, y si coinciden.
+    // Qué se compara lo decide el servidor; sin el dato, lo que mide lo mismo.
+    var comparable = function (o) {
+      return typeof o.comparable === "boolean" ? o.comparable : (!ev.indirecta && o.mismaEntidad !== false);
+    };
+    var queMide = function (o) {
+      var ent = function () { return esc(enFrase(estado.entidad)); };
+      if (o.mismaEntidad === false && comparable(o)) {
+        return '<span class="oc-misma-parte">Mide ' + esc(o.entidadDeLasCifras || "la misma parte") + ", como el citado.</span>";
+      }
+      if (o.mismaEntidad === false) {
+        return '<span class="oc-otra-cosa">Mide ' + esc(o.entidadDeLasCifras || "un subgrupo o una entidad parecida") +
+          ", no " + ent() + " en general: no es directamente comparable.</span>";
+      }
+      if (!comparable(o)) {
+        return '<span class="oc-otra-cosa">Mide ' + ent() + " en general, y el citado solo " +
+          esc(ev.entidadDeLasCifras || "una parte") + ": no es directamente comparable.</span>";
+      }
+      return "";
+    };
     var tira = function (campo, nombre) {
       var valores = [];
       if (ev[campo] != null) valores.push({ v: ev[campo], citado: true });
-      // Solo los que miden lo mismo: comparar con un subgrupo haría pasar por
-      // desacuerdo lo que es otra pregunta.
+      // Solo los que miden lo mismo que el citado: comparar con otra parte de
+      // la patología haría pasar por desacuerdo lo que es otra pregunta.
       otras.forEach(function (o) {
-        if (o[campo] != null && o.mismaEntidad !== false) valores.push({ v: o[campo], citado: false });
+        if (o[campo] != null && comparable(o)) valores.push({ v: o[campo], citado: false });
       });
       if (valores.length < 2) return "";
       var min = Math.min.apply(null, valores.map(function (x) { return x.v; }));
@@ -3983,10 +4003,7 @@ button.sello.explica { font-size: .8125rem; }
         '<a href="' + esc(o.url) + '" target="_blank" rel="noopener">' + esc(o.titulo) + "</a>" +
         (o.anio ? " · " + esc(o.anio) : "") +
         (tipo ? ' <span class="tipo-fuente">' + tipo + "</span>" : "") +
-        (o.mismaEntidad === false
-          ? '<span class="oc-otra-cosa">Mide ' + esc(o.entidadDeLasCifras || "un subgrupo o una entidad parecida") +
-            ", no " + esc(enFrase(estado.entidad)) + " en general: no es directamente comparable.</span>"
-          : "") +
+        queMide(o) +
         "</li>";
     }).join("");
 

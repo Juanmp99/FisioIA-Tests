@@ -15,7 +15,7 @@ import { validarPrecision, validarParcial, razonesDeVerosimilitud, magnitud } fr
 import { semaforo } from "../dominio/calidad.js";
 import { comprobarCita } from "../dominio/trazabilidad.js";
 import { comprobarAgrupacion } from "../dominio/agrupaciones.js";
-import { depurarFuentes, rangoPublicado } from "../dominio/fuentes.js";
+import { depurarFuentes, rangoPublicado, comparableConCitado } from "../dominio/fuentes.js";
 
 const ALMACEN = "evidencia";
 
@@ -217,14 +217,17 @@ export function enriquecer(ev) {
   // aquí, con el dominio, en lugar de en el navegador: una segunda
   // implementación acabaría divergiendo de esta.
   const rango = rangoPublicado({ principal: ev, otras: ev.otrasFuentes });
+  // Cuáles se pueden comparar con la citada: lo decide el dominio, una vez.
+  const otrasFuentes = (ev.otrasFuentes || []).map((o) => ({ ...o, comparable: comparableConCitado(o, ev) }));
 
   if (typeof ev.sn !== "number" || typeof ev.sp !== "number") {
-    return { ...ev, rv: null, rango };
+    return { ...ev, otrasFuentes, rv: null, rango };
   }
 
   const lr = razonesDeVerosimilitud(ev.sn, ev.sp);
   return {
     ...ev,
+    otrasFuentes,
     rango,
     rv: {
       positiva: lr.positiva,
@@ -483,7 +486,20 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
         if (u > utilidad(datos) && coherencia(otra.datos).valido && trazable(otra.datos)) {
           // Las otras fuentes que ya se habían visto en los resúmenes no se
           // pierden: la extracción nueva solo ha leído un artículo.
-          const previas = datos.otrasFuentes || [];
+          // Tampoco el que se había elegido: pasa a estar entre los otros. Si
+          // el nuevo mide una parte, lo que decían de "la misma parte" se
+          // refería al anterior, así que no se da por comparable.
+          const nuevaEsParte = otra.datos?.mismaEntidad === false;
+          const anterior = datos.pmid && (typeof datos.sn === "number" || typeof datos.sp === "number")
+            ? [{
+                pmid: datos.pmid, sn: datos.sn, sp: datos.sp, tipoEstudio: datos.tipoEstudio,
+                numeroEstudios: datos.numeroEstudios, mismaEntidad: datos.mismaEntidad,
+                entidadDeLasCifras: datos.entidadDeLasCifras, mismaParteQueElElegido: false,
+                citaLiteral: datos.citaLiteral,
+              }]
+            : [];
+          const previas = [...anterior, ...(datos.otrasFuentes || [])]
+            .map((o) => (nuevaEsParte ? { ...o, mismaParteQueElElegido: false } : o));
           datos = normalizar(otra.datos);
           datos.otrasFuentes = [...(datos.otrasFuentes || []), ...previas];
           deRescate = completo.pmcid;
