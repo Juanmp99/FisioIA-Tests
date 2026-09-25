@@ -74,8 +74,41 @@ export function coherencia(d) {
   });
 }
 
+/**
+ * ¿Aparecen las cifras en la frase que el modelo dice haber copiado? Sin eso
+ * no se sabe de dónde salen: en el Drop arm, el modelo las calculó él mismo a
+ * partir de recuentos de una tabla, con las columnas al revés.
+ */
+export function trazable(d) {
+  return comprobarCita(d?.citaLiteral, { sn: d?.sn, sp: d?.sp }).verificada;
+}
+
+/**
+ * En qué orden se abren los textos completos: primero los que más prometen.
+ * Antes se seguía el orden de PubMed y se probaban los cuatro primeros; en el
+ * arco doloroso, el estudio que tenía la cifra estaba el decimoquinto.
+ */
+export function ordenarPorPromesa(articulos, { nombresTest = [], terminos = [] }) {
+  const norma = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const palabras = (lista) => lista.map(norma).filter(Boolean);
+  const tests = palabras(nombresTest);
+  const entidad = palabras(terminos);
+  const puntos = (a) => {
+    const texto = norma(`${a.titulo} ${a.resumen || ""}`);
+    let p = 0;
+    if (tests.some((t) => texto.includes(t))) p += 3;
+    if (entidad.some((t) => texto.includes(t))) p += 2;
+    if (/sensitiv|specific|diagnostic accuracy|likelihood ratio|clinical tests?/.test(texto)) p += 1;
+    return p;
+  };
+  return articulos
+    .map((a, i) => ({ a, i, p: puntos(a) }))
+    .sort((x, y) => y.p - x.p || x.i - y.i)
+    .map((x) => x.a);
+}
+
 /** Cuántos textos completos se abren para mejorar algo que ya se tiene. */
-const INTENTOS_MEJORA = 4;
+const INTENTOS_MEJORA = 6;
 
 function sinDatos(motivo, articulos = []) {
   return {
@@ -346,7 +379,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
         // para afinar la valoración, no para perder una cifra que ya teníamos.
         // Y si sus cifras son coherentes: una segunda lectura que mezcla filas
         // no puede tirar una primera que estaba bien.
-        if (segunda.datos?.encontrado && coherencia(segunda.datos).valido) {
+        if (segunda.datos?.encontrado && coherencia(segunda.datos).valido && trazable(segunda.datos)) {
           datos = segunda.datos;
           pmcid = completo.pmcid;
         }
@@ -419,7 +452,10 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     // a mano, sino lo que queda de presupuesto frente a lo que acaba de costar
     // la primera extracción: si el límite real resulta ser más generoso, se
     // aprovecha solo, y si es más corto, no se pasa.
-    const candidatos = articulos.filter((a) => disponibles.has(a.pmid));
+    const candidatos = ordenarPorPromesa(
+      articulos.filter((a) => disponibles.has(a.pmid)),
+      { nombresTest: [test, consulta, ...(nombresTest || [])], terminos: lista },
+    );
 
     if (!candidatos.length) {
       console.warn(`[rescate] ${test}: ninguno de los ${articulos.length} artículos está en abierto`);
@@ -444,7 +480,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
         // Solo se adopta si es más útil que lo que había: un texto completo
         // que trae lo mismo, o algo peor, deja el resultado como estaba.
         const u = utilidad(otra.datos);
-        if (u > utilidad(datos) && coherencia(otra.datos).valido) {
+        if (u > utilidad(datos) && coherencia(otra.datos).valido && trazable(otra.datos)) {
           // Las otras fuentes que ya se habían visto en los resúmenes no se
           // pierden: la extracción nueva solo ha leído un artículo.
           const previas = datos.otrasFuentes || [];

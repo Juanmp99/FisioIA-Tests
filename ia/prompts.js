@@ -145,6 +145,8 @@ Reglas, sin excepción:
 
 4. Expresa sensibilidad y especificidad como proporciones entre 0 y 1. Si el texto las da en porcentaje, divide entre cien y nada más.
 
+4 bis. Solo valen sensibilidad y especificidad publicadas como tales. No las calcules tú a partir de recuentos de una tabla (verdaderos y falsos positivos y negativos): es fácil leer las columnas al revés y dar una cifra que el artículo no dice. Si el artículo solo da recuentos, trátalo como si no publicara esa cifra.
+
 5. Si varios textos dan cifras para el mismo test, elige uno siguiendo este orden, y no otro:
    1) las dos cifras, medidas sobre la entidad preguntada;
    2) las dos cifras, medidas sobre una entidad relacionada o un subgrupo (mismaEntidad en falso);

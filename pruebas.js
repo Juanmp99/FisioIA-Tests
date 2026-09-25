@@ -8,7 +8,7 @@ import { PRE_TEST, razonesDeVerosimilitud, validarPrecision, postTest, magnitud,
 import { semaforo } from "./dominio/calidad.js";
 import { banderasPara } from "./dominio/banderas.js";
 import { coincidencia } from "./ia/entidades.js";
-import { mereceTextoCompleto, utilidad, coherencia } from "./ia/evidencia.js";
+import { mereceTextoCompleto, utilidad, coherencia, trazable, ordenarPorPromesa } from "./ia/evidencia.js";
 import { promete } from "./ia/europepmc.js";
 import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
 import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/redaccion.js";
@@ -823,6 +823,22 @@ prueba("unas razones que no cuadran con sus cifras delatan filas mezcladas", () 
   assert.equal(coherencia({ sn: 0.37, sp: 0.86, lrPositiva: null, lrNegativa: null }).valido, true);
   assert.equal(coherencia({ sn: null, sp: 0.9 }).valido, true);
   assert.equal(coherencia({ sn: null, sp: null }).valido, false);
+});
+
+prueba("unas cifras calculadas de recuentos no se adoptan: no están en la frase citada", () => {
+  // El caso real del Drop arm: la frase solo trae recuentos.
+  assert.equal(trazable({ sn: 0.8106, sp: 0.2162, citaLiteral: "Drop arm test (+/−) 29/8 107/25 0.716" }), false);
+  assert.equal(trazable({ sn: 0.395, sp: 0.839, citaLiteral: "Painful arc 39.5 83.9 60.0 69.3 2.44 0.72" }), true);
+});
+
+prueba("los textos completos que más prometen se abren primero", () => {
+  const articulos = [
+    { pmid: "1", titulo: "Diagnosis, prevention and treatment of common shoulder injuries in sport", resumen: "" },
+    { pmid: "2", titulo: "Shoulder impingement: ultrasound", resumen: "" },
+    { pmid: "3", titulo: "The diagnostic value of clinical shoulder tests for rotator cuff tear", resumen: "painful arc, Neer, sensitivity" },
+  ];
+  const orden = ordenarPorPromesa(articulos, { nombresTest: ["painful arc"], terminos: ["rotator cuff tear"] });
+  assert.equal(orden[0].pmid, "3");
 });
 
 prueba("lo que responde a otra pregunta es lo último, pero algo", () => {
