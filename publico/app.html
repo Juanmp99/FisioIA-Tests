@@ -921,6 +921,9 @@ a { color: var(--azul); text-underline-offset: 3px; }
   background: color-mix(in srgb, var(--tinta-tenue) 70%, transparent);
 }
 .destino { font-size: 1.25rem; font-weight: 700; color: var(--tinta); }
+/* Si la sospecha baja, el porcentaje final queda a la izquierda, donde está el
+   punto, y el "partías del" a la derecha, donde estaba la partida. */
+.medidor-pies.baja { flex-direction: row-reverse; }
 .destino.sube { color: var(--verde); }
 .destino.baja { color: var(--azul); }
 
@@ -2683,7 +2686,7 @@ button.sello.explica { font-size: .8125rem; }
             : "") +
           '<span class="aguja aguja-post ' + clase + '" style="--desde:' + a + '%;--hasta:' + b + '%"></span>' +
         "</div>" +
-        '<div class="medidor-pies">' +
+        '<div class="medidor-pies ' + clase + '">' +
           '<span class="pie-parte">partías del ' + a + "%</span>" +
           '<span class="destino ' + clase + '" data-desde="' + a + '" data-hasta="' + b + '">' + a + "%</span>" +
         "</div>" +
