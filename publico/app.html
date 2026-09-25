@@ -1460,6 +1460,16 @@ button.sello.explica { font-size: .8125rem; }
   font-family: var(--mono); font-size: .75rem; color: var(--tinta-tenue);
   margin-top: 10px; font-variant-numeric: tabular-nums; line-height: 1.7;
 }
+/* La razón de verosimilitud dentro de la línea del cálculo: texto subrayado
+   con su "?", no un botón, para que la línea se siga leyendo seguida. */
+.rv-pista {
+  display: inline-flex; gap: 5px; vertical-align: baseline;
+  background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: var(--tinta-media);
+  text-decoration: underline dotted; text-underline-offset: 3px;
+}
+.rv-pista:hover, .rv-pista[aria-expanded="true"] { color: var(--azul); box-shadow: none; }
+.rv-pista .explica-ico { width: 13px; height: 13px; font-size: .5625rem; align-self: center; }
 
 .hoja-pie {
   margin: -12px 0 22px; font-size: .875rem; color: var(--tinta-tenue); max-width: 46ch;
@@ -3278,6 +3288,28 @@ button.sello.explica { font-size: .8125rem; }
     var rv = ev.rv || null;
     var pct100 = function (x) { return Math.round(x * 100); };
 
+    if (tipo === "rv") {
+      var d = estado.interpretaciones[nombre];
+      if (!d || !d.interpretable) return null;
+      var det = d.detalle;
+      var lr = det.razonDeVerosimilitud;
+      var positiva = det.cual === "positiva";
+      titulo = "Razón de verosimilitud " + det.cual + " · " + num(lr);
+      cuerpo = "Cuántas veces más probable es este resultado en alguien que tiene " + ent + " que en alguien que no. " +
+        "Un <b>1</b> significa que el test no aporta nada; cuanto más se aleja de 1, más pesa.<br><br>" +
+        (lr >= 1
+          ? "Aquí, un <b>" + d.resultado + "</b> es <b>" + num(lr) + " veces</b> más probable en quien tiene " + ent + "."
+          // Redondeado para que cuadre con la cifra que se ve: 1 ÷ 0,2 son 5, y
+          // un "5,09" hacía dudar de la cuenta.
+          : "Aquí, un <b>" + d.resultado + "</b> es <b>" + (1 / lr >= 3 ? "unas " + Math.round(1 / lr) : num(1 / lr)) +
+            " veces</b> más probable en quien no tiene " + ent + ".") +
+        "<br><br>Sale de las dos cifras del test: " +
+        (positiva ? "sensibilidad ÷ (1 − especificidad)" : "(1 − sensibilidad) ÷ especificidad") + ". " +
+        "Y es lo que marca su poder diagnóstico: alto por encima de 10 (o por debajo de 0,1), moderado entre 5 y 10, " +
+        "bajo entre 2 y 5, mínimo cerca de 1.";
+      return { titulo: titulo, cuerpo: cuerpo, ia: null, conIa: false };
+    }
+
     if (tipo === "sn") {
       titulo = "Sensibilidad · " + num(ev.sn, true);
       cuerpo = "De cada 100 personas que <b>sí</b> tienen " + ent + ", el test da positivo en <b>" + pct100(ev.sn) + "</b>. " +
@@ -3970,7 +4002,10 @@ button.sello.explica { font-size: .8125rem; }
           lineaIa(nombre, resultado) +
           medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") +
           '<div class="calculo">' +
-            esc(x.preTestTexto) + "  →  RV " + esc(x.cual) + " " + num(x.razonDeVerosimilitud) +
+            // Con su nombre entero y su "?": "RV" a secas no lo reconoce
+            // quien no viva en la estadística, y es el número del que sale todo.
+            esc(x.preTestTexto) + "  →  " +
+            pista("rv", nombre, "rv-pista", "razón de verosimilitud " + esc(x.cual) + " " + num(x.razonDeVerosimilitud)) +
             "  ·  " + esc(x.magnitud.texto) +
             (x.corregida
               ? "<br>precisión publicada del 100%: se calcula con 0,999 para no dar una certeza absoluta"
