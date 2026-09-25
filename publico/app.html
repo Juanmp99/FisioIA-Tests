@@ -1594,6 +1594,45 @@ button.sello.explica { font-size: .8125rem; }
 
 .hitos { display: grid; gap: 10px; margin-top: 22px; }
 
+/* ---- "Ver más" de la conclusión ----
+   Arriba queda lo que dice qué ha pasado; el porqué, a un clic. El botón
+   tiene que invitar a pulsarlo: ancho, con el azul de la acción y una flecha
+   que gira al abrir. */
+.ver-mas { margin-top: 24px; }
+.ver-mas > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 15px 20px; border-radius: 14px;
+  font-size: 1rem; font-weight: 700; letter-spacing: .01em; color: var(--tinta);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--azul) 18%, var(--superficie-viva)), color-mix(in srgb, var(--azul) 8%, var(--superficie)));
+  border: 1px solid color-mix(in srgb, var(--azul) 50%, transparent);
+  box-shadow: 0 10px 30px -14px color-mix(in srgb, var(--azul) 70%, transparent), inset 0 1px 0 rgba(255, 255, 255, .06);
+  transition: transform .18s var(--curva), box-shadow .25s, border-color .25s;
+}
+.ver-mas > summary::-webkit-details-marker { display: none; }
+.ver-mas > summary:hover {
+  border-color: var(--azul); transform: translateY(-1px);
+  box-shadow: 0 14px 36px -12px color-mix(in srgb, var(--azul) 85%, transparent), inset 0 1px 0 rgba(255, 255, 255, .08);
+}
+.ver-mas > summary:focus-visible { outline: 2px solid var(--azul); outline-offset: 3px; }
+.ver-mas-texto::before { content: "Ver más"; }
+.ver-mas[open] .ver-mas-texto::before { content: "Ver menos"; }
+.ver-mas-flecha {
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  background: color-mix(in srgb, var(--azul) 22%, transparent); color: var(--azul);
+  transition: transform .3s var(--curva);
+}
+.ver-mas-flecha::before {
+  content: ""; width: 8px; height: 8px; margin-top: -4px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg);
+}
+.ver-mas[open] .ver-mas-flecha { transform: rotate(180deg); }
+.ver-mas[open] > summary { margin-bottom: 4px; }
+.ver-mas[open] .ver-mas-cuerpo { animation: subir .4s var(--curva) both; }
+.ver-mas-cuerpo .tambien-mueven { margin-top: 18px; }
+.ver-mas-cuerpo .nota-cadena { margin-top: 20px; }
+.hitos-fuera { margin-top: 18px; }
+
 /* Los que también mueven la sospecha, por debajo del principal: misma lectura
    —de dónde a dónde— pero en pequeño, una fila por resultado. */
 .tambien-mueven {
@@ -4079,6 +4118,9 @@ button.sello.explica { font-size: .8125rem; }
     }
 
     var partes = [];
+    // Lo que va plegado bajo "Ver más". Arriba queda solo lo que dice qué ha
+    // pasado: el titular, la barra y el veredicto.
+    var detalle = [];
 
     if (!s.decisivo) {
       partes.push("<h2>Nada de lo explorado decide</h2>");
@@ -4094,17 +4136,19 @@ button.sello.explica { font-size: .8125rem; }
         "<b>" + esc(s.decisivo.nombre) + " " + esc(s.decisivo.d.resultado) + "</b>. " +
         "Es el que más mueve tu sospecha, y esto es lo que hace con ella:</p>");
       partes.push('<div class="conclusion-medidor">' + medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") + "</div>");
-      partes.push(tambienMueven(s));
+      detalle.push(tambienMueven(s));
     }
 
     var hitos = [];
 
+    // Este aviso no se pliega: es una señal para pararse a pensar, no contexto.
+    // Va a la vista, debajo del veredicto.
     if (s.discordante) {
-      hitos.push('<div class="hito alerta">' + icono("alerta") +
+      partes.push('<div class="hitos hitos-fuera">' +'<div class="hito alerta">' + icono("alerta") +
         "<span><b>Tus resultados no van en la misma dirección.</b> " +
         listaNombres(s.suben.map(function (x) { return x.nombre; })) + " apunta" + (s.suben.length > 1 ? "n" : "") + " a confirmar, " +
         "mientras que " + listaNombres(s.bajan.map(function (x) { return x.nombre; })) + " apunta" + (s.bajan.length > 1 ? "n" : "") + " a descartar. " +
-        "Merece una segunda mirada antes de decidir.</span></div>");
+        "Merece una segunda mirada antes de decidir.</span></div></div>");
     }
 
     if (s.nulos.length) {
@@ -4135,15 +4179,24 @@ button.sello.explica { font-size: .8125rem; }
         "Vuelve a lanzar la sospecha para completarla.</span></div>");
     }
 
-    if (hitos.length) partes.push('<div class="hitos">' + hitos.join("") + "</div>");
+    if (hitos.length) detalle.push('<div class="hitos">' + hitos.join("") + "</div>");
 
-    partes.push('<p class="nota-cadena">Esta conclusión no encadena los resultados entre sí. ' +
+    detalle.push('<p class="nota-cadena">Esta conclusión no encadena los resultados entre sí. ' +
       "Tests que exploran la misma estructura no aportan información independiente, y multiplicar " +
       "sus razones de verosimilitud daría una certeza que la evidencia no respalda. Lo que ves es " +
       "el resultado que más mueve tu sospecha, interpretado contra la sospecha con la que llegaste.</p>");
 
+    // Se recuerda si estaba abierto: la conclusión se repinta con cada
+    // resultado marcado, y un desplegable que se cierra solo parece roto.
+    partes.push('<details class="ver-mas" data-recordar="conclusion-detalle"' + (ui.abiertos["conclusion-detalle"] ? " open" : "") + ">" +
+      '<summary><span class="ver-mas-texto"></span><span class="ver-mas-flecha" aria-hidden="true"></span></summary>' +
+      '<div class="ver-mas-cuerpo">' + detalle.join("") + "</div>" +
+    "</details>");
+
     caja.innerHTML = cobertura() +
       '<div class="conclusion' + entradaConclusion() + '"><div class="conclusion-dentro">' + partes.join("") + "</div></div>";
+    var verMas = caja.querySelector(".ver-mas");
+    if (verMas) verMas.addEventListener("toggle", function () { ui.abiertos["conclusion-detalle"] = verMas.open; });
     animarCifras(caja);
     montarVeredicto();
     actualizarCarril();
@@ -4209,8 +4262,10 @@ button.sello.explica { font-size: .8125rem; }
 
     var hueco = document.createElement("div");
     hueco.id = "veredicto-ia";
-    var notas = caja.querySelector(".nota-cadena");
-    if (notas) caja.insertBefore(hueco, notas); else caja.appendChild(hueco);
+    // Justo debajo de la barra: antes del aviso de discordancia si lo hay, y si
+    // no, antes del "Ver más".
+    var ancla = caja.querySelector(".hitos-fuera") || caja.querySelector(".ver-mas");
+    if (ancla) ancla.parentNode.insertBefore(hueco, ancla); else caja.appendChild(hueco);
 
     var guardado = estado.veredictos[combi.clave];
     // También si falló: el motivo se queda a la vista, y se reintenta a mano.
