@@ -688,7 +688,20 @@ a { color: var(--azul); text-underline-offset: 3px; }
     var(--superficie);
   border: 1px solid color-mix(in srgb, var(--azul) 25%, var(--borde));
 }
-.fase-resumen.entra { animation: recoger .55s var(--curva) both; }
+.fase-resumen.entra { animation: recoger .6s .12s var(--curva) both; }
+/* El check del paso hecho: un círculo que aparece y un trazo que se dibuja
+   dentro, cuando la tarjeta termina de plegarse. */
+.resumen-check {
+  flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--azul); box-shadow: 0 0 0 5px var(--brillo-azul), 0 0 18px -4px var(--azul);
+}
+.resumen-check svg { width: 17px; height: 17px; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.fase-resumen.entra .resumen-check { animation: aparecerCheck .45s .45s var(--curva) both; }
+.fase-resumen.entra .resumen-check path { stroke-dasharray: 22; animation: trazarCheck .4s .75s ease-out both; }
+@keyframes aparecerCheck { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
+@keyframes trazarCheck { from { stroke-dashoffset: 22; } to { stroke-dashoffset: 0; } }
+/* La opción pulsada se ilumina un instante antes de plegarse. */
+.nivel.elegido { border-color: var(--azul); box-shadow: 0 0 0 3px var(--brillo-azul), 0 0 22px -6px var(--azul); transform: scale(.985); }
 .fase-resumen-texto { flex: 1; min-width: 220px; color: var(--tinta-media); font-size: 1rem; }
 .fase-resumen-texto b { color: var(--tinta); font-weight: 700; }
 .fase-resumen-texto i {
@@ -2620,7 +2633,7 @@ button.sello.explica { font-size: .8125rem; }
     ui.avanceFase2 = null;
   }
 
-  function avanzarAFase2(movil) {
+  function avanzarAFase2(retraso) {
     cancelarAvanceFase2();
     var interfaz = ui;
     var nivel = estado.nivel;
@@ -2637,8 +2650,35 @@ button.sello.explica { font-size: .8125rem; }
       }
       fase2.scrollIntoView({ behavior: reduce ? "instant" : "smooth", block: "start" });
     };
-    if (movil && !reduce) ui.avanceFase2 = setTimeout(avanzar, 360);
+    if (retraso && !reduce) ui.avanceFase2 = setTimeout(avanzar, retraso);
     else avanzar();
+  }
+
+  /*
+   * La tarjeta de la fase 1 se pliega despacio hasta la línea resumen. Se anima
+   * la altura de su contenedor, de la que tenía abierta a la que tiene plegada:
+   * una sola transición, sin trabajo por fotograma.
+   */
+  function plegarFase1(altoAntes, reduce) {
+    var cuerpo = document.querySelector("#paso-1 .fase-cuerpo");
+    if (!cuerpo || reduce || !altoAntes) return;
+    var altoDespues = cuerpo.getBoundingClientRect().height;
+    if (Math.abs(altoAntes - altoDespues) < 4) return;
+    cuerpo.style.overflow = "hidden";
+    cuerpo.style.height = altoAntes + "px";
+    void cuerpo.offsetHeight;
+    cuerpo.style.transition = "height .7s cubic-bezier(.16, 1, .3, 1)";
+    cuerpo.style.height = altoDespues + "px";
+    var hecho = false;
+    var terminar = function () {
+      if (hecho) return;
+      hecho = true;
+      cuerpo.style.height = "";
+      cuerpo.style.overflow = "";
+      cuerpo.style.transition = "";
+    };
+    cuerpo.addEventListener("transitionend", terminar, { once: true });
+    setTimeout(terminar, 900);
   }
 
   function pintar() {
@@ -2657,20 +2697,33 @@ button.sello.explica { font-size: .8125rem; }
         var primera = !estado.nivel;
         var continuando = ui.avanceFase2 !== null;
         cancelarAvanceFase2();
-        var movil = window.matchMedia && window.matchMedia("(max-width: 620px)").matches;
-        estado.nivel = b.getAttribute("data-nivel");
-        // En móvil se conserva la altura de la tarjeta: plegarla aquí
-        // movería la fase dos antes de que el usuario perciba el recorrido.
-        ui.f1Abierta = Boolean(movil);
-        ui.acabaDeElegir = true;
-        pintar();
-        // Con la sospecha ya elegida, la IA puede decir qué significa cada
-        // resultado para ella. Si se cambia, se piden las del nivel nuevo.
-        Object.keys(estado.elementos).forEach(pedirLecturaIa);
-        // La primera vez, la vista baja a la exploración: el paso está hecho y
-        // lo siguiente está abajo. Si solo se está cambiando la sospecha, no:
-        // el fisioterapeuta ya estaba donde quería estar.
-        if (primera || continuando) avanzarAFase2(movil);
+        var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        // Primero se ve qué se ha pulsado, con la tarjeta aún abierta. Después
+        // se pliega despacio hasta la línea resumen, con su check dibujándose,
+        // y al terminar la vista baja a la fase 2. Antes la tarjeta desaparecía
+        // de golpe y la fase 2 aparecía sin que se notara el paso.
+        Array.prototype.forEach.call(salida.querySelectorAll("[data-nivel]"), function (x) {
+          x.setAttribute("aria-pressed", String(x === b));
+        });
+        b.classList.add("elegido");
+        var cuerpo = b.closest(".fase-cuerpo");
+        var altoAntes = cuerpo ? cuerpo.getBoundingClientRect().height : 0;
+
+        setTimeout(function () {
+          estado.nivel = b.getAttribute("data-nivel");
+          ui.f1Abierta = false;
+          ui.acabaDeElegir = true;
+          pintar();
+          plegarFase1(altoAntes, reduce);
+          // Con la sospecha ya elegida, la IA puede decir qué significa cada
+          // resultado para ella. Si se cambia, se piden las del nivel nuevo.
+          Object.keys(estado.elementos).forEach(pedirLecturaIa);
+          // La primera vez, la vista baja a la exploración cuando el plegado ha
+          // terminado: el paso está hecho y lo siguiente está abajo. Si solo se
+          // está cambiando la sospecha, no: ya estaba donde quería estar.
+          if (primera || continuando) avanzarAFase2(reduce ? 0 : 780);
+        }, reduce ? 0 : 240);
       });
     });
 
@@ -2945,6 +2998,7 @@ button.sello.explica { font-size: .8125rem; }
     // pedir atención y la fase siguiente sube a ocupar su sitio.
     if (elegido && !ui.f1Abierta) {
       return '<div class="fase-resumen' + (ui.acabaDeElegir ? " entra" : "") + '">' +
+        '<span class="resumen-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5.5 12.5l4.2 4.2L18.5 7.8"/></svg></span>' +
         '<span class="fase-resumen-texto">Llegas con una sospecha <b>' + esc(elegido.nombre.toLowerCase()) + "</b> de " +
           esc(enFrase(estado.entidad)) + '<i>' + esc(elegido.detalle) + "</i></span>" +
         '<button class="btn-cambiar" data-cambiar-nivel>Cambiar</button>' +

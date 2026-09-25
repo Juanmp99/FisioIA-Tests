@@ -107,7 +107,10 @@ export function semaforo(ficha) {
     motivos.push(
       ficha.numeroEstudios > 1
         ? "Solo se dispone de estudios primarios, sin revisión sistemática que los sintetice."
-        : "Se dispone de un único estudio primario.",
+        // Se refiere al estudio citado, no a todo lo encontrado: al lado puede
+        // haber otros que también miden el test, y "se dispone de un único
+        // estudio" llevaba a pensar que no había más.
+        : "El estudio citado es un único estudio primario.",
     );
   }
   if (ficha.consistencia === "discrepante") motivos.push("Los estudios discrepan entre sí.");
