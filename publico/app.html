@@ -948,6 +948,17 @@ a { color: var(--azul); text-underline-offset: 3px; }
   border-radius: 0 var(--radio-s) var(--radio-s) 0;
   background: linear-gradient(90deg, color-mix(in srgb, var(--violeta) 7%, transparent), transparent 60%);
 }
+.cluster > summary { cursor: pointer; list-style: none; padding-bottom: 14px; }
+.cluster > summary::-webkit-details-marker { display: none; }
+.cluster-abrir {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: .8125rem; color: var(--tinta-tenue); transition: color .2s;
+}
+.cluster-abrir::before { content: "▸"; font-size: .625rem; transition: transform .15s; }
+.cluster[open] .cluster-abrir::before { transform: rotate(90deg); }
+.cluster > summary:hover .cluster-abrir { color: var(--tinta-media); }
+.cluster-abrir::after { content: "Ver la combinación y sus cifras"; }
+.cluster[open] .cluster-abrir::after { content: "Plegar"; }
 .cluster .rotulo { color: var(--violeta); }
 .cluster h3 { margin: 7px 0 4px; font-size: 1rem; letter-spacing: -.01em; }
 .cluster .criterio { margin: 0 0 10px; color: var(--tinta-media); font-size: .875rem; }
@@ -3171,15 +3182,22 @@ button.sello.explica { font-size: .8125rem; }
       // Sin número de test, más estrecha y con su propio rótulo: es una nota
       // sobre el conjunto, no la octava prueba de la lista. Va con menos peso
       // que un test porque se usa después de ellos, no en lugar de ellos.
-      return '<div class="cluster' + (confirmada ? "" : " sinConfirmar") + '">' +
-        '<span class="rotulo">' + rotulo + "</span>" +
-        "<h3>" + esc(a.nombre) + "</h3>" +
+      // Plegada: es un apunte sobre el conjunto, y lo que se usa primero son
+      // los tests. Quien quiera la combinación y sus cifras, la abre.
+      var id = "agrupacion|" + a.nombre;
+      return '<details class="cluster' + (confirmada ? "" : " sinConfirmar") + '" data-recordar="' + esc(id) + '"' +
+          (ui.abiertos[id] ? " open" : "") + ">" +
+        "<summary>" +
+          '<span class="rotulo">' + rotulo + "</span>" +
+          "<h3>" + esc(a.nombre) + "</h3>" +
+          '<span class="cluster-abrir"></span>' +
+        "</summary>" +
         '<p class="criterio">' + esc(a.criterio) + "</p>" +
         "<ol>" + lista + "</ol>" +
         careo +
         '<div class="franja cluster-franja">' + chipsCifras(ev) + selloCalidad(ev) + "</div>" +
         fuente(ev) +
-      "</div>";
+      "</details>";
     }).join("");
 
     var pendientes = estado.agrupaciones.filter(function (a) {
