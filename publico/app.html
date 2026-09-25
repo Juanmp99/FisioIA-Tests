@@ -1328,16 +1328,6 @@ button.sello.explica { font-size: .8125rem; }
 }
 .veredicto-ia-caja small::before { content: "✦ "; color: var(--violeta); }
 .veredicto-ia-caja.cargando { display: grid; gap: 8px; }
-.veredicto-ia-caja.fallida { border-style: dashed; }
-.veredicto-ia-caja.fallida p { font-size: .875rem; color: var(--tinta-tenue); }
-.btn-reintentar {
-  margin-top: 10px; padding: 7px 14px; border-radius: 999px;
-  background: transparent; color: var(--violeta); font: inherit; font-size: .8125rem; font-weight: 650;
-  border: 1px solid color-mix(in srgb, var(--violeta) 45%, transparent); cursor: pointer;
-  transition: background .15s, border-color .15s;
-}
-.btn-reintentar:hover { background: color-mix(in srgb, var(--violeta) 12%, transparent); border-color: var(--violeta); }
-.btn-reintentar:focus-visible { outline: 2px solid var(--violeta); outline-offset: 2px; }
 .veredicto-ia-caja.cargando .esqueleto { display: block; height: 11px; }
 .veredicto-ia-caja.cargando .esqueleto.corto { width: 55%; }
 
@@ -4522,9 +4512,9 @@ button.sello.explica { font-size: .8125rem; }
     temporizadorVeredicto = setTimeout(function () { pedirVeredicto(combi); }, 700);
   }
 
-  function pedirVeredicto(combi) {
+  function pedirVeredicto(combi, reintento) {
     var enCurso = estado.entidad;
-    if (estado.veredictos[combi.clave] === "pendiente") return;
+    if (!reintento && estado.veredictos[combi.clave] === "pendiente") return;
     estado.veredictos[combi.clave] = "pendiente";
 
     pedir("/api/concluir", {
@@ -4536,38 +4526,27 @@ button.sello.explica { font-size: .8125rem; }
       .catch(function (err) { return { fallo: err.pasajero ? "red" : "error" }; })
       .then(function (v) {
         if (estado.entidad !== enCurso) return;
+        // El servidor ya reintenta si el candado descarta la redacción. Si aun
+        // así no llega, se pide una vez más desde aquí, sin decir nada.
+        if (v && v.fallo && !reintento) {
+          setTimeout(function () { pedirVeredicto(combi, true); }, 1200);
+          return;
+        }
         estado.veredictos[combi.clave] = v;
         var ahora = combinacionActual();
         if (ahora && ahora.clave === combi.clave) pintarVeredicto(v);
       });
   }
 
-  /*
-   * Por qué no hay veredicto. Antes el hueco se quedaba en blanco, y un hueco en
-   * blanco no se distingue de una avería: ni el fisioterapeuta sabía si iba a
-   * aparecer, ni nosotros por qué no había aparecido.
-   */
-  var FALLOS_VEREDICTO = {
-    plazo: "El modelo ha tardado demasiado en redactarlo.",
-    candado: "Lo que ha redactado no ha pasado nuestro control: usaba una cifra que no estaba en tus datos o se dirigía al paciente. Preferimos no enseñarlo.",
-    red: "Se ha perdido la conexión al pedirlo.",
-    error: "No se ha podido redactar ahora mismo."
-  };
-
   function pintarVeredicto(v) {
     var hueco = document.getElementById("veredicto-ia");
     if (!hueco) return;
     if (!v) { hueco.innerHTML = ""; return; }
 
-    if (v.fallo) {
-      hueco.innerHTML = '<div class="veredicto-ia-caja fallida">' +
-        '<span class="globo-ia-rotulo">El veredicto</span>' +
-        "<p>" + esc(FALLOS_VEREDICTO[v.fallo] || FALLOS_VEREDICTO.error) +
-        " El cálculo de arriba no depende de esto.</p>" +
-        '<button type="button" class="btn-reintentar" data-reintentar-veredicto>Volver a intentarlo</button>' +
-      "</div>";
-      return;
-    }
+    // Si después de todos los intentos no hay veredicto, no se enseña nada.
+    // Un aviso de error aquí se leía como la herramienta rota, y la conclusión
+    // calculada de arriba está completa sin él.
+    if (v.fallo) { hueco.innerHTML = ""; return; }
 
     if (v === "pendiente") {
       hueco.innerHTML = '<div class="veredicto-ia-caja cargando">' +
@@ -4584,14 +4563,6 @@ button.sello.explica { font-size: .8125rem; }
     "</div>";
   }
 
-  document.addEventListener("click", function (e) {
-    if (!e.target.closest || !e.target.closest("[data-reintentar-veredicto]")) return;
-    var combi = combinacionActual();
-    if (!combi) return;
-    delete estado.veredictos[combi.clave];
-    pintarVeredicto("pendiente");
-    pedirVeredicto(combi);
-  });
 
   /* ============ el carril de pasos ============ */
 

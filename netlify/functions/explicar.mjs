@@ -36,9 +36,10 @@ export default async (req) => {
   const explicacion = await explicacionDe(k, ev, {
     test: elemento.nombre,
     entidad,
-    // Muy por debajo del corte de la pasarela: si no llega, la pantalla se queda
-    // con el texto fijo y no pasa nada.
-    senal: AbortSignal.timeout(22000),
+    // La función tiene 60 segundos. Con 45 cabe un segundo intento si el
+    // candado descarta algo del primero; si no llega, la pantalla se queda con
+    // el texto fijo y no pasa nada.
+    senal: AbortSignal.timeout(45000),
   });
 
   return json({ explicacion });

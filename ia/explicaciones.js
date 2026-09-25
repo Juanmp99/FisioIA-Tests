@@ -19,7 +19,7 @@ import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "../dominio
 const ALMACEN = "explicacion";
 
 /** Se cambia al tocar el prompt, para no servir explicaciones escritas con otro. */
-const VERSION = 7;
+const VERSION = 8;
 
 /**
  * En qué cifras se apoya una explicación.
@@ -61,7 +61,7 @@ Reglas, sin excepción:
 
 5. Devuelve null SOLO cuando el dato no exista: indirecta si las cifras se midieron sobre la misma patología, parcial si constan las dos cifras. Si una cifra consta en los datos, su campo no puede quedarse vacío.
 
-6. Sobre los resultados positivo y negativo, apóyate en la clase de señal que te doy: señal muy clara, señal clara, señal débil o no sirve como señal. Usa esas mismas palabras, que son las que el fisioterapeuta ve en pantalla, y no hables de "poder diagnóstico". Es una propiedad del test, no del cambio en el paciente: cuánto se mueva la sospecha depende también de la sospecha de partida, que no conoces, y con una sospecha intermedia incluso una señal débil la mueve bastantes puntos. Por eso nunca califiques el cambio ("aumenta de forma pequeña", "un cambio pequeño"): di qué clase de señal es y hacia dónde empuja ("un positivo es una señal débil a favor de la rotura: empuja la sospecha hacia arriba, pero por sí solo no la confirma"). No afirmes que confirma o descarta: eso depende de la sospecha previa.
+6. Sobre los resultados positivo y negativo, apóyate en la clase de señal que te doy: señal muy clara, señal clara, señal débil o no sirve como señal. Usa esas mismas palabras, que son las que el fisioterapeuta ve en pantalla, y no hables de "poder diagnóstico". Es una propiedad del test, no del cambio en el paciente: cuánto se mueva la sospecha depende también de la sospecha de partida, que no conoces, y con una sospecha intermedia incluso una señal débil la mueve bastantes puntos. Por eso nunca califiques el cambio ("aumenta de forma pequeña", "un cambio pequeño"): di qué clase de señal es y hacia dónde empuja ("un positivo es una señal débil a favor de la rotura: empuja la sospecha hacia arriba, pero por sí solo no la confirma"). No hables de confirmar ni de descartar en ningún sentido: ni "confirma" ni "no la confirma", ni "descarta" ni "no la descarta". Eso depende de la sospecha de partida, que tú no conoces y la pantalla sí: el fisioterapeuta lo lee en el título, y si tú dices lo contrario os contradecís en la misma tarjeta.
 
 7. En eleccion, como mucho 50 palabras, le cuentas al fisioterapeuta qué hacer con los otros estudios que también miden el test. Ya ha leído, justo encima, qué cifras usa el cálculo y la regla por la que se eligió el citado; no la repitas. Tu trabajo es decirle lo que se ve al compararlos en este caso concreto: si las cifras de los demás se parecen a las del citado o se alejan, en cuál de las dos (sensibilidad o especificidad), y qué implica eso para fiarse del resultado del test en su paciente. Si un estudio publica solo una de las dos cifras, dilo. Nunca inventes un motivo de elección que no esté en los datos, y no sugieras mezclar ni promediar cifras de estudios distintos.
 
@@ -156,18 +156,21 @@ function filtrar(bruto, ev, test) {
   });
 
   const limpio = {};
+  const motivos = [];
   for (const c of CAMPOS) {
     const texto = typeof bruto?.[c] === "string" ? bruto[c].trim() : "";
     if (!texto) { limpio[c] = null; continue; }
     if (texto.length > TOPE_CAMPO) {
       console.warn(`[explicacion] ${test} · ${c}: descartado por largo`);
       limpio[c] = null;
+      motivos.push(`${c} era demasiado largo`);
       continue;
     }
     const r = comprobarNumeros(texto, permitidos);
     if (!r.valido) {
       console.warn(`[explicacion] ${test} · ${c}: descartado, números que no venían en los datos: ${r.intrusos.join(", ")}`);
       limpio[c] = null;
+      motivos.push(`en ${c} escribiste ${r.intrusos.join(", ")}, que no está en los datos`);
       continue;
     }
     // Además de pedírselo en el prompt, se comprueba: el modelo se despista y
@@ -175,12 +178,24 @@ function filtrar(bruto, ev, test) {
     if (hablaAlPaciente(texto)) {
       console.warn(`[explicacion] ${test} · ${c}: descartado, le habla al paciente en vez de al fisioterapeuta`);
       limpio[c] = null;
+      motivos.push(`en ${c} te dirigiste al enfermo; quien lee es el fisioterapeuta, y al enfermo se le llama "tu paciente"`);
+      continue;
+    }
+    // Lo mismo con confirmar y descartar: la tarjeta ya lo dice en su título,
+    // sabiendo la sospecha de partida, y el texto no puede llevarle la contraria.
+    if ((c === "positivo" || c === "negativo") && /(confirm|descart)/i.test(texto)) {
+      console.warn(`[explicacion] ${test} · ${c}: descartado, habla de confirmar o descartar`);
+      limpio[c] = null;
+      motivos.push(`en ${c} hablaste de confirmar o descartar, que no puedes saber`);
       continue;
     }
     limpio[c] = texto;
   }
-  return limpio;
+  return { limpio, motivos };
 }
+
+/** Cuántos campos útiles trae una redacción. Sirve para quedarse con la mejor. */
+const utiles = (t) => Object.values(t).filter(Boolean).length;
 
 /**
  * La explicación de un test con cifras, de la base o recién redactada.
@@ -194,20 +209,31 @@ export async function explicacionDe(clave, ev, { test, entidad, senal }) {
   const guardada = await leer(ALMACEN, clave);
   if (guardada?.version === VERSION && guardada.huella === huella) return guardada.textos;
 
-  try {
-    const { datos } = await pedirJson({
-      sistema: SISTEMA,
-      mensaje: `Datos del test:\n${JSON.stringify(datosDe(ev, { test, entidad }), null, 2)}`,
-      esquema: ESQUEMA,
-      esfuerzo: "low",
-      maxTokens: 1500,
-      senal,
-    });
-    const textos = filtrar(datos, ev, test);
-    await escribir(ALMACEN, clave, { version: VERSION, huella, test, entidad, textos, fecha: new Date().toISOString() });
-    return textos;
-  } catch (e) {
-    console.warn(`[explicacion] ${test}: ${e.message}`);
-    return null;
+  // Si el candado descarta algún campo, se pide una segunda vez diciéndole al
+  // modelo qué falló, y se queda la redacción que traiga más campos buenos.
+  const base = `Datos del test:\n${JSON.stringify(datosDe(ev, { test, entidad }), null, 2)}`;
+  let mejor = null;
+  let aviso = "";
+  for (let intento = 1; intento <= 2; intento++) {
+    try {
+      const { datos } = await pedirJson({
+        sistema: SISTEMA,
+        mensaje: base + aviso,
+        esquema: ESQUEMA,
+        esfuerzo: "low",
+        maxTokens: 1500,
+        senal,
+      });
+      const { limpio, motivos } = filtrar(datos, ev, test);
+      if (!mejor || utiles(limpio) > utiles(mejor)) mejor = limpio;
+      if (!motivos.length) break;
+      aviso = `\n\nTu respuesta anterior no se ha podido usar entera: ${motivos.join("; ")}. Vuelve a redactarla corrigiendo eso y respetando todas las reglas.`;
+    } catch (e) {
+      console.warn(`[explicacion] ${test}: intento ${intento}: ${e.message}`);
+      if (e.porPlazo) break;
+    }
   }
+  if (!mejor) return null;
+  await escribir(ALMACEN, clave, { version: VERSION, huella, test, entidad, textos: mejor, fecha: new Date().toISOString() });
+  return mejor;
 }

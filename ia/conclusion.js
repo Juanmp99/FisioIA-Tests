@@ -73,64 +73,93 @@ export function claveConclusion({ entidad, nivel, marcados, huella = "" }) {
   return `v${VERSION}|${entidad}|${nivel}|${pares}|${huella}`;
 }
 
+/**
+ * Pasa el candado a los dos campos. Devuelve los textos si los dos valen, y en
+ * cualquier caso los motivos de lo descartado, dichos para el modelo: se le
+ * devuelven en el siguiente intento para que corrija justo eso.
+ */
 function filtrar(bruto, permitidos, etiqueta) {
   const salida = {};
+  const motivos = [];
   for (const campo of ["veredicto", "porque"]) {
     const texto = typeof bruto?.[campo] === "string" ? bruto[campo].trim() : "";
-    if (!texto || texto.length > TOPE_CAMPO) {
+    if (!texto) {
       salida[campo] = null;
+      motivos.push(`el campo ${campo} venía vacío`);
+      continue;
+    }
+    if (texto.length > TOPE_CAMPO) {
+      salida[campo] = null;
+      motivos.push(`el campo ${campo} era demasiado largo; respeta el tope de palabras`);
       continue;
     }
     const numeros = comprobarNumeros(texto, permitidos);
     if (!numeros.valido) {
       console.warn(`[conclusion] ${etiqueta} · ${campo}: números que no venían en los datos: ${numeros.intrusos.join(", ")}`);
       salida[campo] = null;
+      motivos.push(`en ${campo} escribiste ${numeros.intrusos.join(", ")}, que no está en los datos; usa solo los números que te doy`);
       continue;
     }
     if (hablaAlPaciente(texto)) {
       console.warn(`[conclusion] ${etiqueta} · ${campo}: le habla al paciente`);
       salida[campo] = null;
+      motivos.push(`en ${campo} te dirigiste al enfermo como si te leyera él; quien lee es el fisioterapeuta, y al enfermo se le llama "tu paciente"`);
       continue;
     }
     salida[campo] = texto;
   }
   // Un veredicto sin su porqué, o al revés, se queda a medias: mejor nada.
-  return salida.veredicto && salida.porque ? salida : null;
+  return { textos: salida.veredicto && salida.porque ? salida : null, motivos };
 }
+
+/** Cuántas veces se pide antes de rendirse. Cada intento son unos segundos. */
+const INTENTOS = 3;
 
 /**
  * El veredicto de una combinación concreta.
  *
  * Devuelve `{ textos, motivo }`. Si no se ha podido redactar, `textos` es null y
- * `motivo` dice por qué: "plazo", "candado" o "error". La conclusión calculada
- * se enseña igual, esto es un añadido; pero un hueco en blanco sin explicación
- * parece una avería, y sin el motivo no hay forma de saber cuál.
+ * `motivo` dice por qué: "plazo", "candado" o "error".
  *
- * Solo se guarda lo que sale bien. Un veredicto descartado por el candado se
- * guardaba como vacío y esa combinación quedaba sin veredicto para siempre,
- * aunque una segunda redacción hubiera pasado el control sin problema.
+ * Si el candado lo descarta, se vuelve a pedir, diciéndole al modelo qué falló.
+ * Antes el primer descarte llegaba a la pantalla como un aviso de error, y para
+ * quien lo leía era la herramienta rota, cuando un segundo intento casi siempre
+ * pasa el control. Solo se guarda lo que sale bien.
  */
 export async function veredictoDe({ clave, datos, permitidos, etiqueta, senal }) {
   const guardado = await leer(ALMACEN, clave);
   if (guardado?.version === VERSION && guardado.textos) return { textos: guardado.textos, motivo: null };
 
   const inicio = Date.now();
-  try {
-    const { datos: bruto } = await pedirJson({
-      sistema: SISTEMA,
-      mensaje: `Exploración:\n${JSON.stringify(datos, null, 2)}`,
-      esquema: ESQUEMA,
-      esfuerzo: "low",
-      maxTokens: 1200,
-      senal,
-    });
-    const textos = filtrar(bruto, permitidos, etiqueta);
-    console.log(`[conclusion] ${etiqueta}: ${textos ? "redactado" : "descartado"} en ${Date.now() - inicio} ms`);
-    if (!textos) return { textos: null, motivo: "candado" };
-    await escribir(ALMACEN, clave, { version: VERSION, textos, fecha: new Date().toISOString() });
-    return { textos, motivo: null };
-  } catch (e) {
-    console.warn(`[conclusion] ${etiqueta}: ${e.message} (${Date.now() - inicio} ms)`);
-    return { textos: null, motivo: e.porPlazo ? "plazo" : "error" };
+  const base = `Exploración:\n${JSON.stringify(datos, null, 2)}`;
+  let aviso = "";
+  let motivo = "candado";
+
+  for (let intento = 1; intento <= INTENTOS; intento++) {
+    if (senal?.aborted) return { textos: null, motivo: "plazo" };
+    try {
+      const { datos: bruto } = await pedirJson({
+        sistema: SISTEMA,
+        mensaje: base + aviso,
+        esquema: ESQUEMA,
+        esfuerzo: "low",
+        maxTokens: 1200,
+        senal,
+      });
+      const { textos, motivos } = filtrar(bruto, permitidos, etiqueta);
+      if (textos) {
+        console.log(`[conclusion] ${etiqueta}: redactado al intento ${intento}, en ${Date.now() - inicio} ms`);
+        await escribir(ALMACEN, clave, { version: VERSION, textos, fecha: new Date().toISOString() });
+        return { textos, motivo: null };
+      }
+      motivo = "candado";
+      aviso = `\n\nTu respuesta anterior no se ha podido usar: ${motivos.join("; ")}. Vuelve a redactarla corrigiendo eso y respetando todas las reglas.`;
+    } catch (e) {
+      console.warn(`[conclusion] ${etiqueta}: intento ${intento}: ${e.message} (${Date.now() - inicio} ms)`);
+      if (e.porPlazo) return { textos: null, motivo: "plazo" };
+      motivo = "error";
+    }
   }
+  console.warn(`[conclusion] ${etiqueta}: sin veredicto tras ${INTENTOS} intentos (${motivo})`);
+  return { textos: null, motivo };
 }
