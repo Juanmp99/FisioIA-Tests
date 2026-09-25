@@ -20,7 +20,7 @@ import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "../dominio
 const ALMACEN = "conclusion";
 
 /** Se cambia al tocar el prompt, para no servir veredictos escritos con otro. */
-const VERSION = 1;
+const VERSION = 2;
 
 const TOPE_CAMPO = 420;
 
@@ -39,6 +39,8 @@ Reglas, sin excepción:
 4. Quien te lee es el fisioterapeuta, y el enfermo es un tercero: "tu paciente", nunca "tú tienes" ni "tu lesión".
 
 5. Nunca digas qué hacer a continuación. Esta herramienta informa, no indica conducta.
+
+6. Cada resultado trae dos cosas distintas, y no las mezcles. puntosQueMueve es cuánto ha cambiado la sospecha en este paciente: úsalo para hablar del cambio. poderDiagnosticoDelTest es una propiedad del test: úsalo, si hace falta, para decir qué clase de test es. Nunca llames "pequeño" a un cambio de muchos puntos solo porque el test tenga poder diagnóstico bajo.
 
 Devuelve dos campos:
 - veredicto: una sola frase, como mucho 20 palabras, con lo que sale de la exploración.

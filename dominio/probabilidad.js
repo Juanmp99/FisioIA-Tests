@@ -133,18 +133,24 @@ export function postTest(pre, lr) {
 }
 
 /**
- * Magnitud del cambio que aporta un resultado.
+ * Poder diagnóstico de un resultado, según su razón de verosimilitud.
  *
- * Bandas de uso extendido en medicina basada en la evidencia: por encima de 10
- * y por debajo de 0,1 el cambio es concluyente; cerca de 1 el test no aporta
- * nada. Sirven para avisar de que un test muy usado puede ser inútil.
+ * Bandas de uso extendido en medicina basada en la evidencia (Jaeschke 1994,
+ * McGee 2002): por encima de 10 y por debajo de 0,1, a menudo concluyente;
+ * cerca de 1, el test no aporta nada. Sirven para avisar de que un test muy
+ * usado puede ser inútil.
+ *
+ * Describen al test, no el cambio en un paciente concreto, que depende también
+ * de la sospecha de partida. Se rotulaban "cambio pequeño", y al lado de una
+ * sospecha que subía del 45 al 78% la etiqueta contradecía lo que se veía. El
+ * cambio real se cuenta en puntos, aparte.
  */
 export function magnitud(lr) {
   const fuerza = lr >= 1 ? lr : 1 / lr;
-  if (fuerza >= 10) return { nivel: "concluyente", texto: "cambio grande y con frecuencia concluyente" };
-  if (fuerza >= 5) return { nivel: "moderado", texto: "cambio moderado" };
-  if (fuerza >= 2) return { nivel: "pequeno", texto: "cambio pequeño" };
-  return { nivel: "irrelevante", texto: "cambio mínimo: este resultado apenas modifica la sospecha" };
+  if (fuerza >= 10) return { nivel: "concluyente", texto: "poder diagnóstico alto, a menudo concluyente" };
+  if (fuerza >= 5) return { nivel: "moderado", texto: "poder diagnóstico moderado" };
+  if (fuerza >= 2) return { nivel: "pequeno", texto: "poder diagnóstico bajo" };
+  return { nivel: "irrelevante", texto: "poder diagnóstico mínimo: por sí solo apenas modifica la sospecha" };
 }
 
 /**

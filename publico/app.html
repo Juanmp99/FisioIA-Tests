@@ -391,11 +391,28 @@ a { color: var(--azul); text-underline-offset: 3px; }
   /* En un móvil no hay ancho para un carril lateral: pasa a ser una barra fina
      pegada arriba, con los tres pasos en horizontal. */
   .trabajo { grid-template-columns: 1fr; gap: 0; }
+  /* Una cápsula de cristal que flota sobre la página, y no una franja de
+     lado a lado. A propósito, nada que ver con las tarjetas de test: aquellas
+     son sólidas y con el borde del color de su evidencia; esta es translúcida,
+     redondeada como una píldora y con un filo de azul a violeta. */
   .carril {
-    top: 58px; z-index: 30; margin: 0 -20px 18px; padding: 12px 20px;
-    background: color-mix(in srgb, var(--fondo) 90%, transparent);
-    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    border-bottom: 1px solid var(--borde);
+    top: 64px; z-index: 30; margin: 0 0 18px; padding: 11px 16px 10px;
+    border-radius: 22px;
+    border: 1px solid transparent;
+    background:
+      linear-gradient(135deg, rgba(20, 30, 48, .82), rgba(13, 19, 32, .78) 55%, rgba(26, 22, 48, .8)) padding-box,
+      linear-gradient(120deg, color-mix(in srgb, var(--azul) 70%, transparent), rgba(255, 255, 255, .08) 45%, color-mix(in srgb, var(--violeta) 70%, transparent)) border-box;
+    backdrop-filter: blur(18px) saturate(1.5); -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    box-shadow:
+      0 18px 40px -18px rgba(0, 0, 0, .8),
+      0 10px 34px -20px color-mix(in srgb, var(--azul) 80%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, .06);
+  }
+  /* Las banderas rojas, como una pastilla dentro de la cápsula y no como una
+     fila entera. */
+  .carril .alerta-banderas {
+    display: inline-flex; width: auto; max-width: 100%;
+    padding: 5px 12px 5px 10px; border-radius: 999px; margin-bottom: 10px;
   }
   .pasos { display: flex; gap: 8px; }
   .paso-carril { flex: 1; flex-direction: column; gap: 7px; padding: 0; align-items: flex-start; }
@@ -1962,8 +1979,8 @@ button.sello.explica { font-size: .8125rem; }
      fija —el nombre de la herramienta no hace falta mientras exploras— y el
      carril se compacta. */
   .barra { position: static; }
-  .carril { top: 0; padding: 8px 16px; margin: 0 -16px 14px; }
-  .alerta-banderas { padding: 7px 11px; margin-bottom: 8px; font-size: .75rem; }
+  .carril { top: 8px; padding: 9px 12px 8px; margin: 0 -4px 14px; border-radius: 20px; }
+  .carril .alerta-banderas { padding: 4px 11px 4px 9px; margin-bottom: 8px; font-size: .75rem; }
   .paso-num { width: 24px; height: 24px; font-size: .6875rem; }
   .paso-carril { gap: 4px; }
   .paso-carril:not(:last-child)::before { left: 30px; top: 12px; }
@@ -3968,9 +3985,18 @@ button.sello.explica { font-size: .8125rem; }
    * más. Antes eran etiquetas abstractas ("Decide", "Mueve tu sospecha") que
    * obligaban a bajar a la frase para saber si confirmaba o descartaba.
    */
+  /* Cuánto se ha movido la sospecha, en puntos. Es lo que se ve en la barra, y
+     lo que el fisioterapeuta se pregunta; la fuerza del test va aparte. */
+  function puntos(pre, post) {
+    var n = pct(post) - pct(pre);
+    if (!n) return "";
+    return (n > 0 ? "+" : "−") + Math.abs(n) + (Math.abs(n) === 1 ? " punto" : " puntos");
+  }
+
   function tituloVeredicto(clase, d) {
     var x = d.detalle;
-    var tramo = "del " + pct(x.preTest) + "% al " + x.postTestTexto;
+    var mov = puntos(x.preTest, x.postTest);
+    var tramo = "del " + pct(x.preTest) + "% al " + x.postTestTexto + (mov ? " (" + mov + ")" : "");
     if (clase === "decide") return (d.resultado === "positivo" ? "Confirma" : "Descarta") + " · " + tramo;
     if (clase === "nulo") return "Apenas cambia nada · " + tramo;
     return (x.postTest > x.preTest ? "Sube tu sospecha" : "Baja tu sospecha") + " · " + tramo;
@@ -4066,7 +4092,6 @@ button.sello.explica { font-size: .8125rem; }
     };
   }
 
-  var MAGNITUD_CORTA = { concluyente: "cambio grande", moderado: "cambio moderado", pequeno: "cambio pequeño" };
 
   /*
    * Los demás resultados que sí mueven la sospecha, aunque menos que el
@@ -4099,7 +4124,7 @@ button.sello.explica { font-size: .8125rem; }
           '<span class="mueve-punto" style="left:' + post + '%"></span>' +
         "</span>" +
         '<span class="mueve-cifra">' + pre + "% → <b>" + post + "%</b></span>" +
-        '<span class="mueve-cuanto">' + (MAGNITUD_CORTA[det.magnitud.nivel] || "") + "</span>" +
+        '<span class="mueve-cuanto">' + puntos(det.preTest, det.postTest) + "</span>" +
       "</li>";
     }).join("");
 

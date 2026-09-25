@@ -67,6 +67,9 @@ export default async (req) => {
     }
 
     proporciones.push(ev.sn, ev.sp);
+    // Los puntos que mueve, como se enseñan en pantalla: redondeando antes de restar.
+    const mov = Math.round(d.detalle.postTest * 100) - Math.round(d.detalle.preTest * 100);
+    otros.push(Math.abs(mov));
     razones.push(d.detalle.razonDeVerosimilitud);
     otros.push(pctMostrado(d.detalle.postTest));
 
@@ -76,7 +79,8 @@ export default async (req) => {
       sensibilidad: ev.sn,
       especificidad: ev.sp,
       dejaLaSospechaEn: `${pctMostrado(d.detalle.postTest)}%`,
-      cuantoMueve: d.detalle.magnitud.texto,
+      puntosQueMueve: `${mov > 0 ? "+" : "-"}${Math.abs(mov)} puntos`,
+      poderDiagnosticoDelTest: d.detalle.magnitud.texto,
       calidadDelEstudio: ev.calidad?.etiqueta || null,
       medidaSobreOtraPatologia: ev.indirecta ? ev.entidadDeLasCifras : null,
       sube: d.detalle.postTest > d.detalle.preTest,
