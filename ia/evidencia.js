@@ -36,6 +36,25 @@ const guardar = (k, valor, identidad) =>
   escribir(ALMACEN, k, { ...identidad, ...valor, fecha: new Date().toISOString() });
 
 /** Sin evidencia utilizable: es un desenlace normal, no un error. */
+/**
+ * Cuánto sirve una extracción para la pregunta del fisioterapeuta. Es el mismo
+ * orden que se le pide al modelo al elegir: primero las dos cifras, después que
+ * sean de la entidad preguntada, y al final lo que responde a otra pregunta.
+ */
+const UTILIDAD_MAXIMA = 5;
+export function utilidad(d) {
+  if (!d?.encontrado) return 0;
+  const cifras = (typeof d.sn === "number" ? 1 : 0) + (typeof d.sp === "number" ? 1 : 0);
+  if (!cifras) return 0;
+  if (d.otraPregunta) return 1;
+  const directa = d.mismaEntidad !== false;
+  if (cifras === 2) return directa ? 5 : 4;
+  return directa ? 3 : 2;
+}
+
+/** Cuántos textos completos se abren para mejorar algo que ya se tiene. */
+const INTENTOS_MEJORA = 4;
+
 function sinDatos(motivo, articulos = []) {
   return {
     hayCifras: false,
@@ -349,16 +368,28 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   // Se abre el artículo que más promete de los que están en abierto. Solo se
   // adopta si encuentra algo: un texto completo que tampoco da cifras deja el
   // resultado exactamente como estaba.
+  //
+  // Y no solo cuando no hay ninguna cifra. Si lo mejor del resumen es indirecto,
+  // media cifra o responde a otra pregunta, también se abren los textos
+  // completos: la cifra directa suele estar en una tabla. En la rotura del
+  // manguito, el estudio de Van Kampen estaba entre los leídos, con las cifras
+  // del Neer y del arco doloroso en su tabla 4, y se citaba en su lugar una
+  // revisión sobre pinzamiento porque su resumen sí traía números.
   let deRescate = null;
   const sinCifras = !datos.encontrado || (!tieneSn && !tieneSp);
+  const utilidadInicial = utilidad(datos);
+  const buscarMejor = utilidadInicial < UTILIDAD_MAXIMA;
+  // Con algo ya en la mano, se prueban unos pocos: es mejorar, no rescatar.
+  const tope = sinCifras ? Infinity : INTENTOS_MEJORA;
+  let probados = 0;
 
-  if (sinCifras && !cabeOtraExtraccion()) {
+  if (buscarMejor && !cabeOtraExtraccion()) {
     console.warn(
       `[rescate] ${test}: no se abre ningún artículo, quedan ${queda()} ms y una extracción cuesta ${costeExtraccion}`,
     );
   }
 
-  if (sinCifras && cabeOtraExtraccion()) {
+  if (buscarMejor && cabeOtraExtraccion()) {
     const disponibles = await abiertos(articulos.map((a) => a.pmid), senal);
     // Se prueban tantos como quepan. Cuántos son no lo decide un número escrito
     // a mano, sino lo que queda de presupuesto frente a lo que acaba de costar
@@ -371,6 +402,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     }
 
     for (const fuente of candidatos) {
+      if (probados >= tope) break;
       if (!cabeOtraExtraccion()) {
         console.warn(`[rescate] ${test}: se para tras quedarse sin tiempo, quedan ${queda()} ms`);
         break;
@@ -378,16 +410,25 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
       try {
         const completo = await textoCompletoAbierto(disponibles.get(fuente.pmid), senal, TOPE_RESCATE);
         if (!completo) continue;
+        probados += 1;
         const otra = await pedirJson({
           sistema: SISTEMA_EXTRACCION,
           mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto, esAgrupacion }),
           esquema: ESQUEMA_EXTRACCION,
           senal: conPlazo(),
         });
-        if (otra.datos?.encontrado && (typeof otra.datos.sn === "number" || typeof otra.datos.sp === "number")) {
+        // Solo se adopta si es más útil que lo que había: un texto completo
+        // que trae lo mismo, o algo peor, deja el resultado como estaba.
+        const u = utilidad(otra.datos);
+        if (u > utilidad(datos)) {
+          // Las otras fuentes que ya se habían visto en los resúmenes no se
+          // pierden: la extracción nueva solo ha leído un artículo.
+          const previas = datos.otrasFuentes || [];
           datos = normalizar(otra.datos);
+          datos.otrasFuentes = [...(datos.otrasFuentes || []), ...previas];
           deRescate = completo.pmcid;
-          break;
+          console.warn(`[rescate] ${test}: el texto completo de ${fuente.pmid} mejora lo que había (${utilidadInicial} → ${u})`);
+          if (u === UTILIDAD_MAXIMA) break;
         }
       } catch (e) {
         console.warn(`[rescate] ${test}: ${e.message}`);
@@ -402,6 +443,23 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
       datos.notas || "Los artículos localizados no aportan sensibilidad ni especificidad para este test.",
       articulos,
     );
+    await anotar(vacio);
+    return vacio;
+  }
+
+  // Cifras que responden a otra pregunta diagnóstica no entran en el cálculo:
+  // darían un porcentaje que no es el de la sospecha del fisioterapeuta. El
+  // estudio queda entre los leídos, y el motivo, a la vista.
+  if (datos.otraPregunta) {
+    const vacio = {
+      ...sinDatos(
+        "Las cifras que hemos encontrado no sirven para esta sospecha: " +
+          (datos.otraPreguntaMotivo || "el estudio responde a otra pregunta diagnóstica.") +
+          " Que no haya cifras aplicables no significa que el test no tenga utilidad clínica.",
+        articulos,
+      ),
+      otraPregunta: true,
+    };
     await anotar(vacio);
     return vacio;
   }

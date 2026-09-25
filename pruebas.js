@@ -8,7 +8,7 @@ import { PRE_TEST, razonesDeVerosimilitud, validarPrecision, postTest, magnitud,
 import { semaforo } from "./dominio/calidad.js";
 import { banderasPara } from "./dominio/banderas.js";
 import { coincidencia } from "./ia/entidades.js";
-import { mereceTextoCompleto } from "./ia/evidencia.js";
+import { mereceTextoCompleto, utilidad } from "./ia/evidencia.js";
 import { promete } from "./ia/europepmc.js";
 import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
 import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/redaccion.js";
@@ -801,6 +801,27 @@ prueba("la IA recibe el mismo límite y sus advertencias, o el motivo de no pode
   const sinCota = vm.runInContext('calculado({parcial:true, sn:null, sp:1}, "media", "negativo").datos', ctx);
   assert.equal(sinCota.orientacionTeorica, null);
   assert.match(sinCota.motivoSinLimite, /sensibilidad/);
+});
+
+console.log("\nQué evidencia sirve más");
+
+prueba("las dos cifras de la entidad preguntada van por delante de todo", () => {
+  const directa = { encontrado: true, sn: 0.63, sp: 0.82, mismaEntidad: true };
+  const indirecta = { encontrado: true, sn: 0.79, sp: 0.53, mismaEntidad: false };
+  assert.ok(utilidad(directa) > utilidad(indirecta));
+});
+
+prueba("las dos cifras de otra entidad parecida van por delante de media cifra de la preguntada", () => {
+  const indirecta = { encontrado: true, sn: 0.79, sp: 0.53, mismaEntidad: false };
+  const media = { encontrado: true, sn: 0.77, sp: null, mismaEntidad: true };
+  assert.ok(utilidad(indirecta) > utilidad(media));
+});
+
+prueba("lo que responde a otra pregunta es lo último, pero algo", () => {
+  const otra = { encontrado: true, sn: 0.7, sp: 0.17, mismaEntidad: false, otraPregunta: true };
+  const media = { encontrado: true, sn: null, sp: 0.9, mismaEntidad: false };
+  assert.ok(utilidad(media) > utilidad(otra));
+  assert.ok(utilidad(otra) > utilidad({ encontrado: false }));
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);

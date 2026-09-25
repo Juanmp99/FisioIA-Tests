@@ -3273,7 +3273,7 @@ button.sello.explica { font-size: .8125rem; }
   function chipsCifras(ev, nombre) {
     if (!ev) return '<span class="cifra vacia"><span class="esqueleto" style="width:88px;display:inline-block;vertical-align:-2px"></span></span>';
     if (ev.cortada) return pista("cortada", nombre, "cifra vacia ancha", "búsqueda sin terminar");
-    if (!ev.hayCifras) return pista("sin", nombre, "cifra vacia ancha", "sin cifras publicadas");
+    if (!ev.hayCifras) return pista("sin", nombre, "cifra vacia ancha", ev.otraPregunta ? "sin cifras aplicables" : "sin cifras publicadas");
 
     // Con el nombre entero y no con la abreviatura: "Sn" obliga a traducir
     // mentalmente antes de entender, y esto lo usa gente que no vive en la
@@ -3401,8 +3401,10 @@ button.sello.explica { font-size: .8125rem; }
         "Vuelve a lanzar la sospecha: lo que ya se hubiera encontrado aparece al momento.";
     } else if (tipo === "sin") {
       var leidos = (ev.consultados || []).length;
-      titulo = "Sin cifras publicadas";
-      cuerpo = (leidos
+      titulo = ev.otraPregunta ? "Sin cifras aplicables" : "Sin cifras publicadas";
+      cuerpo = (ev.otraPregunta
+          ? "Hay un estudio con cifras de este test, pero responde a otra pregunta: " + esc(ev.motivo.replace(/^Las cifras que hemos encontrado no sirven para esta sospecha: /, "").replace(/ Que no haya cifras aplicables.*$/, "")) + " "
+          : leidos
           ? "Hemos leído " + leidos + (leidos === 1 ? " artículo" : " artículos") + " y ninguno publica cuánto acierta este test en " + ent + ". "
           : "No hemos encontrado artículos que midan este test en " + ent + ". ") +
         "<b>No significa que el test no sirva</b>: puedes hacerlo, pero no podemos decirte cuánto cambia tu sospecha.";
@@ -4549,7 +4551,7 @@ button.sello.explica { font-size: .8125rem; }
     if (s.sinCifras.length) {
       hitos.push('<div class="hito">' + icono("info") +
         "<span><b>" + s.sinCifras.length + (s.sinCifras.length === 1 ? " resultado no cuenta" : " resultados no cuentan") + ":</b> " +
-        listaNombres(s.sinCifras) + ". Nadie ha publicado su precisión para esta patología.</span></div>");
+        listaNombres(s.sinCifras) + ". No hay cifras de su precisión aplicables a esta patología.</span></div>");
     }
 
     // No es lo mismo que "nadie lo ha publicado": aquí no se sabe.
