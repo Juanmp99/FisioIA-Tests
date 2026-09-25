@@ -78,7 +78,7 @@
     ".aviso-cookies p{margin:0}",
     ".aviso-cookies a{color:#2fd6a6;text-underline-offset:2px}",
     ".aviso-cookies-botones{display:flex;gap:10px;margin-top:14px}",
-    ".aviso-cookies button{flex:1;padding:11px 14px;border-radius:11px;font:inherit;font-weight:700;cursor:pointer;",
+    ".aviso-cookies button{flex:1;padding:11px 8px;border-radius:11px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;",
     "border:1px solid #2b3a52;background:#182234;color:#e9eff8}",
     ".aviso-cookies button:hover{border-color:#2fd6a6}",
     "body.con-aviso-cookies .barra-fija{display:none}"
@@ -96,15 +96,16 @@
     caja.className = "aviso-cookies";
     caja.setAttribute("role", "dialog");
     caja.setAttribute("aria-label", "Aviso de cookies");
-    // Aceptar y rechazar, con el mismo peso: rechazar tiene que ser igual de
-    // fácil que aceptar.
+    // Con el guiño de la herramienta (positivo / negativo), pero diciendo para
+    // qué es: si no se dice, el consentimiento no vale. Aceptar y rechazar, con
+    // el mismo peso: rechazar tiene que ser igual de fácil que aceptar.
     caja.innerHTML =
-      "<b>¿Nos dejas medir nuestros anuncios?</b>" +
-      "<p>Con tu permiso usamos cookies de Meta para saber qué anuncios funcionan. " +
-      'Sin él, no se activa nada. <a href="/cookies">Más información</a></p>' +
+      "<b>Test rápido: ¿cookies?</b>" +
+      "<p>Con tu permiso, Meta nos chiva qué anuncio te ha traído hasta aquí, y así dejamos de gastar en los " +
+      'que no funcionan. Sin él, la herramienta va igual de bien. <a href="/cookies">Más información</a></p>' +
       '<div class="aviso-cookies-botones">' +
-      '<button type="button" data-cookies="no">Rechazar</button>' +
-      '<button type="button" data-cookies="si">Aceptar</button>' +
+      '<button type="button" data-cookies="no">Negativo: rechazo</button>' +
+      '<button type="button" data-cookies="si">Positivo: acepto</button>' +
       "</div>";
     caja.addEventListener("click", function (e) {
       var eleccion = e.target.getAttribute && e.target.getAttribute("data-cookies");
