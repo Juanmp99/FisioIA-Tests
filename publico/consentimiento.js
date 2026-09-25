@@ -38,9 +38,32 @@
     window.fbq("track", "PageView");
   }
 
-  window.fisioiaMedir = function (evento, datos) {
+  // `opciones.eventID` es el mismo identificador que manda el servidor por la
+  // API de conversiones: así Meta sabe que es un solo evento y no lo cuenta
+  // dos veces.
+  window.fisioiaMedir = function (evento, datos, opciones) {
     if (leer() !== "si" || !window.fbq) return;
-    window.fbq("track", evento, datos || {});
+    window.fbq("track", evento, datos || {}, opciones || {});
+  };
+
+  // Lo que el servidor necesita para que Meta sepa de qué anuncio viene cada
+  // alta. El fbclid llega en la dirección cuando se entra desde un anuncio; se
+  // lee de ahí, sin guardarlo en ningún sitio. Las cookies _fbp y _fbc solo
+  // existen si se aceptó el píxel.
+  var fbclid = new URLSearchParams(location.search).get("fbclid");
+  var llegada = Date.now();
+  function galleta(nombre) {
+    var m = document.cookie.match(new RegExp("(?:^|; )" + nombre + "=([^;]*)"));
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+  window.fisioiaDatosMeta = function () {
+    var id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
+    return {
+      id: id,
+      fbc: galleta("_fbc") || (fbclid ? "fb.1." + llegada + "." + fbclid : null),
+      fbp: galleta("_fbp"),
+      url: location.origin + location.pathname
+    };
   };
 
   // ---- el aviso ----

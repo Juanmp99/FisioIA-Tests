@@ -2073,10 +2073,11 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
       var caja = form.querySelector(".avisos, #avisos");
       if (caja) caja.innerHTML = "";
 
+      var meta = window.fisioiaDatosMeta ? window.fisioiaDatosMeta() : {};
       fetch("/api/acceso", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ correo: correo, origen: form.getAttribute("data-origen") })
+        body: JSON.stringify({ correo: correo, origen: form.getAttribute("data-origen"), meta: meta })
       }).then(function (r) {
         return r.json().then(function (d) {
           if (!r.ok) throw new Error(d.error || "No hemos podido completar el registro.");
@@ -2085,9 +2086,10 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
       }).then(function () {
         document.getElementById("correo").value = correo;
         hecho(correo);
-        // Cliente potencial para Meta: solo cuando el alta está confirmada, y
-        // solo si la persona aceptó las cookies (fisioiaMedir lo comprueba).
-        if (window.fisioiaMedir) window.fisioiaMedir("Lead", { content_name: "Copiloto de Exploración" });
+        // Cliente potencial para Meta, cuando el alta está confirmada. Lo manda
+        // siempre el servidor; el píxel, además, si se aceptaron las cookies,
+        // con el mismo identificador para que cuente una sola vez.
+        if (window.fisioiaMedir) window.fisioiaMedir("Lead", { content_name: "Copiloto de Exploración" }, { eventID: meta.id });
         // Quien se apunta desde abajo ve la confirmación donde está; solo el
         // de arriba (y la barra, que no tiene sitio) llevan a la tarjeta grande.
         var origen = form.getAttribute("data-origen");

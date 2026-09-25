@@ -2113,15 +2113,20 @@ button.sello.explica { font-size: .8125rem; }
   // direcciones para que no acabe pegado en un chat por descuido.
   if (window.__accesoDelEnlace) {
     var recibido = window.__accesoDelEnlace;
-    fetch("/api/verificar?acceso=" + encodeURIComponent(recibido))
+    var meta = window.fisioiaDatosMeta ? window.fisioiaDatosMeta() : {};
+    fetch("/api/verificar?acceso=" + encodeURIComponent(recibido) +
+      "&id_evento=" + encodeURIComponent(meta.id || "") + "&fbp=" + encodeURIComponent(meta.fbp || ""))
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (!d.ok) return aLaEntrada("enlace-invalido");
         try { localStorage.setItem(CLAVE_ACCESO, recibido); } catch (e) {}
         history.replaceState(null, "", "/app");
-        // Registro completado para Meta: abrió su enlace y entró. Es lo que
-        // distingue a quien deja el correo de quien de verdad usa la herramienta.
-        if (window.fisioiaMedir) window.fisioiaMedir("CompleteRegistration", { content_name: "Copiloto de Exploración" });
+        // Registro completado para Meta: la primera vez que abre su enlace y
+        // entra. Lo manda el servidor; el píxel, con el mismo identificador,
+        // solo si se aceptaron las cookies.
+        if (d.primeraVez && window.fisioiaMedir) {
+          window.fisioiaMedir("CompleteRegistration", { content_name: "Copiloto de Exploración" }, { eventID: meta.id });
+        }
       })
       .catch(function () {});
   }

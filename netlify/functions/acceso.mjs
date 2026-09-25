@@ -9,6 +9,7 @@ import { guardarContacto, desbloquearTransaccional, envioBloqueado } from "../..
 import { enviarAcceso, proveedorCorreo } from "../../lib/correo.js";
 import { leer, escribir, limpiar } from "../../lib/almacen.js";
 import { json, error, cuerpoJson } from "../../lib/http.js";
+import { enviarEvento } from "../../lib/meta.js";
 
 /** Altas por dirección IP y día. Frena el registro automatizado masivo. */
 const ALTAS_POR_IP = Number(process.env.ALTAS_POR_IP) || 8;
@@ -114,6 +115,21 @@ export default async (req, context) => {
     }
 
     await contarOrigen(ORIGENES.has(cuerpo.origen) ? cuerpo.origen : "otro", dia);
+
+    // Cliente potencial para Meta, desde el servidor: llega aunque la persona
+    // no aceptara cookies o tenga un bloqueador. El navegador manda el mismo
+    // identificador con el píxel, si lo tiene, y Meta se queda con uno.
+    const meta = cuerpo.meta || {};
+    await enviarEvento({
+      evento: "Lead",
+      idEvento: meta.id,
+      correo,
+      ip,
+      navegador: req.headers.get("user-agent"),
+      fbc: meta.fbc,
+      fbp: meta.fbp,
+      url: meta.url,
+    });
 
     return json({ ok: true, correo });
   } catch (e) {
