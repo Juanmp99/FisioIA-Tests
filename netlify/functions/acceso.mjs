@@ -7,11 +7,35 @@
 import { emitir, correoValido, normalizarCorreo } from "../../lib/acceso.js";
 import { guardarContacto, desbloquearTransaccional, envioBloqueado } from "../../lib/contactos.js";
 import { enviarAcceso, proveedorCorreo } from "../../lib/correo.js";
-import { leer, escribir } from "../../lib/almacen.js";
+import { leer, escribir, limpiar } from "../../lib/almacen.js";
 import { json, error, cuerpoJson } from "../../lib/http.js";
 
 /** Altas por dirección IP y día. Frena el registro automatizado masivo. */
 const ALTAS_POR_IP = Number(process.env.ALTAS_POR_IP) || 8;
+
+/**
+ * Los recuentos de altas por IP viven en su propio almacén, con el día al
+ * principio de la clave, y solo se conservan el de hoy y el de ayer: sirven
+ * para frenar registros automatizados en el día, y la política de privacidad
+ * dice que no se usan para nada más. Guardarlos para siempre sería guardar una
+ * lista de IPs que nadie necesita.
+ */
+const ALTAS_IP = "altas-ip";
+
+async function limpiarAltasViejas(hoy) {
+  try {
+    const ayer = new Date(Date.parse(hoy) - 864e5).toISOString().slice(0, 10);
+    await limpiar(ALTAS_IP, (k) => k.startsWith(hoy) || k.startsWith(ayer));
+
+    // Antes se guardaban en el almacén de accesos. Se retiran una sola vez.
+    if (!(await leer("acceso", "mantenimiento:altas-legado"))) {
+      await limpiar("acceso", (k) => !k.startsWith("altas-"));
+      await escribir("acceso", "mantenimiento:altas-legado", { hecho: new Date().toISOString() });
+    }
+  } catch (e) {
+    console.warn("[acceso] No se pudieron limpiar los recuentos por IP:", e.message);
+  }
+}
 
 /**
  * Desde qué formulario de la landing llega el alta. Lista cerrada: lo que no
@@ -53,7 +77,7 @@ export default async (req, context) => {
 
   const ip = context?.ip || "desconocida";
   const dia = new Date().toISOString().slice(0, 10);
-  const previas = (await leer("acceso", `altas:${ip}:${dia}`)) || { altas: 0 };
+  const previas = (await leer(ALTAS_IP, `${dia}:${ip}`)) || { altas: 0 };
   if (previas.altas >= ALTAS_POR_IP) {
     return error("Se han hecho demasiados registros desde esta conexión. Inténtalo mañana.", 429);
   }
@@ -62,7 +86,8 @@ export default async (req, context) => {
     const { token } = await emitir(correo);
 
     await guardarContacto({ correo, token });
-    await escribir("acceso", `altas:${ip}:${dia}`, { altas: previas.altas + 1 });
+    await escribir(ALTAS_IP, `${dia}:${ip}`, { altas: previas.altas + 1 });
+    await limpiarAltasViejas(dia);
 
     if (!proveedorCorreo()) {
       return error("El envío de correo no está configurado. Avisa a FisioIA.", 503);
