@@ -876,6 +876,25 @@ a { color: var(--azul); text-underline-offset: 3px; }
   animation: aparecerMarca .35s .45s var(--curva) both;
 }
 .marca-pre.al-inicio { transform: none; }
+.marca-pre.a-la-izquierda { transform: translateX(calc(-100% - 6px)); }
+.marca-pre.a-la-derecha { transform: translateX(6px); }
+/* La cifra a la que llega la sospecha, encima del punto final. Del color de
+   la dirección, y aparece cuando el punto termina de deslizarse. */
+.marca-post {
+  position: absolute; bottom: calc(100% + 9px); transform: translateX(-50%);
+  font-family: var(--mono); font-size: .8125rem; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  animation: aparecerMarca .35s 1s var(--curva) both;
+}
+.marca-post.sube { color: var(--verde); }
+.marca-post.baja { color: var(--azul); }
+.marca-post.nula { color: var(--tinta-media); }
+.marca-post.al-inicio { transform: none; }
+.marca-post.al-final { transform: translateX(-100%); }
+.marca-post.a-la-izquierda { transform: translateX(calc(-100% - 6px)); }
+.marca-post.a-la-derecha { transform: translateX(6px); }
+/* En la conclusión el porcentaje final ya sale grande debajo de la barra. */
+.conclusion-medidor .marca-post { display: none; }
 .marca-pre.al-final { transform: translateX(-100%); }
 @keyframes aparecerMarca { from { opacity: 0; translate: 0 4px; } to { opacity: 1; translate: 0 0; } }
 .aguja-post {
@@ -2639,6 +2658,7 @@ button.sello.explica { font-size: .8125rem; }
     var izq = Math.min(a, b);
     var ancho = Math.abs(b - a);
     var clase = sentido === "nulo" ? "nula" : (b >= a ? "sube" : "baja");
+    var juntas = Math.abs(b - a) < 12;
 
     return '<div class="medidor">' +
         '<div class="pista">' +
@@ -2652,8 +2672,15 @@ button.sello.explica { font-size: .8125rem; }
           '<span class="aguja aguja-pre" style="left:' + a + '%"></span>' +
           // La cifra de partida, encima de donde acaba la base. Pegada a los
           // bordes se alinea hacia dentro para no salirse de la tarjeta.
-          '<span class="marca-pre' + (a < 6 ? " al-inicio" : a > 94 ? " al-final" : "") +
+          // Si inicio y final quedan muy juntos, cada cifra se aparta hacia su
+          // lado para que no se pisen.
+          '<span class="marca-pre' + (a < 6 ? " al-inicio" : a > 94 ? " al-final" : juntas ? (b >= a ? " a-la-izquierda" : " a-la-derecha") : "") +
             '" style="left:' + a + '%">' + a + "%</span>" +
+          // Y la cifra a la que llega, encima de donde termina el recorrido.
+          (b !== a
+            ? '<span class="marca-post ' + clase + (b < 6 ? " al-inicio" : b > 94 ? " al-final" : juntas ? (b >= a ? " a-la-derecha" : " a-la-izquierda") : "") +
+                '" style="left:' + b + '%">' + b + "%</span>"
+            : "") +
           '<span class="aguja aguja-post ' + clase + '" style="--desde:' + a + '%;--hasta:' + b + '%"></span>' +
         "</div>" +
         '<div class="medidor-pies">' +
