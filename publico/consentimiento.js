@@ -96,13 +96,12 @@
     caja.className = "aviso-cookies";
     caja.setAttribute("role", "dialog");
     caja.setAttribute("aria-label", "Aviso de cookies");
-    // Con el guiño de la herramienta (positivo / negativo), pero diciendo para
-    // qué es: si no se dice, el consentimiento no vale. Aceptar y rechazar, con
-    // el mismo peso: rechazar tiene que ser igual de fácil que aceptar.
+    // Corto y con un guiño; el detalle de qué se instala y para qué está en
+    // /cookies, enlazado. Aceptar y rechazar, con el mismo peso: rechazar
+    // tiene que ser igual de fácil que aceptar.
     caja.innerHTML =
-      "<b>Test rápido: ¿cookies?</b>" +
-      "<p>Con tu permiso, Meta nos chiva qué anuncio te ha traído hasta aquí, y así dejamos de gastar en los " +
-      'que no funcionan. Sin él, la herramienta va igual de bien. <a href="/cookies">Más información</a></p>' +
+      "<b>¿Unas cookies? 🍪</b>" +
+      '<p>Nos ayudan a medir y mejorar lo que hacemos. Tranqui, no engordan. <a href="/cookies">Más información</a></p>' +
       '<div class="aviso-cookies-botones">' +
       '<button type="button" data-cookies="no">Negativo: rechazo</button>' +
       '<button type="button" data-cookies="si">Positivo: acepto</button>' +
