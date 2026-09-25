@@ -1284,6 +1284,10 @@ button.sello.explica { font-size: .8125rem; }
   top: auto; bottom: -6px; background: var(--superficie);
   border: 0; border-right: 1px solid var(--borde-vivo); border-bottom: 1px solid var(--borde-vivo);
 }
+.globo-sub {
+  display: block; margin: -2px 0 8px;
+  font-size: .75rem; font-weight: 650; color: var(--azul);
+}
 .globo-titulo {
   display: block; margin-bottom: 6px;
   font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
@@ -3313,7 +3317,7 @@ button.sello.explica { font-size: .8125rem; }
       var positiva = det.cual === "positiva";
       titulo = "Razón de verosimilitud " + det.cual + " · " + num(lr);
       cuerpo = "Cuántas veces más probable es este resultado en alguien que tiene " + ent + " que en alguien que no. " +
-        "Un <b>1</b> significa que el test no aporta nada; cuanto más se aleja de 1, más pesa.<br><br>" +
+        "Un <b>1</b> significa que el test no aporta nada; cuanto más se aleja de 1, más clara es la señal.<br><br>" +
         (lr >= 1
           ? "Aquí, un <b>" + d.resultado + "</b> es <b>" + num(lr) + " veces</b> más probable en quien tiene " + ent + "."
           // Redondeado para que cuadre con la cifra que se ve: 1 ÷ 0,2 son 5, y
@@ -3429,7 +3433,11 @@ button.sello.explica { font-size: .8125rem; }
       capaIa = '<div class="globo-ia cargando-ia"><span class="esqueleto"></span><span class="esqueleto corto"></span></div>';
     }
 
+    // En los globos que explican un concepto, un "¿Qué significa?" bajo el
+    // título deja claro que lo de debajo es su definición.
+    var CONCEPTOS = { sn: 1, sp: 1, rv: 1, "falta-sn": 1, "falta-sp": 1, calidad: 1, indirecta: 1, parcial: 1 };
     globo.innerHTML = '<span class="globo-titulo">' + esc(c.titulo) + "</span>" +
+      (CONCEPTOS[abierta.tipo] ? '<span class="globo-sub">¿Qué significa?</span>' : "") +
       '<div class="globo-cuerpo">' + c.cuerpo + "</div>" + capaIa;
     globo.hidden = false;
     // Abierto al pasar el ratón, el globo es transparente al puntero: el cursor
@@ -4112,15 +4120,19 @@ button.sello.explica { font-size: .8125rem; }
 
     var x = d.detalle;
     var clase = claseVeredicto(d);
+    var textoIa = lineaIa(nombre, resultado);
 
     hueco.innerHTML =
       '<div class="veredicto ' + clase + calma + '">' +
         '<div class="veredicto-cab">' + icono(clase) + "<b>" + esc(tituloVeredicto(clase, d)) + "</b></div>" +
         '<p class="lectura">' + esc(d.lecturaBreve || d.lectura) + "</p>" +
         matizPartida(clase, d) +
-        lineaIa(nombre, resultado) +
+        textoIa +
         medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") +
-        '<p class="senal">' + fraseSenal(d) + "</p>" +
+        // La frase de la señal solo si no ha llegado la explicación de la IA,
+        // que ya cuenta lo mismo y además el porqué. Con las dos, la tarjeta se
+        // alargaba repitiéndose.
+        (textoIa ? "" : '<p class="senal">' + fraseSenal(d) + "</p>") +
         // El número técnico, en pequeño y con su "?", para quien quiera
         // comprobar la cuenta o lo conozca de un curso.
         '<div class="calculo">' +

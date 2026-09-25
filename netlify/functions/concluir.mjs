@@ -8,7 +8,6 @@
 import { claveDe, deLaBase, enriquecer } from "../../ia/evidencia.js";
 import { claveConclusion, veredictoDe } from "../../ia/conclusion.js";
 import { interpretar, PRE_TEST, pctMostrado } from "../../dominio/probabilidad.js";
-import { numerosPermitidos } from "../../dominio/redaccion.js";
 import { json, error, cuerpoJson, conAcceso } from "../../lib/http.js";
 
 /** Cuánto se aleja de 1 una razón de verosimilitud, en cualquier dirección. */
@@ -36,9 +35,6 @@ export default async (req) => {
   // Se rehace el cálculo con lo guardado. Nada de lo que decide el veredicto
   // sale de la petición: de ahí solo viene qué se ha marcado.
   const resultados = [];
-  const proporciones = [];
-  const razones = [];
-  const otros = [PRE_TEST[nivel].valor * 100];
   // De qué cifras concretas sale este veredicto. Si la búsqueda se rehace y
   // cambian, el guardado deja de valer aunque la combinación sea la misma.
   const huella = [];
@@ -66,12 +62,8 @@ export default async (req) => {
       continue;
     }
 
-    proporciones.push(ev.sn, ev.sp);
     // Los puntos que mueve, como se enseñan en pantalla: redondeando antes de restar.
     const mov = Math.round(d.detalle.postTest * 100) - Math.round(d.detalle.preTest * 100);
-    otros.push(Math.abs(mov));
-    razones.push(d.detalle.razonDeVerosimilitud);
-    otros.push(pctMostrado(d.detalle.postTest));
 
     const ficha = {
       test: nombre,
@@ -108,7 +100,6 @@ export default async (req) => {
   const { textos, motivo } = await veredictoDe({
     clave: claveConclusion({ entidad, nivel, marcados, huella: huella.sort().join(",") }),
     datos,
-    permitidos: numerosPermitidos({ proporciones, razones, otros }),
     etiqueta: `${entidad} · ${marcados.length} marcados`,
     // La función tiene 60 segundos. Cortar a los 22, como se hacía, dejaba sin
     // veredicto las exploraciones largas justo cuando más falta hacía.
