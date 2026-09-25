@@ -1460,6 +1460,52 @@ button.sello.explica { font-size: .8125rem; }
 .veredicto.aguarda .icono { color: var(--azul); animation: latir 1.6s ease-in-out infinite; }
 
 .veredicto-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+
+/* La cabecera escalonada del resultado. Arriba, qué hace, en pequeño y del
+   color del veredicto; debajo, en grande, de dónde a dónde; al lado, los
+   puntos. La barra de debajo ya no repite las cifras: las dice esto. */
+.veredicto-cab.escalonada { display: block; margin-bottom: 10px; }
+.cab-accion {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: .75rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--tinta-media);
+}
+.cab-accion .icono { width: 16px; height: 16px; }
+/* Del color de la dirección, como la barra: verde si sube, azul si baja. */
+.escalonada.sube .cab-accion { color: var(--verde); }
+.escalonada.baja .cab-accion { color: var(--azul); }
+.veredicto.nulo .cab-accion { color: var(--tinta-tenue); }
+.cab-tramo { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 8px; }
+.cab-desde {
+  font-family: var(--mono); font-size: 1.375rem; font-weight: 600; color: var(--tinta-tenue);
+  font-variant-numeric: tabular-nums;
+}
+.cab-flecha {
+  width: 26px; height: 2px; border-radius: 2px; position: relative;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tinta-tenue) 50%, transparent), currentColor);
+}
+.cab-flecha::after {
+  content: ""; position: absolute; right: -1px; top: -4px; width: 8px; height: 8px;
+  border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(45deg);
+}
+.cab-hasta {
+  font-family: var(--mono); font-size: 2.25rem; font-weight: 800; line-height: 1; letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+.cab-tramo.sube { color: var(--verde); }
+.cab-tramo.baja { color: var(--azul); }
+.cab-tramo.igual { color: var(--tinta-media); }
+.veredicto.nulo .cab-tramo { color: var(--tinta-media); }
+.cab-puntos {
+  font-family: var(--mono); font-size: .8125rem; font-weight: 700;
+  padding: 3px 9px; border-radius: 999px;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+}
+/* En la tarjeta del test, la barra ya no repite abajo el "partías del" y el
+   porcentaje final: los dice la cabecera. En la conclusión se quedan. */
+.veredicto .medidor-pies { display: none; }
+.veredicto .medidor { margin-bottom: 8px; }
 .icono { flex: none; width: 20px; height: 20px; }
 .veredicto b { font-size: 1rem; letter-spacing: -.01em; }
 .veredicto .lectura { margin: 0; font-size: .9375rem; color: var(--tinta); }
@@ -4224,11 +4270,13 @@ button.sello.explica { font-size: .8125rem; }
 
     hueco.innerHTML =
       '<div class="veredicto ' + clase + calma + '">' +
-        '<div class="veredicto-cab">' + icono(clase) + "<b>" + esc(tituloVeredicto(clase, d)) + "</b></div>" +
+        cabeceraVeredicto(clase, d) +
         '<p class="lectura">' + esc(d.lecturaBreve || d.lectura) + "</p>" +
         matizPartida(clase, d) +
-        textoIa +
+        // La barra antes que el texto de la IA: primero se ve qué ha pasado,
+        // y después se lee por qué.
         medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") +
+        textoIa +
         // La frase de la señal solo si no ha llegado la explicación de la IA,
         // que ya cuenta lo mismo y además el porqué. Con las dos, la tarjeta se
         // alargaba repitiéndose.
@@ -4311,13 +4359,30 @@ button.sello.explica { font-size: .8125rem; }
       ": <b>" + SENAL[x.magnitud.nivel] + hacia + "</b>.";
   }
 
-  function tituloVeredicto(clase, d) {
+  /*
+   * La cabecera del resultado, escalonada para leerse de un vistazo: arriba qué
+   * hace (sube, baja, confirma…), debajo y en grande de dónde a dónde, y al
+   * lado, en pequeño, los puntos. Antes era una sola línea —"Sube tu sospecha ·
+   * del 45% al 78% (+33 puntos)"— que había que leer entera.
+   */
+  function cabeceraVeredicto(clase, d) {
     var x = d.detalle;
+    var accion = clase === "decide" ? (d.resultado === "positivo" ? "Confirma" : "Descarta")
+      : clase === "nulo" ? "Apenas cambia nada"
+      : (x.postTest > x.preTest ? "Sube tu sospecha" : "Baja tu sospecha");
+    var sentido = x.postTest > x.preTest ? "sube" : x.postTest < x.preTest ? "baja" : "igual";
+    var desde = pct(x.preTest);
+    var hasta = pct(x.postTest);
     var mov = puntos(x.preTest, x.postTest);
-    var tramo = "del " + pct(x.preTest) + "% al " + x.postTestTexto + (mov ? " (" + mov + ")" : "");
-    if (clase === "decide") return (d.resultado === "positivo" ? "Confirma" : "Descarta") + " · " + tramo;
-    if (clase === "nulo") return "Apenas cambia nada · " + tramo;
-    return (x.postTest > x.preTest ? "Sube tu sospecha" : "Baja tu sospecha") + " · " + tramo;
+    return '<div class="veredicto-cab escalonada ' + sentido + '">' +
+      '<span class="cab-accion">' + icono(clase) + esc(accion) + "</span>" +
+      '<div class="cab-tramo ' + sentido + '">' +
+        '<span class="cab-desde">' + desde + "%</span>" +
+        '<span class="cab-flecha" aria-hidden="true"></span>' +
+        '<span class="cab-hasta" data-desde="' + desde + '" data-hasta="' + hasta + '">' + hasta + "%</span>" +
+        (mov ? '<span class="cab-puntos">' + mov + "</span>" : "") +
+      "</div>" +
+    "</div>";
   }
 
   /** La línea redactada para este test, este resultado y esta sospecha, si ha llegado y ha pasado el candado. */
