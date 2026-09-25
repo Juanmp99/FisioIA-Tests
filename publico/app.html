@@ -1,5 +1,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="/consentimiento.js"></script>
 <title>Copiloto de Exploración · FisioIA</title>
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#070a11">
@@ -2076,7 +2077,8 @@ button.sello.explica { font-size: .8125rem; }
     <span class="pie-enlaces">
       <a href="/terminos" target="_blank" rel="noopener">Términos de uso</a> ·
       <a href="/privacidad" target="_blank" rel="noopener">Privacidad</a> ·
-      <a href="/cookies" target="_blank" rel="noopener">Cookies</a>
+      <a href="/cookies" target="_blank" rel="noopener">Cookies</a> ·
+      <a href="#" onclick="window.fisioiaCookies && window.fisioiaCookies(); return false;">Configurar cookies</a>
     </span>
   </p>
 </div>
@@ -2117,6 +2119,9 @@ button.sello.explica { font-size: .8125rem; }
         if (!d.ok) return aLaEntrada("enlace-invalido");
         try { localStorage.setItem(CLAVE_ACCESO, recibido); } catch (e) {}
         history.replaceState(null, "", "/app");
+        // Registro completado para Meta: abrió su enlace y entró. Es lo que
+        // distingue a quien deja el correo de quien de verdad usa la herramienta.
+        if (window.fisioiaMedir) window.fisioiaMedir("CompleteRegistration", { content_name: "Copiloto de Exploración" });
       })
       .catch(function () {});
   }

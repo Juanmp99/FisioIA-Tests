@@ -9,6 +9,7 @@
 <meta name="robots" content="noindex">
 
 <link rel="stylesheet" href="/legal.css">
+<script src="/consentimiento.js"></script>
 </head>
 <body>
 <main class="pagina">
@@ -56,8 +57,13 @@
     <li>Tus últimas búsquedas, para tenerlas a mano. No se envían a ningún sitio.</li>
   </ul>
   <p>
-    Se guardan en el almacenamiento local del navegador y son imprescindibles para que la herramienta funcione. No usamos
-    cookies de analítica ni de publicidad. Lo detallamos en la <a href="/cookies">política de cookies</a>.
+    Se guardan en el almacenamiento local del navegador y son imprescindibles para que la herramienta funcione.
+  </p>
+  <h3>Solo si aceptas las cookies</h3>
+  <ul>
+    <li><strong>Datos de navegación para medir nuestros anuncios</strong>: el píxel de Meta registra que visitaste la página, que pediste tu acceso y que entraste en la herramienta, junto con datos técnicos de tu navegador. Lo detallamos en la <a href="/cookies">política de cookies</a>.</li>
+  </ul>
+  <p>
   </p>
 
   <h2>3. Para qué los usamos y con qué base legal</h2>
@@ -72,6 +78,10 @@
         <tr>
           <td>Enviarte nuestra newsletter y comunicaciones sobre FisioIA, empezando por unos pocos correos de bienvenida.</td>
           <td>Tu consentimiento, que das al enviar un formulario que lo indica (art. 6.1.a RGPD).</td>
+        </tr>
+        <tr>
+          <td>Medir la eficacia de nuestros anuncios en Meta (Facebook e Instagram).</td>
+          <td>Tu consentimiento, que das al aceptar las cookies; puedes retirarlo en cualquier momento (art. 6.1.a RGPD).</td>
         </tr>
         <tr>
           <td>Aplicar límites de uso y frenar registros automatizados o abusos.</td>
@@ -103,6 +113,7 @@
       <tbody>
         <tr><td>Brevo (Sendinblue SAS)</td><td>Gestión de contactos y envío de correos.</td><td>Unión Europea (Francia)</td></tr>
         <tr><td>Netlify, Inc.</td><td>Alojamiento de la web y almacenamiento de los accesos.</td><td>Estados Unidos</td></tr>
+        <tr><td>Meta Platforms Ireland Ltd.</td><td>Medición de anuncios con el píxel, solo si aceptas las cookies. Meta es corresponsable de esa recogida y trata los datos también para sus propios fines, según su política de privacidad.</td><td>Unión Europea (Irlanda), con posibles transferencias a Estados Unidos</td></tr>
         <tr><td>Anthropic, PBC</td><td>Modelo de inteligencia artificial que procesa lo que consultas en la herramienta.</td><td>Estados Unidos</td></tr>
       </tbody>
     </table>
@@ -152,7 +163,7 @@
 
   <footer>
     © <span id="anio">2026</span> FisioIA, marca operada por Sanavia Digital OÜ (Reg. 17576365, Estonia).
-    <nav class="legales"><a href="/privacidad">Privacidad</a><a href="/terminos">Términos de uso</a><a href="/cookies">Cookies</a></nav>
+    <nav class="legales"><a href="/privacidad">Privacidad</a><a href="/terminos">Términos de uso</a><a href="/cookies">Cookies</a><a href="#" onclick="window.fisioiaCookies && window.fisioiaCookies(); return false;">Configurar cookies</a></nav>
   </footer>
 </main>
 <script>document.getElementById("anio").textContent = new Date().getFullYear();</script>

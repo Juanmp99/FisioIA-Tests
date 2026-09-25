@@ -17,6 +17,7 @@
      así nadie más recibe la IP de quien visita la página. Es Instrument Serif,
      con licencia SIL Open Font License (fuentes/OFL.txt). Solo el juego
      latino, que cubre el castellano. -->
+<script src="/consentimiento.js"></script>
 <link rel="preload" href="/fuentes/instrument-serif-cursiva.woff2" as="font" type="font/woff2" crossorigin>
 
 <style>
@@ -1499,7 +1500,8 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
     <p>© <span id="anio">2026</span> FisioIA, marca operada por Sanavia Digital OÜ ·
       <a href="/privacidad" target="_blank" rel="noopener">Privacidad</a> ·
       <a href="/terminos" target="_blank" rel="noopener">Términos de uso</a> ·
-      <a href="/cookies" target="_blank" rel="noopener">Cookies</a></p>
+      <a href="/cookies" target="_blank" rel="noopener">Cookies</a> ·
+      <a href="#" onclick="window.fisioiaCookies && window.fisioiaCookies(); return false;">Configurar cookies</a></p>
   </footer>
 </main>
 
@@ -2083,6 +2085,9 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
       }).then(function () {
         document.getElementById("correo").value = correo;
         hecho(correo);
+        // Cliente potencial para Meta: solo cuando el alta está confirmada, y
+        // solo si la persona aceptó las cookies (fisioiaMedir lo comprueba).
+        if (window.fisioiaMedir) window.fisioiaMedir("Lead", { content_name: "Copiloto de Exploración" });
         // Quien se apunta desde abajo ve la confirmación donde está; solo el
         // de arriba (y la barra, que no tiene sitio) llevan a la tarjeta grande.
         var origen = form.getAttribute("data-origen");

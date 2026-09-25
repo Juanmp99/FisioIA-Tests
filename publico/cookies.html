@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#070a11">
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="/legal.css">
+<script src="/consentimiento.js"></script>
 </head>
 <body>
 <main class="pagina">
@@ -18,8 +19,8 @@
   <p class="fecha">Última actualización: 25 de septiembre de 2026</p>
 
   <div class="resumen">
-    <p><strong>En pocas palabras.</strong> Hoy no usamos cookies de analítica ni de publicidad. Solo guardamos en tu navegador lo imprescindible para que la herramienta funcione, y eso no necesita tu consentimiento.</p>
-    <p>Si algún día añadimos cookies de medición o publicidad, te pediremos permiso antes de activarlas.</p>
+    <p><strong>En pocas palabras.</strong> Guardamos en tu navegador lo imprescindible para que la herramienta funcione, y eso no necesita tu consentimiento.</p>
+    <p>Además, <strong>solo si aceptas</strong> en el aviso, usamos el píxel de Meta para medir qué anuncios funcionan. Si rechazas, no se activa nada y la herramienta funciona igual.</p>
   </div>
 
   <h2>1. Qué son</h2>
@@ -45,6 +46,12 @@
           <td>Guardar tus últimas búsquedas para tenerlas a mano. No sale de tu navegador.</td>
           <td>Hasta que borres los datos del navegador.</td>
         </tr>
+        <tr>
+          <td>fisioia.cookies</td>
+          <td>Almacenamiento local, propio y técnico</td>
+          <td>Recordar si aceptaste o rechazaste las cookies de medición, para no preguntarte cada vez.</td>
+          <td>Hasta que borres los datos del navegador.</td>
+        </tr>
       </tbody>
     </table>
   </div>
@@ -53,25 +60,54 @@
     consentimiento para usarlas.
   </p>
 
-  <h2>3. Servicios de terceros</h2>
+  <h2>3. Cookies de medición de anuncios (solo con tu permiso)</h2>
   <p>
-    La página no carga nada de servicios de terceros: las tipografías y el resto de archivos se sirven desde nuestro
-    propio dominio, alojado en Netlify, que es nuestro proveedor de alojamiento y no instala cookies.
+    Si aceptas en el aviso, se carga el <strong>píxel de Meta</strong> (Meta Platforms Ireland Ltd.), que nos dice si
+    alguien que vio un anuncio nuestro en Facebook o Instagram llegó a la página, pidió su acceso o entró en la
+    herramienta. Sirve para saber qué anuncios funcionan y para que Meta los muestre a profesionales a los que puedan
+    interesarles.
   </p>
+  <div class="tabla">
+    <table>
+      <thead><tr><th>Nombre</th><th>De quién</th><th>Para qué</th><th>Duración</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>_fbp</td>
+          <td>Meta, en nuestro dominio</td>
+          <td>Reconocer tu navegador entre visitas para medir los anuncios.</td>
+          <td>3 meses</td>
+        </tr>
+        <tr>
+          <td>fr y otras de facebook.com</td>
+          <td>Meta, en su dominio</td>
+          <td>Relacionar la visita con tu cuenta de Meta, si la tienes, para medir y mostrar anuncios.</td>
+          <td>Hasta 3 meses, según la cookie</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
   <p>
-    <strong>Hoy no usamos</strong> herramientas de analítica (como Google Analytics) ni píxeles publicitarios (como los
-    de Meta o Google Ads). Si los añadimos, actualizaremos esta política con cada cookie, su finalidad y su duración, y
-    solo se activarán si das tu consentimiento desde el aviso que aparecerá al entrar.
+    Qué hace Meta con esos datos se explica en su
+    <a href="https://www.facebook.com/privacy/policy/" target="_blank" rel="noopener">política de privacidad</a>.
+    El resto de archivos de la página, incluidas las tipografías, se sirven desde nuestro propio dominio, alojado en
+    Netlify, que no instala cookies.
   </p>
 
-  <h2>4. Cómo borrarlas o bloquearlas</h2>
+  <h2>4. Cambiar de opinión</h2>
+  <p>
+    Puedes cambiar tu elección cuando quieras desde el enlace <strong>«Configurar cookies»</strong> del pie de cada
+    página, o <a href="#" onclick="window.fisioiaCookies && window.fisioiaCookies(); return false;">desde aquí</a>.
+    Si retiras el permiso, el píxel deja de cargarse.
+  </p>
+
+  <h2>5. Cómo borrarlas o bloquearlas</h2>
   <p>
     Puedes borrar o bloquear las cookies y el almacenamiento local desde la configuración de tu navegador. Si borras
     <em>fisioia.acceso</em>, tendrás que volver a abrir el enlace de tu correo (o pedirlo de nuevo en la página principal)
     para entrar en la herramienta.
   </p>
 
-  <h2>5. Más información</h2>
+  <h2>6. Más información</h2>
   <p>
     Cómo tratamos tus datos se explica en la <a href="/privacidad">política de privacidad</a>. Para cualquier duda,
     escríbenos a <a href="mailto:juampe@fisioia.app">juampe@fisioia.app</a>.
@@ -79,7 +115,7 @@
 
   <footer>
     © <span id="anio">2026</span> FisioIA, marca operada por Sanavia Digital OÜ (Reg. 17576365, Estonia).
-    <nav class="legales"><a href="/privacidad">Privacidad</a><a href="/terminos">Términos de uso</a><a href="/cookies">Cookies</a></nav>
+    <nav class="legales"><a href="/privacidad">Privacidad</a><a href="/terminos">Términos de uso</a><a href="/cookies">Cookies</a><a href="#" onclick="window.fisioiaCookies && window.fisioiaCookies(); return false;">Configurar cookies</a></nav>
   </footer>
 </main>
 <script>document.getElementById("anio").textContent = new Date().getFullYear();</script>

@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#070a11">
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="/legal.css">
+<script src="/consentimiento.js"></script>
 </head>
 <body>
 <main class="pagina">
@@ -105,7 +106,7 @@
 
   <footer>
     © <span id="anio">2026</span> FisioIA, marca operada por Sanavia Digital OÜ (Reg. 17576365, Estonia).
-    <nav class="legales"><a href="/privacidad">Privacidad</a><a href="/terminos">Términos de uso</a><a href="/cookies">Cookies</a></nav>
+    <nav class="legales"><a href="/privacidad">Privacidad</a><a href="/terminos">Términos de uso</a><a href="/cookies">Cookies</a><a href="#" onclick="window.fisioiaCookies && window.fisioiaCookies(); return false;">Configurar cookies</a></nav>
   </footer>
 </main>
 <script>document.getElementById("anio").textContent = new Date().getFullYear();</script>
