@@ -689,16 +689,29 @@ a { color: var(--azul); text-underline-offset: 3px; }
   border: 1px solid color-mix(in srgb, var(--azul) 25%, var(--borde));
 }
 .fase-resumen.entra { animation: recoger .6s .12s var(--curva) both; }
-/* El check del paso hecho: un círculo que aparece y un trazo que se dibuja
-   dentro, cuando la tarjeta termina de plegarse. */
+/* El check del paso hecho: grande, translúcido y por detrás del texto,
+   asomando por la esquina inferior derecha y recortado por el borde de la
+   tarjeta. Pequeño y azul competía con los círculos del carril de pasos; así
+   se lee como un sello de fondo. Aparece y se dibuja al terminar el plegado. */
+.fase-resumen { position: relative; overflow: hidden; isolation: isolate; }
+.fase-resumen > :not(.resumen-check) { position: relative; z-index: 1; }
+/* En pantallas anchas, el botón de cambiar se aparta del sello de la esquina. */
+@media (min-width: 621px) { .fase-resumen { padding-right: 120px; } }
 .resumen-check {
-  flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
-  background: var(--azul); box-shadow: 0 0 0 5px var(--brillo-azul), 0 0 18px -4px var(--azul);
+  position: absolute; z-index: 0; right: -30px; bottom: -46px;
+  display: grid; place-items: center; width: 132px; height: 132px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, color-mix(in srgb, var(--azul) 22%, transparent), color-mix(in srgb, var(--azul) 8%, transparent) 70%);
+  border: 2px solid color-mix(in srgb, var(--azul) 22%, transparent);
+  pointer-events: none;
 }
-.resumen-check svg { width: 17px; height: 17px; fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.fase-resumen.entra .resumen-check { animation: aparecerCheck .45s .45s var(--curva) both; }
-.fase-resumen.entra .resumen-check path { stroke-dasharray: 22; animation: trazarCheck .4s .75s ease-out both; }
-@keyframes aparecerCheck { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
+.resumen-check svg {
+  width: 64px; height: 64px; fill: none; stroke: color-mix(in srgb, var(--azul) 45%, transparent);
+  stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+  transform: translate(-12px, -14px);
+}
+.fase-resumen.entra .resumen-check { animation: aparecerCheck .6s .45s var(--curva) both; }
+.fase-resumen.entra .resumen-check path { stroke-dasharray: 22; animation: trazarCheck .5s .8s ease-out both; }
+@keyframes aparecerCheck { from { opacity: 0; transform: scale(.6) rotate(-12deg); } to { opacity: 1; transform: none; } }
 @keyframes trazarCheck { from { stroke-dashoffset: 22; } to { stroke-dashoffset: 0; } }
 /* La opción pulsada se ilumina un instante antes de plegarse. */
 .nivel.elegido { border-color: var(--azul); box-shadow: 0 0 0 3px var(--brillo-azul), 0 0 22px -6px var(--azul); transform: scale(.985); }
