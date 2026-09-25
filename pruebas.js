@@ -2,6 +2,8 @@
 // conclusión clínica, y tiene que poder comprobarse en un segundo.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
 import { PRE_TEST, razonesDeVerosimilitud, validarPrecision, postTest, magnitud, interpretar, validarParcial, necesitaCorreccion, pctMostrado, CORRECCION, acotarParcial } from "./dominio/probabilidad.js";
 import { semaforo } from "./dominio/calidad.js";
 import { banderasPara } from "./dominio/banderas.js";
@@ -330,6 +332,90 @@ prueba("cada componente se devuelve con el nombre que lleva en la batería", () 
   });
   assert.equal(r.equivalencias[0].enBateria, "Palpación de la interlínea articular");
   assert.equal(r.equivalencias[1].enBateria, null);
+});
+
+// Ejecuta las funciones reales de presentación sin red ni llamadas al modelo.
+const pagina = readFileSync(new URL("./publico/app.html", import.meta.url), "utf8");
+function funcionUI(nombre) {
+  const inicio = pagina.indexOf("  function " + nombre + "(");
+  const fin = pagina.indexOf("\n  function ", inicio + 1);
+  return pagina.slice(inicio, fin);
+}
+const contextoUI = vm.createContext({
+  estado: { entidad: "menisco", tests: [{ nombre: "Ege" }, { nombre: "Otro" }], evidencias: {}, explicaciones: {}, parciales: {}, interpretaciones: {} },
+  ui: { abiertos: {} }, esc: String, num: String, icono: () => "", lineaIa: () => "",
+  refrescarConclusion: () => {}, ultimosAvisos: {},
+  hueco: { innerHTML: "", querySelector: () => null, classList: { toggle() {} } },
+});
+vm.runInContext(pagina.match(/  var pct = function[^\n]+/)[0] + "\n" +
+  ["medidor", "nombreDelTest", "otrasCifras", "pintarInterpretacion"].map(funcionUI).join("\n") +
+  "\nfunction huecoDe() { return hueco; }", contextoUI);
+
+prueba("el medidor respeta el 99% y el 1% de los textos", () => {
+  assert.match(vm.runInContext("medidor(.45, .9999, '')", contextoUI), /data-hasta="99"/);
+  assert.match(vm.runInContext("medidor(.45, .0001, '')", contextoUI), /data-hasta="1"/);
+});
+
+prueba("abrir otros estudios de un test no abre otro con el mismo artículo", () => {
+  const ev = { sn: .66, sp: .86, cita: { pmid: "123" }, otrasFuentes: [{ sn: .67, sp: .81 }] };
+  contextoUI.estado.evidencias = { Ege: ev, Otro: { ...ev } };
+  const dibujar = nombre => vm.runInContext(`otrasCifras(estado.evidencias.${nombre})`, contextoUI);
+  assert.doesNotMatch(dibujar("Ege"), / open>/);
+  contextoUI.ui.abiertos['otras:' + JSON.stringify(["menisco", "Ege", "123"])] = true;
+  assert.match(dibujar("Ege"), / open>/);
+  assert.doesNotMatch(dibujar("Otro"), / open>/);
+});
+
+prueba("datos parciales muestran límites solo dentro del desplegable cerrado, sin barra", () => {
+  for (const resultado of ["positivo", "negativo"]) {
+    for (const cifras of [{ sn: null, sp: 1 }, { sn: .91, sp: null }]) {
+      contextoUI.estado.evidencias.Ege = cifras;
+      contextoUI.respuesta = { parcial: true, ...acotarParcial({ nivelPreTest: "media", ...cifras, resultado }) };
+      vm.runInContext(`pintarInterpretacion("Ege", respuesta, "${resultado}", true)`, contextoUI);
+      assert.match(contextoUI.hueco.innerHTML, /Probabilidad no calculable/);
+      assert.match(contextoUI.hueco.innerHTML, /No se utiliza para calcular la conclusión/);
+      const html = contextoUI.hueco.innerHTML;
+      assert.doesNotMatch(html, /class="medidor"|data-hasta=| open>/);
+      assert.doesNotMatch(html.split('<details')[0], /%/);
+      if (contextoUI.respuesta.acotable) {
+        assert.match(html, /escenario más favorable/);
+        assert.match(html, /no la probabilidad de tu paciente/);
+        assert.match(html, /≈ /);
+      } else {
+        assert.match(html, /No hay un límite útil/);
+        assert.doesNotMatch(html, /%/);
+      }
+    }
+  }
+});
+
+prueba("el avance móvil permite ver la confirmación y cancela avances pendientes", () => {
+  let pendiente, demora;
+  const movimientos = [];
+  const ctx = vm.createContext({
+    ui: { avanceFase2: null }, estado: { nivel: "media" },
+    window: { matchMedia: () => ({ matches: false }) },
+    setTimeout: (fn, ms) => { pendiente = fn; demora = ms; return 1; },
+    clearTimeout: () => { pendiente = null; },
+    document: { getElementById: id => id === "paso-2"
+      ? { scrollIntoView: o => movimientos.push(o.behavior) }
+      : { setAttribute() {}, focus() {} } },
+  });
+  vm.runInContext(funcionUI("cancelarAvanceFase2") + funcionUI("avanzarAFase2"), ctx);
+  vm.runInContext("avanzarAFase2(true)", ctx);
+  assert.equal(demora, 360);
+  assert.equal(movimientos.length, 0);
+  pendiente();
+  assert.deepEqual(movimientos, ["smooth"]);
+  vm.runInContext("avanzarAFase2(true); cancelarAvanceFase2()", ctx);
+  assert.equal(pendiente, null);
+  vm.runInContext("avanzarAFase2(true)", ctx);
+  ctx.ui = { avanceFase2: null }; // Otra consulta sustituye la interfaz.
+  pendiente();
+  assert.equal(movimientos.length, 1);
+  ctx.window.matchMedia = () => ({ matches: true });
+  vm.runInContext("avanzarAFase2(true)", ctx);
+  assert.deepEqual(movimientos, ["smooth", "instant"]);
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);
@@ -687,6 +773,34 @@ prueba("quien ya está en la newsletter sin baja se queda como está", () => {
 
 prueba("con el interruptor apagado no se reactiva a nadie", () => {
   assert.equal(debeReactivar({ baja: true, listas: [5, 10] }, { activo: false, newsletter: 10 }), false);
+});
+
+prueba("el límite ajustado explica el supuesto y el 99% de visualización", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: null, sp: 1, resultado: "positivo" });
+  assert.match(r.orientacion.titulo, /Techo/);
+  assert.equal(r.orientacion.valor, "≈ 99%");
+  assert.match(r.orientacion.supuesto, /sensibilidad del 100%/);
+  assert.match(r.orientacion.ajuste, /0,999/);
+  assert.match(r.orientacion.redondeo, /no un límite exacto/);
+  const negativo = acotarParcial({ nivelPreTest: "media", sn: .91, sp: null, resultado: "negativo" });
+  assert.match(negativo.orientacion.titulo, /Límite inferior/);
+  assert.match(negativo.orientacion.supuesto, /especificidad del 100%/);
+  assert.equal(negativo.orientacion.ajuste, null);
+});
+
+prueba("la IA recibe el mismo límite y sus advertencias, o el motivo de no poder acotar", () => {
+  const fuente = readFileSync(new URL("./ia/explicaciones.js", import.meta.url), "utf8");
+  const inicio = fuente.indexOf("function calculado(");
+  const fin = fuente.indexOf("\n/**", inicio);
+  const ctx = vm.createContext({ acotarParcial, interpretar, pctMostrado });
+  vm.runInContext(fuente.slice(inicio, fin), ctx);
+  const datos = vm.runInContext('calculado({parcial:true, sn:null, sp:1}, "media", "positivo").datos', ctx);
+  assert.equal(datos.orientacionTeorica.valor, "≈ 99%");
+  assert.match(datos.orientacionTeorica.ajuste, /0,999/);
+  assert.equal(datos.laSospechaQuedaEn, undefined);
+  const sinCota = vm.runInContext('calculado({parcial:true, sn:null, sp:1}, "media", "negativo").datos', ctx);
+  assert.equal(sinCota.orientacionTeorica, null);
+  assert.match(sinCota.motivoSinLimite, /sensibilidad/);
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);

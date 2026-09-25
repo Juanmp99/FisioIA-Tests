@@ -176,8 +176,8 @@ export function magnitud(lr) {
  * lugar del refrán.
  *
  * Lo que devuelve es un límite, nunca una estimación, y quien lo muestre tiene
- * que decirlo: "en el mejor de los casos". La cifra real está entre la sospecha
- * de partida y esta cota, y dónde exactamente no se sabe.
+ * que decirlo: "en el mejor de los casos". No permite situar la probabilidad
+ * real entre la sospecha inicial y la cota: falta conocer la otra cifra.
  */
 export function acotarParcial({ nivelPreTest, sn, sp, resultado }) {
   const base = PRE_TEST[nivelPreTest];
@@ -222,6 +222,18 @@ export function acotarParcial({ nivelPreTest, sn, sp, resultado }) {
     acotable: true,
     resultado,
     lectura,
+    orientacion: {
+      titulo: positivo ? "Techo teórico en el escenario más favorable" : "Límite inferior teórico en el escenario más favorable",
+      valor: `≈ ${pct(post)}%`,
+      supuesto: `Se supone una ${haySn ? "especificidad" : "sensibilidad"} del 100%, el mejor valor posible para el dato que falta. No se ha medido ese valor en el estudio citado.`,
+      ajuste: necesitaCorreccion(sn, sp)
+        ? "La cifra publicada de 1,00 se ajusta a 0,999 para hacer el cálculo."
+        : null,
+      redondeo: Math.round(post * 100) !== pct(post)
+        ? `La pantalla muestra ${pct(post)}% para evitar aparentar certeza absoluta. Es una convención de visualización, no un límite exacto.`
+        : "La cifra se muestra redondeada: no es un límite exacto.",
+      advertencia: "Es un escenario hipotético, no la probabilidad de tu paciente. No confirma ni descarta el diagnóstico y no entra en el cálculo de la conclusión.",
+    },
     detalle: {
       preTest: pre,
       preTestTexto: `${base.etiqueta}, ${base.detalle}`,

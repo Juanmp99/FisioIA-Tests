@@ -1459,6 +1459,13 @@ button.sello.explica { font-size: .8125rem; }
   font-family: var(--mono); font-size: .75rem; color: var(--tinta-tenue);
   margin-top: 10px; font-variant-numeric: tabular-nums; line-height: 1.7;
 }
+.orientacion-parcial { margin-top: 14px; color: var(--tinta-media); }
+.orientacion-parcial summary { cursor: pointer; font-size: .875rem; text-decoration: underline dotted; text-underline-offset: 4px; }
+.orientacion-parcial summary:focus-visible { outline: 2px solid var(--tinta-media); outline-offset: 4px; }
+.limite-teorico { margin-top: 12px; padding: 14px; border: 1px dashed var(--tinta-tenue); border-radius: 12px; background: var(--superficie); }
+.limite-teorico p { margin: 8px 0 0; font-size: .875rem; line-height: 1.6; }
+.limite-teorico .limite-valor { display: block; margin: 8px 0; font: 600 1.35rem var(--mono); color: var(--tinta-media); }
+.orientacion-parcial .veredicto-ia { background: var(--superficie); border-color: var(--tinta-tenue); }
 /* La razón de verosimilitud dentro de la línea del cálculo: texto subrayado
    con su "?", no un botón, para que la línea se siga leyendo seguida. */
 .rv-pista {
@@ -1958,6 +1965,9 @@ button.sello.explica { font-size: .8125rem; }
   to { opacity: 1; transform: rotate(-45deg) scale(1); }
 }
 
+.nivel .nivel-check { display: inline; color: var(--azul); font-size: 1em; }
+.pretest-completado { margin: 14px 0 0; color: var(--azul); font-size: .875rem; font-weight: 650; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .fase-cab { opacity: 1; transform: none; }
@@ -2176,6 +2186,7 @@ button.sello.explica { font-size: .8125rem; }
       // La fase 1 se recoge en una línea en cuanto se elige la sospecha, y se
       // reabre a petición. Recogerla es lo que da la sensación de avanzar.
       f1Abierta: true,
+      avanceFase2: null,
       acabaDeElegir: false,
       acabaDeAbrir: false,
       // Qué se ha enseñado ya, para no volver a animarlo.
@@ -2461,6 +2472,7 @@ button.sello.explica { font-size: .8125rem; }
 
   function consultar(sospecha) {
     if (sospecha.length < 3) return;
+    cancelarAvanceFase2();
     enviar.disabled = true;
 
     // La portada deja de ser portada: el campo se aparta arriba y la tira y el
@@ -2542,7 +2554,7 @@ button.sello.explica { font-size: .8125rem; }
 
   /* ============ medidor de probabilidad ============ */
 
-  var pct = function (x) { return Math.round(x * 100); };
+  var pct = function (x) { return Math.min(99, Math.max(1, Math.round(x * 100))); };
 
   /**
    * La pieza que hace tangible lo abstracto: dónde estaba tu sospecha y a dónde
@@ -2602,6 +2614,33 @@ button.sello.explica { font-size: .8125rem; }
 
   /* ============ pintado principal ============ */
 
+  // Un único temporizador, sin trabajo por fotograma ni nuevas peticiones.
+  function cancelarAvanceFase2() {
+    if (ui.avanceFase2 !== null) clearTimeout(ui.avanceFase2);
+    ui.avanceFase2 = null;
+  }
+
+  function avanzarAFase2(movil) {
+    cancelarAvanceFase2();
+    var interfaz = ui;
+    var nivel = estado.nivel;
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var avanzar = function () {
+      if (ui !== interfaz || estado.nivel !== nivel) return;
+      ui.avanceFase2 = null;
+      var fase2 = document.getElementById("paso-2");
+      if (!fase2) return;
+      var titulo = document.getElementById("fase-titulo-2");
+      if (titulo) {
+        titulo.setAttribute("tabindex", "-1");
+        titulo.focus({ preventScroll: true });
+      }
+      fase2.scrollIntoView({ behavior: reduce ? "instant" : "smooth", block: "start" });
+    };
+    if (movil && !reduce) ui.avanceFase2 = setTimeout(avanzar, 360);
+    else avanzar();
+  }
+
   function pintar() {
     var fases = estadoFases();
 
@@ -2616,8 +2655,13 @@ button.sello.explica { font-size: .8125rem; }
     Array.prototype.forEach.call(salida.querySelectorAll("[data-nivel]"), function (b) {
       b.addEventListener("click", function () {
         var primera = !estado.nivel;
+        var continuando = ui.avanceFase2 !== null;
+        cancelarAvanceFase2();
+        var movil = window.matchMedia && window.matchMedia("(max-width: 620px)").matches;
         estado.nivel = b.getAttribute("data-nivel");
-        ui.f1Abierta = false;
+        // En móvil se conserva la altura de la tarjeta: plegarla aquí
+        // movería la fase dos antes de que el usuario perciba el recorrido.
+        ui.f1Abierta = Boolean(movil);
         ui.acabaDeElegir = true;
         pintar();
         // Con la sospecha ya elegida, la IA puede decir qué significa cada
@@ -2626,16 +2670,14 @@ button.sello.explica { font-size: .8125rem; }
         // La primera vez, la vista baja a la exploración: el paso está hecho y
         // lo siguiente está abajo. Si solo se está cambiando la sospecha, no:
         // el fisioterapeuta ya estaba donde quería estar.
-        if (primera) {
-          var fase2 = document.getElementById("paso-2");
-          if (fase2) fase2.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
+        if (primera || continuando) avanzarAFase2(movil);
       });
     });
 
     var cambiarNivel = salida.querySelector("[data-cambiar-nivel]");
     if (cambiarNivel) {
       cambiarNivel.addEventListener("click", function () {
+        cancelarAvanceFase2();
         ui.f1Abierta = true;
         ui.acabaDeAbrir = true;
         pintar();
@@ -2920,9 +2962,9 @@ button.sello.explica { font-size: .8125rem; }
       '<div class="niveles">' +
         niveles.map(function (n) {
           return '<button class="nivel" data-nivel="' + n.id + '" aria-pressed="' + (estado.nivel === n.id) + '">' +
-            "<b>" + n.nombre + "</b><span>" + n.detalle + "</span></button>";
+            "<b>" + n.nombre + (estado.nivel === n.id ? ' <span class="nivel-check" aria-hidden="true">✓</span>' : "") + "</b><span>" + n.detalle + "</span></button>";
         }).join("") +
-      "</div></div></div>";
+      "</div>" + (elegido ? '<p class="pretest-completado" role="status">✓ Paso 1 completado · sospecha ' + esc(elegido.nombre.toLowerCase()) + ' registrada</p>' : '') + "</div></div>";
   }
 
   /**
@@ -3761,7 +3803,7 @@ button.sello.explica { font-size: .8125rem; }
       var min = Math.min.apply(null, valores.map(function (x) { return x.v; }));
       var max = Math.max.apply(null, valores.map(function (x) { return x.v; }));
       var dif = max - min;
-      var lectura = dif <= 0.10 ? ["coinciden", "Coinciden: la cifra es estable entre estudios."]
+      var lectura = dif <= 0.10 ? ["coinciden", "Las cifras publicadas son similares; esto no demuestra por sí solo su fiabilidad."]
         : dif <= 0.20 ? ["parecidas", "Se parecen, con algo de variación entre estudios."]
         : ["discrepan", "Discrepan bastante: la cifra depende mucho del estudio. Tómala con cautela."];
       return '<div class="oc-tira ' + lectura[0] + '">' +
@@ -3796,7 +3838,7 @@ button.sello.explica { font-size: .8125rem; }
     var exp = estado.explicaciones[nombreDelTest(ev)];
     var eleccionIa = exp && typeof exp === "object" ? exp.eleccion : null;
 
-    var id = "otras:" + (ev.cita ? ev.cita.pmid : otras.length);
+    var id = "otras:" + JSON.stringify([estado.entidad, nombreDelTest(ev), ev.cita && ev.cita.pmid]);
     return '<details class="otras-cifras" data-recordar="' + esc(id) + '"' + (ui.abiertos[id] ? " open" : "") + "><summary>" +
         (una ? "Otro estudio también lo ha medido" : "Otros " + otras.length + " estudios también lo han medido") +
         '<span class="oc-pide"> · por qué usamos este</span></summary>' +
@@ -4076,35 +4118,37 @@ button.sello.explica { font-size: .8125rem; }
     hueco.classList.toggle("quieto", Boolean(quieto));
     ultimosAvisos[nombre] = null;
 
-    // Media cifra: no hay probabilidad, pero sí el techo de lo que puede dar.
+    // Una cota matemática no es una estimación para este paciente.
     if (d.parcial) {
       estado.parciales[nombre] = { resultado: resultado, d: d };
-      if (!d.acotable) {
-        hueco.innerHTML = veredictoSimple("nulo", "Anotado · no se puede acotar", d.motivo);
-        refrescarConclusion();
-        return;
-      }
-
-      var y = d.detalle;
-      var claseP = y.magnitud.nivel === "irrelevante" ? "nulo" : "mueve";
+      delete estado.interpretaciones[nombre];
+      var evParcial = estado.evidencias[nombre] || {};
+      var falta = evParcial.sn == null ? "sensibilidad" : "especificidad";
+      var idLimite = "limite:" + JSON.stringify([estado.entidad, nombre, estado.nivel, resultado, evParcial.sn, evParcial.sp]);
+      var anteriorLimite = hueco.querySelector("details[data-limite]");
+      if (anteriorLimite) ui.abiertos[anteriorLimite.getAttribute("data-limite")] = anteriorLimite.open;
+      var orientacion = d.orientacion;
+      var contenidoLimite = orientacion
+        ? '<b>' + esc(orientacion.titulo) + '</b><span class="limite-valor">' + esc(orientacion.valor) + '</span>' +
+          '<p>' + esc(orientacion.supuesto) + '</p>' +
+          (orientacion.ajuste ? '<p>' + esc(orientacion.ajuste) + '</p>' : '') +
+          '<p>' + esc(orientacion.redondeo) + '</p><p>' + esc(orientacion.advertencia) + '</p>'
+        : '<b>No hay un límite útil con este dato</b><p>' + esc(d.motivo || "Falta información para calcularlo.") + '</p>';
       hueco.innerHTML =
-        '<div class="veredicto ' + claseP + calma + '">' +
-          '<div class="veredicto-cab">' + icono(claseP) + "<b>" +
-            (claseP === "nulo"
-              ? "Ni en el mejor caso cambia gran cosa"
-              : "Como mucho, " + (resultado === "positivo" ? "sube" : "baja") + " hasta el " + esc(y.postTestTexto)) +
-          "</b></div>" +
-          '<p class="lectura">' + esc(d.lectura) + "</p>" +
-          lineaIa(nombre, resultado) +
-          medidor(y.preTest, y.postTest, claseP === "nulo" ? "nulo" : "") +
-          '<div class="calculo">' +
-            "solo consta " + (y.falta === "especificidad" ? "la sensibilidad" : "la especificidad") +
-            ", así que esto es un techo y no una cifra: la real queda entre tu sospecha de partida y ese " +
-            esc(y.postTestTexto) +
-          "</div>" +
-        "</div>";
-
-      animarCifras(hueco, quieto);
+        '<div class="veredicto nulo' + calma + '">' +
+          '<div class="veredicto-cab">' + icono("info") + '<b>Probabilidad no calculable · faltan datos</b></div>' +
+          '<p class="lectura">Falta la ' + falta + '. No se puede calcular cuánto cambia tu sospecha con este resultado.</p>' +
+          '<details class="orientacion-parcial" data-limite="' + esc(idLimite) + '"' + (ui.abiertos[idLimite] ? ' open' : '') + '>' +
+            '<summary>¿Qué podemos saber con el dato disponible?</summary>' +
+            '<div class="limite-teorico">' + contenidoLimite + '</div>' +
+            lineaIa(nombre, resultado) +
+          '</details>' +
+          '<div class="calculo">Resultado anotado: ' + esc(resultado) + '. No se utiliza para calcular la conclusión.</div>' +
+        '</div>';
+      var desplegableLimite = hueco.querySelector("details[data-limite]");
+      if (desplegableLimite) desplegableLimite.addEventListener("toggle", function () {
+        if (desplegableLimite.isConnected) ui.abiertos[idLimite] = desplegableLimite.open;
+      });
       refrescarConclusion();
       return;
     }
@@ -4359,34 +4403,19 @@ button.sello.explica { font-size: .8125rem; }
   /*
    * Un resultado con media cifra, explicado en su caso concreto.
    *
-   * Antes era una frase genérica —"da un techo, no una cifra"— que solo se
-   * entendía sabiendo qué es un techo. Ahora dice qué cifra falta, qué se
-   * necesitaría para interpretar ESE resultado, y lo único que sí se puede
-   * decir: hasta dónde llegaría como mucho, cuando se puede saber.
+   * Explica qué dato falta y por qué el resultado no entra en la conclusión.
    */
   function casoParcial(nombre) {
     var ev = estado.evidencias[nombre] || {};
     var resultado = estado.resultados[nombre];
     var tiene = ev.falta === "especificidad" ? "sensibilidad" : "especificidad";
     var falta = ev.falta === "especificidad" ? "especificidad" : "sensibilidad";
-    var guardado = estado.parciales[nombre];
-    var d = guardado && guardado.resultado === resultado ? guardado.d : null;
-
-    var texto = "De este test solo se ha publicado la " + tiene + ". ";
-    if (d && d.acotable) {
-      var sube = resultado === "positivo";
-      texto += "Con ella no se sabe cuánto " + (sube ? "sube" : "baja") + " tu sospecha un " + resultado +
-        ", pero sí lo máximo: como mucho la dejaría en el <b>" + esc(d.detalle.postTestTexto) + "</b>. " +
-        "El valor real está entre tu " + pct(d.detalle.preTest) + "% de partida y ese " + esc(d.detalle.postTestTexto) + ".";
-    } else {
-      var campo = falta === "especificidad" ? "sp" : "sn";
-      var otroLaTiene = (ev.otrasFuentes || []).some(function (o) { return o[campo] != null; });
-      texto += "Para saber qué hace un " + (resultado || "resultado") + " con tu sospecha haría falta la " + falta +
-        (otroLaTiene
-          ? ", y la que publica otro estudio no puede combinarse con esta: se midieron en pacientes distintos."
-          : ", y ningún estudio de los leídos la publica.") +
-        " Este resultado no se puede interpretar.";
-    }
+    var campo = falta === "especificidad" ? "sp" : "sn";
+    var otroLaTiene = (ev.otrasFuentes || []).some(function (o) { return o[campo] != null; });
+    var texto = "El estudio citado solo publica la " + tiene + ". Falta la " + falta +
+      " para calcular cuánto cambia tu sospecha." +
+      (otroLaTiene ? " No se combina con la cifra de otro estudio, medida en pacientes distintos." : "") +
+      " Este resultado queda anotado, pero no entra en el cálculo de la conclusión.";
     return "<li><b>" + esc(nombre) + " " + esc(resultado || "") + ".</b> " + texto + "</li>";
   }
 
@@ -4577,6 +4606,7 @@ button.sello.explica { font-size: .8125rem; }
 
   /** Sube a la fase 1 y la señala, para que se vea a qué se ha venido. */
   function irAlaFase1() {
+    cancelarAvanceFase2();
     ui.f1Abierta = true;
     pintar();
     var fase = document.getElementById("paso-1");
@@ -4754,6 +4784,7 @@ button.sello.explica { font-size: .8125rem; }
 
     Array.prototype.forEach.call(carril.querySelectorAll("[data-paso]"), function (b) {
       b.addEventListener("click", function () {
+        cancelarAvanceFase2();
         var destino = document.getElementById("paso-" + b.getAttribute("data-paso"));
         if (destino) destino.scrollIntoView({ behavior: "smooth", block: "start" });
       });

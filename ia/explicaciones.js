@@ -15,12 +15,12 @@
 
 import { leer, escribir } from "../lib/almacen.js";
 import { pedirJson } from "./cliente.js";
-import { interpretar, acotarParcial, PRE_TEST, UMBRAL_CONFIRMA, UMBRAL_DESCARTA } from "../dominio/probabilidad.js";
+import { interpretar, acotarParcial, pctMostrado, PRE_TEST, UMBRAL_CONFIRMA, UMBRAL_DESCARTA } from "../dominio/probabilidad.js";
 
 const ALMACEN = "explicacion";
 
 /** Se cambia al tocar el prompt, para no servir explicaciones escritas con otro. */
-const VERSION = 9;
+const VERSION = 10;
 
 /**
  * En qué cifras se apoya una explicación.
@@ -32,7 +32,7 @@ const VERSION = 9;
  * 0,77. Guardando de qué cifras salió, se rehace sola cuando cambian.
  */
 function huellaDe(ev) {
-  return [ev.sn, ev.sp, ev.cita?.pmid, ev.calidad?.id, (ev.otrasFuentes || []).length].join("|");
+  return JSON.stringify(datosDe(ev, {}));
 }
 
 
@@ -64,6 +64,8 @@ Reglas, sin excepción:
 6. No hables de qué aporta un resultado positivo o negativo: eso se explica aparte, cuando se conoce la sospecha de partida.
 
 7. En eleccion, como mucho 50 palabras, le cuentas al fisioterapeuta qué hacer con los otros estudios que también miden el test. Ya ha leído, justo encima, qué cifras usa el cálculo y la regla por la que se eligió el citado; no la repitas. Tu trabajo es decirle lo que se ve al compararlos en este caso concreto: si las cifras de los demás se parecen a las del citado o se alejan, en cuál de las dos (sensibilidad o especificidad), y qué implica eso para fiarse del resultado del test en su paciente. Si un estudio publica solo una de las dos cifras, dilo. Nunca inventes un motivo de elección que no esté en los datos, y no sugieras mezclar ni promediar cifras de estudios distintos.
+
+7 ter. Que las cifras se parezcan no demuestra mayor certeza ni validación independiente: un estudio primario puede estar incluido en la revisión citada. Describe la similitud sin afirmar que refuerza la confianza en el resultado de este paciente ni cambiar la calidad asignada.
 
 7 bis. Compara cada cifra solo con la misma cifra del otro estudio, y solo si los dos la publican. Cada estudio trae en cifrasQueNoPublica las que le faltan: con esas no hay comparación posible. Si el citado no publica la especificidad y el otro sí, no digas que la del otro es más alta ni más baja: di que solo el otro la publica. Nunca agrupes las dos cifras de un estudio en una sola comparación ("sus cifras son más altas") salvo que el otro publique también las dos.`;
 
@@ -188,7 +190,7 @@ export async function explicacionDe(clave, ev, { test, entidad, senal }) {
  * solo lo explica.
  */
 
-const VERSION_RESULTADO = 2;
+const VERSION_RESULTADO = 4;
 
 const SISTEMA_RESULTADO = `Explicas a un fisioterapeuta, que tiene al paciente delante, qué significa el resultado del test que está haciendo. Conoces con qué sospecha llega, lo que la herramienta ha calculado para un positivo y para un negativo, las cifras del test y la calidad del estudio del que salen.
 
@@ -197,7 +199,7 @@ Escribe para que lo entienda un niño: frases cortas, palabras de todos los día
 Cada campo tiene tres frases, en este orden:
 1. Por qué la señal es clara o débil, explicado con lo que hace el test en personas con y sin la patología. Usa los datos deCada100.
 2. Qué significa para tu paciente, uniendo esa señal con la sospecha de partida. Por ejemplo: "Partías de una sospecha media, así que este positivo la refuerza, pero no lo bastante para darla por segura."
-3. Cuánto fiarte de esas cifras, según la calidad del estudio y sus motivos: un solo estudio, estudios que no coinciden, medido en otra patología, falta una cifra. Si la calidad es sólida, dilo también.
+3. Cuánto fiarte de esas cifras, según la calidad y el contextoDeEvidencia. Distingue la fuente elegida para calcular de todos los estudios localizados. Si hay otras fuentes, no digas que solo existe un estudio. Una revisión no equivale a un estudio primario. Si no se conoce cuántos estudios reúne para este test, no inventes el número. Las cifras parecidas no prueban independencia ni elevan por sí solas la calidad: el primario puede estar incluido en la revisión. Conserva las limitaciones de sesgo, precisión y aplicabilidad.
 
 Reglas, sin excepción:
 
@@ -206,7 +208,8 @@ Reglas, sin excepción:
 - No contradigas loQueDiceLaPantalla, que es lo que el fisioterapeuta lee justo encima de tu texto. Si dice que confirma, no digas que no confirma; si dice que refuerza pero no confirma, no la des por confirmada. Lo mismo al descartar.
 - El porcentaje al que llega la sospecha ya se ve en pantalla: no hace falta repetirlo.
 - La clase de señal se dice con estas palabras, que son las de la pantalla: señal muy clara, señal clara, señal débil, no sirve como señal. Nunca "poder diagnóstico".
-- Si solo se conoce una de las dos cifras, dilo en la primera frase: sin la otra no se puede saber del todo cuánto cambia la sospecha, y si hay techo, como mucho llegaría hasta ahí.
+- Si solo se conoce una de las dos cifras, tu texto irá dentro del desplegable de orientación teórica y sustituye la estructura de tres frases anterior: explica qué cifra falta y por qué no hay probabilidad calculable; si hay orientacionTeorica, explica su supuesto, distinguiendo techo para un positivo y límite inferior para un negativo. Nunca atribuyas ese porcentaje al paciente, ni digas que la probabilidad real queda entre la inicial y el límite. Si hay ajuste o redondeo, explica que el número mostrado no es un límite exacto ni una cifra publicada. Si no hay orientación teórica, explica el motivoSinLimite sin inventar un techo. El resultado no confirma ni descarta y no entra en el cálculo de la conclusión.
+- Las proporciones deCada100 describen la muestra del estudio, no una garantía para todos los pacientes. Si se observó un 100%, no lo presentes como certeza absoluta.
 - Quien te lee es el fisioterapeuta, y el enfermo es un tercero: "tu paciente", nunca "tú tienes" ni "tu lesión".
 - Nunca digas qué hacer a continuación.
 - Cada campo, como mucho 70 palabras. Español de España, tono cercano y sobrio.`;
@@ -229,26 +232,24 @@ function calculado(ev, nivel, resultado) {
     const d = interpretar({ nivelPreTest: nivel, sn: ev.sn, sp: ev.sp, resultado });
     if (!d.interpretable) return { datos: null };
     const x = d.detalle;
-    const mov = pct(x.postTest) - pct(x.preTest);
+    const mov = pctMostrado(x.postTest) - pctMostrado(x.preTest);
     return {
       datos: {
         claseDeSenal: x.magnitud.texto,
         loQueDiceLaPantalla: d.lectura,
-        laSospechaQuedaEn: `${pct(x.postTest)}%`,
+        laSospechaQuedaEn: x.postTestTexto,
         puntosQueSeMueve: `${mov > 0 ? "+" : "-"}${Math.abs(mov)}`,
       },
     };
   }
-  const a = acotarParcial({ nivelPreTest: nivel, sn: ev.sn, sp: ev.sp, resultado });
-  if (!a.acotable) {
-    return { datos: { soloSeConoceUnaCifra: true, loQueDiceLaPantalla: a.motivo } };
-  }
+  const parcial = acotarParcial({ nivelPreTest: nivel, sn: ev.sn, sp: ev.sp, resultado });
   return {
     datos: {
+      orientacionTeorica: parcial.orientacion ?? null,
+      motivoSinLimite: parcial.acotable ? null : parcial.motivo,
       soloSeConoceUnaCifra: true,
-      claseDeSenalComoMucho: a.detalle.magnitud.texto,
-      loQueDiceLaPantalla: a.lectura,
-      comoMuchoLlegariaA: a.detalle.postTestTexto,
+      cifraQueFalta: ev.sn == null ? "sensibilidad" : "especificidad",
+      loQueDiceLaPantalla: "Probabilidad no calculable · faltan datos. El resultado no entra en el cálculo de la conclusión.",
     },
   };
 }
@@ -284,6 +285,7 @@ export async function lecturaResultadoDe(clave, ev, { test, entidad, nivel, sena
       sinLaPatologiaDanNegativo: ev.sp != null ? pct(ev.sp) : null,
       sinLaPatologiaDanPositivo: ev.sp != null ? 100 - pct(ev.sp) : null,
     },
+    contextoDeEvidencia: datosDe(ev, { test, entidad }),
     calidadDelEstudio: ev.calidad?.etiqueta ?? null,
     motivosDeLaCalidad: ev.calidad?.motivos ?? [],
     tipoDeEstudio: ev.valoracion?.tipoEstudio ?? null,
