@@ -1446,6 +1446,8 @@ button.sello.explica { font-size: .8125rem; }
 .icono { flex: none; width: 20px; height: 20px; }
 .veredicto b { font-size: 1rem; letter-spacing: -.01em; }
 .veredicto .lectura { margin: 0; font-size: .9375rem; color: var(--tinta); }
+/* Repintado de algo que ya estaba en pantalla: sin entrada ni barrido. */
+.quieto, .quieto * { animation: none !important; }
 .senal { margin: 12px 0 0; font-size: .875rem; line-height: 1.55; color: var(--tinta-media); }
 .senal b { color: var(--tinta); font-weight: 650; }
 .matiz-partida { margin: 6px 0 0; font-size: .8125rem; color: var(--tinta-media); }
@@ -2494,6 +2496,8 @@ button.sello.explica { font-size: .8125rem; }
         estado.explicaciones = {};
         estado.lecturasIa = {};
         estado.elementos = {};
+        calculados = {};
+        ultimosAvisos = {};
         estado.veredictos = {};
         ui = nuevaUi();
         cerrarGlobo();
@@ -2572,8 +2576,8 @@ button.sello.explica { font-size: .8125rem; }
   }
 
   /** Cuenta el porcentaje hasta su valor, para que el cambio se vea ocurrir. */
-  function animarCifras(raiz) {
-    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function animarCifras(raiz, quieto) {
+    var reduce = quieto || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     Array.prototype.forEach.call((raiz || document).querySelectorAll("[data-hasta]"), function (el) {
       var desde = Number(el.getAttribute("data-desde"));
       var hasta = Number(el.getAttribute("data-hasta"));
@@ -3947,6 +3951,18 @@ button.sello.explica { font-size: .8125rem; }
     return "mueve";
   }
 
+  // Lo último calculado para cada test, con la clave de lo que lo determina.
+  var calculados = {};
+
+  // El último aviso sencillo que enseñó cada test. Si al repintar toca el mismo,
+  // entra quieto: "Anotado · esperando las cifras" no debe volver a aparecer
+  // con su animación cada vez que termina la búsqueda de otro test.
+  var ultimosAvisos = {};
+  function quietoSiRepite(hueco, nombre, aviso) {
+    hueco.classList.toggle("quieto", ultimosAvisos[nombre] === aviso);
+    ultimosAvisos[nombre] = aviso;
+  }
+
   function interpretarTest(nombre) {
     var hueco = salida.querySelector('[data-hueco="' + nombre.replace(/"/g, '\\"') + '"]');
     var ev = estado.evidencias[nombre];
@@ -3964,6 +3980,7 @@ button.sello.explica { font-size: .8125rem; }
       // El resultado se guarda igual. Marcar es un gesto que se hace con el
       // paciente delante y las manos ocupadas: quitárselo para mandarle arriba
       // sería perder el dato y el momento. Lo que se hace es avisar y llevarle.
+      quietoSiRepite(hueco, nombre, "falta-sospecha");
       hueco.innerHTML =
         '<div class="veredicto aguarda">' +
           '<div class="veredicto-cab">' + icono("info") + "<b>Anotado · falta tu sospecha</b></div>" +
@@ -3979,6 +3996,7 @@ button.sello.explica { font-size: .8125rem; }
     // sabe todavía. Al llegar las cifras la página se repinta y este mismo
     // resultado se interpreta solo.
     if (!ev) {
+      quietoSiRepite(hueco, nombre, "Anotado · esperando las cifras");
       hueco.innerHTML = veredictoSimple("aguarda", "Anotado · esperando las cifras",
         "Todavía estamos buscando la precisión publicada de este test. En cuanto llegue, verás aquí qué significa este resultado, sin tener que volver a marcarlo.");
       refrescarConclusion();
@@ -3986,6 +4004,7 @@ button.sello.explica { font-size: .8125rem; }
     }
 
     if (ev.cortada) {
+      quietoSiRepite(hueco, nombre, "Anotado · búsqueda sin terminar");
       hueco.innerHTML = veredictoSimple("nulo", "Anotado · búsqueda sin terminar",
         "La búsqueda de este test se cortó antes de acabar, así que no sabemos si hay cifras publicadas. Vuelve a lanzar la sospecha para completarla.");
       refrescarConclusion();
@@ -3993,6 +4012,7 @@ button.sello.explica { font-size: .8125rem; }
     }
 
     if (!ev.hayCifras) {
+      quietoSiRepite(hueco, nombre, "Anotado · sin cifras para interpretarlo");
       hueco.innerHTML = veredictoSimple("nulo", "Anotado · sin cifras para interpretarlo",
         "Nadie ha publicado la precisión de este test para esta patología, así que no puede decirse cuánto cambia tu sospecha.");
       refrescarConclusion();
@@ -4000,86 +4020,119 @@ button.sello.explica { font-size: .8125rem; }
     }
 
 
+    // Lo ya calculado para este mismo test, resultado, sospecha y cifras se
+    // pinta al momento y quieto. La página se repinta entera cada vez que un
+    // test termina su búsqueda, y antes cada resultado marcado volvía a pedir
+    // su cálculo, enseñaba "Calculando…" y repetía las animaciones: con ocho
+    // tests llegando uno a uno, la tarjeta parecía recargarse ocho veces.
+    var claveCalculo = estado.nivel + "|" + resultado + "|" + ev.sn + "|" + ev.sp;
+    var previo = calculados[nombre];
+    if (previo && previo.clave === claveCalculo) {
+      pintarInterpretacion(nombre, previo.d, resultado, true);
+      return;
+    }
+
     hueco.innerHTML = '<div class="veredicto"><div class="cargando"><span class="girando"></span>Calculando…</div></div>';
 
     pedir("/api/interpretar", {
       nivelPreTest: estado.nivel, sn: ev.sn, sp: ev.sp, resultado: resultado
     }).then(function (d) {
       if (estado.resultados[nombre] !== resultado) return;
-
-      // Media cifra: no hay probabilidad, pero sí el techo de lo que puede dar.
-      if (d.parcial) {
-        estado.parciales[nombre] = { resultado: resultado, d: d };
-        if (!d.acotable) {
-          hueco.innerHTML = veredictoSimple("nulo", "Anotado · no se puede acotar", d.motivo);
-          refrescarConclusion();
-          return;
-        }
-
-        var y = d.detalle;
-        var claseP = y.magnitud.nivel === "irrelevante" ? "nulo" : "mueve";
-        hueco.innerHTML =
-          '<div class="veredicto ' + claseP + '">' +
-            '<div class="veredicto-cab">' + icono(claseP) + "<b>" +
-              (claseP === "nulo"
-                ? "Ni en el mejor caso cambia gran cosa"
-                : "Como mucho, " + (resultado === "positivo" ? "sube" : "baja") + " hasta el " + esc(y.postTestTexto)) +
-            "</b></div>" +
-            '<p class="lectura">' + esc(d.lectura) + "</p>" +
-            lineaIa(nombre, resultado) +
-            medidor(y.preTest, y.postTest, claseP === "nulo" ? "nulo" : "") +
-            '<div class="calculo">' +
-              "solo consta " + (y.falta === "especificidad" ? "la sensibilidad" : "la especificidad") +
-              ", así que esto es un techo y no una cifra: la real queda entre tu sospecha de partida y ese " +
-              esc(y.postTestTexto) +
-            "</div>" +
-          "</div>";
-
-        animarCifras(hueco);
-        refrescarConclusion();
-        return;
-      }
-
-      if (!d.interpretable) {
-        estado.interpretaciones[nombre] = d;
-        hueco.innerHTML = veredictoSimple("nulo", "No interpretable", (d.problemas || []).join(" "));
-        refrescarConclusion();
-        return;
-      }
-
-      estado.interpretaciones[nombre] = d;
-
-      var x = d.detalle;
-      var clase = claseVeredicto(d);
-
-      hueco.innerHTML =
-        '<div class="veredicto ' + clase + '">' +
-          '<div class="veredicto-cab">' + icono(clase) + "<b>" + esc(tituloVeredicto(clase, d)) + "</b></div>" +
-          '<p class="lectura">' + esc(d.lecturaBreve || d.lectura) + "</p>" +
-          matizPartida(clase, d) +
-          lineaIa(nombre, resultado) +
-          medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") +
-          '<p class="senal">' + fraseSenal(d) + "</p>" +
-          // El número técnico, en pequeño y con su "?", para quien quiera
-          // comprobar la cuenta o lo conozca de un curso.
-          '<div class="calculo">' +
-            pista("rv", nombre, "rv-pista", "razón de verosimilitud " + esc(x.cual) + " " + num(x.razonDeVerosimilitud)) +
-            (x.corregida
-              ? "<br>precisión publicada del 100%: se calcula con 0,999 para no dar una certeza absoluta"
-              : "") +
-          "</div>" +
-        "</div>";
-
-      animarCifras(hueco);
-      refrescarConclusion();
+      calculados[nombre] = { clave: claveCalculo, d: d };
+      pintarInterpretacion(nombre, d, resultado, false);
     }).catch(function (err) {
       if (estado.resultados[nombre] !== resultado) return;
       // Se anota como no interpretable para que la conclusión no se quede
       // esperando un cálculo que ya no va a llegar.
       estado.interpretaciones[nombre] = { interpretable: false, fallida: true };
-      hueco.innerHTML = veredictoSimple("nulo", "No se ha podido calcular", err.message);
+      var h = huecoDe(nombre);
+      if (h) h.innerHTML = veredictoSimple("nulo", "No se ha podido calcular", err.message);
       refrescarConclusion();
     });
+  }
+
+  /** El hueco del resultado de un test, buscado en el momento: tras un repintado, el de antes ya no existe. */
+  function huecoDe(nombre) {
+    return salida.querySelector('[data-hueco="' + nombre.replace(/"/g, '\\"') + '"]');
+  }
+
+  /**
+   * Pinta lo calculado para un resultado. `quieto` es para repintar lo que ya
+   * estaba en pantalla: mismo contenido, sin volver a animar la barra ni contar
+   * el porcentaje.
+   */
+  function pintarInterpretacion(nombre, d, resultado, quieto) {
+    var hueco = huecoDe(nombre);
+    if (!hueco) return;
+    var calma = quieto ? " quieto" : "";
+    hueco.classList.toggle("quieto", Boolean(quieto));
+    ultimosAvisos[nombre] = null;
+
+    // Media cifra: no hay probabilidad, pero sí el techo de lo que puede dar.
+    if (d.parcial) {
+      estado.parciales[nombre] = { resultado: resultado, d: d };
+      if (!d.acotable) {
+        hueco.innerHTML = veredictoSimple("nulo", "Anotado · no se puede acotar", d.motivo);
+        refrescarConclusion();
+        return;
+      }
+
+      var y = d.detalle;
+      var claseP = y.magnitud.nivel === "irrelevante" ? "nulo" : "mueve";
+      hueco.innerHTML =
+        '<div class="veredicto ' + claseP + calma + '">' +
+          '<div class="veredicto-cab">' + icono(claseP) + "<b>" +
+            (claseP === "nulo"
+              ? "Ni en el mejor caso cambia gran cosa"
+              : "Como mucho, " + (resultado === "positivo" ? "sube" : "baja") + " hasta el " + esc(y.postTestTexto)) +
+          "</b></div>" +
+          '<p class="lectura">' + esc(d.lectura) + "</p>" +
+          lineaIa(nombre, resultado) +
+          medidor(y.preTest, y.postTest, claseP === "nulo" ? "nulo" : "") +
+          '<div class="calculo">' +
+            "solo consta " + (y.falta === "especificidad" ? "la sensibilidad" : "la especificidad") +
+            ", así que esto es un techo y no una cifra: la real queda entre tu sospecha de partida y ese " +
+            esc(y.postTestTexto) +
+          "</div>" +
+        "</div>";
+
+      animarCifras(hueco, quieto);
+      refrescarConclusion();
+      return;
+    }
+
+    if (!d.interpretable) {
+      estado.interpretaciones[nombre] = d;
+      hueco.innerHTML = veredictoSimple("nulo", "No interpretable", (d.problemas || []).join(" "));
+      refrescarConclusion();
+      return;
+    }
+
+    estado.interpretaciones[nombre] = d;
+
+    var x = d.detalle;
+    var clase = claseVeredicto(d);
+
+    hueco.innerHTML =
+      '<div class="veredicto ' + clase + calma + '">' +
+        '<div class="veredicto-cab">' + icono(clase) + "<b>" + esc(tituloVeredicto(clase, d)) + "</b></div>" +
+        '<p class="lectura">' + esc(d.lecturaBreve || d.lectura) + "</p>" +
+        matizPartida(clase, d) +
+        lineaIa(nombre, resultado) +
+        medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") +
+        '<p class="senal">' + fraseSenal(d) + "</p>" +
+        // El número técnico, en pequeño y con su "?", para quien quiera
+        // comprobar la cuenta o lo conozca de un curso.
+        '<div class="calculo">' +
+          pista("rv", nombre, "rv-pista", "razón de verosimilitud " + esc(x.cual) + " " + num(x.razonDeVerosimilitud)) +
+          (x.corregida
+            ? "<br>precisión publicada del 100%: se calcula con 0,999 para no dar una certeza absoluta"
+            : "") +
+        "</div>" +
+      "</div>";
+
+    animarCifras(hueco, quieto);
+    refrescarConclusion();
   }
 
   /**
@@ -4484,7 +4537,17 @@ button.sello.explica { font-size: .8125rem; }
       '<div class="conclusion' + entradaConclusion() + '"><div class="conclusion-dentro">' + partes.join("") + "</div></div>";
     var verMas = caja.querySelector(".ver-mas");
     if (verMas) verMas.addEventListener("toggle", function () { ui.abiertos["conclusion-detalle"] = verMas.open; });
-    animarCifras(caja);
+    // La barra solo se anima si ha cambiado lo que enseña. La conclusión se
+    // repinta cada vez que termina la búsqueda de un test, y la barra volvía a
+    // barrer y el porcentaje a contar desde cero sin que nada hubiera cambiado.
+    var firma = s.decisivo
+      ? s.decisivo.nombre + "|" + pct(s.decisivo.d.detalle.preTest) + "|" + pct(s.decisivo.d.detalle.postTest)
+      : "nada";
+    var igual = ui.firmaConclusion === firma;
+    ui.firmaConclusion = firma;
+    var barra = caja.querySelector(".conclusion-medidor");
+    if (barra && igual) barra.classList.add("quieto");
+    animarCifras(caja, igual);
     montarVeredicto();
     actualizarCarril();
   }
