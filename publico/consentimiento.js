@@ -101,10 +101,10 @@
     // tiene que ser igual de fácil que aceptar.
     caja.innerHTML =
       "<b>¿Unas cookies? 🍪</b>" +
-      '<p>Nos ayudan a medir y mejorar lo que hacemos. Tranqui, no engordan. <a href="/cookies">Más información</a></p>' +
+      '<p>Las cookies nos ayudan a medir y mejorar lo que hacemos. Tranqui, no engordan. <a href="/cookies">Más información</a></p>' +
       '<div class="aviso-cookies-botones">' +
-      '<button type="button" data-cookies="no">Negativo: rechazo</button>' +
-      '<button type="button" data-cookies="si">Positivo: acepto</button>' +
+      '<button type="button" data-cookies="no">Rechazar</button>' +
+      '<button type="button" data-cookies="si">Aceptar</button>' +
       "</div>";
     caja.addEventListener("click", function (e) {
       var eleccion = e.target.getAttribute && e.target.getAttribute("data-cookies");
