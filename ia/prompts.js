@@ -150,6 +150,8 @@ Reglas, sin excepción:
 
 4 bis. Solo valen sensibilidad y especificidad publicadas como tales. No las calcules tú a partir de recuentos de una tabla (verdaderos y falsos positivos y negativos): es fácil leer las columnas al revés y dar una cifra que el artículo no dice. Si el artículo solo da recuentos, trátalo como si no publicara esa cifra.
 
+4 ter. Una probabilidad de tener la patología no es la sensibilidad. "Tiene un 98% de probabilidad de tener una rotura", un valor predictivo positivo o negativo, o una probabilidad post-test dicen qué pasa después de un resultado, no cuánto acierta el test, y no se pueden usar como sensibilidad ni como especificidad. Si es lo único que publica el artículo, trátalo como si no publicara cifras.
+
 5. Si varios textos dan cifras para el mismo test, elige uno siguiendo este orden, y no otro:
    1) las dos cifras, medidas sobre la entidad preguntada;
    2) las dos cifras, medidas sobre una entidad relacionada o un subgrupo (mismaEntidad en falso);
@@ -169,7 +171,7 @@ Reglas, sin excepción:
    - quadas2: riesgo de sesgo aparente de los estudios de precisión. Bajo si describe patrón de referencia adecuado y muestra consecutiva o aleatoria; dudoso si no lo aclara; alto si hay problemas evidentes, como usar como patrón de referencia el propio hallazgo clínico o seleccionar solo casos confirmados. Si el resumen no da nada con lo que juzgarlo, usa no_valorable.
    - intervalos: si constan intervalos de confianza y si son estrechos o amplios.
 
-7. Cita literal. En citaLiteral copia, palabra por palabra y sin resumir ni traducir, la frase del texto donde aparecen las cifras que has extraído. Tiene que contener los números literalmente. Es lo que permite que un humano compruebe tu trabajo en dos segundos, y sin ella el dato no vale.
+7. Cita literal. En citaLiteral copia, palabra por palabra y sin resumir ni traducir, la frase del texto donde aparecen las cifras que has extraído. Tiene que contener los números literalmente y nombrar el test, por su nombre o por su sigla. Si las cifras están en una tabla, copia la fila que lleva el nombre del test; una fila de números sin el nombre del test no sirve, porque nadie puede comprobar de qué columna salen. Es lo que permite que un humano compruebe tu trabajo en dos segundos, y sin ella el dato no vale.
 
 8. Ante la duda, siempre a la baja. Marcar como dudosa una evidencia buena tiene un coste pequeño. Marcar como sólida una mala tiene un coste clínico.`;
 

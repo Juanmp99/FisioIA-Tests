@@ -1,11 +1,13 @@
-// Qué mide cada artículo, decidido una sola vez por patología.
+// Qué mide cada artículo, recordado entre los tests de una misma patología.
 //
 // Cada test se analiza por separado, y la IA no recuerda lo que decidió en el
 // de al lado. Así, un mismo estudio —el de las roturas agudas del supraespinoso
 // de 2010— salía como "la patología entera" en el Drop arm y como "una parte"
 // en el ERLS, según qué frase del artículo se citara. Lo que mide un artículo
-// no depende del test que se esté mirando, así que se decide la primera vez y
-// se respeta en todos los demás.
+// no suele depender del test que se esté mirando, así que la primera decisión
+// se le pasa al modelo en los demás. Como pista, no como imposición: una
+// revisión puede dar cifras de pinzamiento para un test y de rotura para otro,
+// y ahí lo que manda es la fila que se cita.
 
 import { leer, escribir } from "../lib/almacen.js";
 
@@ -49,30 +51,6 @@ export async function recordarClasificaciones(fuentes, termino, yaSabidas) {
   );
 }
 
-/**
- * Aplica a una extracción lo ya decidido, al artículo elegido y a los otros.
- *
- * Si el elegido cambia de "entera" a "una parte" o al revés, lo que el modelo
- * dijera de "la misma parte que el elegido" se refería a otra cosa, así que no
- * se da por bueno.
- */
-export function aplicarClasificaciones(datos, mapa) {
-  if (!datos || !mapa?.size) return datos;
-  const fijar = (d) => {
-    const c = mapa.get(String(d?.pmid || ""));
-    if (!c) return d;
-    return { ...d, mismaEntidad: c.mismaEntidad, entidadDeLasCifras: c.mismaEntidad ? null : c.entidadDeLasCifras || d.entidadDeLasCifras || null };
-  };
-  const antes = datos.mismaEntidad !== false;
-  const principal = fijar(datos);
-  const cambia = (principal.mismaEntidad !== false) !== antes;
-  const otrasFuentes = (datos.otrasFuentes || []).map((o) => {
-    const f = fijar(o);
-    return cambia ? { ...f, mismaParteQueElElegido: false } : f;
-  });
-  return { ...principal, otrasFuentes };
-}
-
 /** Lo que se le dice al modelo de los artículos ya clasificados. Vacío si no hay ninguno. */
 export function avisoClasificadas(mapa, pmids) {
   const lineas = (pmids || [])
@@ -86,9 +64,10 @@ export function avisoClasificadas(mapa, pmids) {
     });
   if (!lineas.length) return "";
   return (
-    "\n\nEstos artículos ya se han clasificado al analizar otros tests de esta misma patología. " +
-    "Lo que mide un artículo no depende del test, así que usa exactamente esta clasificación en mismaEntidad y entidadDeLasCifras, " +
-    "tanto si eliges el artículo como si va en otrasFuentes:\n" +
+    "\n\nEstos artículos ya se han clasificado al analizar otros tests de esta misma patología, según las cifras que se citaron de ellos. " +
+    "Si las cifras que tú citas de uno de ellos miden lo mismo, usa esa misma clasificación en mismaEntidad y entidadDeLasCifras, " +
+    "tanto si lo eliges como si va en otrasFuentes. Si el artículo da cifras de varias patologías o grupos y tú citas otra fila, " +
+    "decide según la fila que citas:\n" +
     lineas.join("\n")
   );
 }

@@ -9,7 +9,7 @@
 // acuerdo. Ver 0,45 en un estudio y 0,88 en otro dice más sobre cuánto fiarse
 // que cualquier etiqueta de calidad.
 
-import { comprobarCita } from "./trazabilidad.js";
+import { comprobarCita, problemasDeCita } from "./trazabilidad.js";
 
 /** Como mucho tres. Más es una tabla, y esto es un apunte al margen. */
 const MAXIMO = 3;
@@ -29,8 +29,9 @@ const TIPOS = new Set(["revision_sistematica", "estudio_primario"]);
  * @param {object[]} candidatas  Lo que devolvió el modelo.
  * @param {object[]} articulos   Los artículos que se le dieron a leer.
  * @param {string}   pmidPrincipal  El que sostiene las cifras del cálculo.
+ * @param {string[]} nombres        Cómo se llama el test, para exigir que la frase lo nombre.
  */
-export function depurarFuentes({ candidatas, articulos, pmidPrincipal }) {
+export function depurarFuentes({ candidatas, articulos, pmidPrincipal, nombres = [], esAgrupacion = false }) {
   const porPmid = new Map((articulos || []).map((a) => [String(a.pmid), a]));
   const vistos = new Set([String(pmidPrincipal || "")]);
   const salida = [];
@@ -49,6 +50,9 @@ export function depurarFuentes({ candidatas, articulos, pmidPrincipal }) {
     // La misma comprobación que a la cifra principal: los números tienen que
     // estar en la frase que el modelo dice haber copiado.
     if (!comprobarCita(c.citaLiteral, { sn, sp }).verificada) continue;
+    // Y lo mismo que a la principal: ni una probabilidad de tener la patología,
+    // ni una fila de tabla que no dice de qué test es.
+    if (problemasDeCita(c.citaLiteral, { nombres, esAgrupacion }).length) continue;
 
     vistos.add(pmid);
     salida.push({

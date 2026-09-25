@@ -13,7 +13,8 @@ import { promete } from "./ia/europepmc.js";
 import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
 import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/redaccion.js";
 import { depurarFuentes, rangoPublicado, comparableConCitado } from "./dominio/fuentes.js";
-import { aplicarClasificaciones, avisoClasificadas } from "./ia/clasificacion.js";
+import { avisoClasificadas } from "./ia/clasificacion.js";
+import { problemasDeCita } from "./dominio/trazabilidad.js";
 import { debeReactivar } from "./lib/contactos.js";
 
 let pasadas = 0;
@@ -887,22 +888,34 @@ prueba("\"la misma parte\" solo cuenta si las dos miden una parte", () => {
   assert.equal(otras[0].mismaParteQueElCitado, false);
 });
 
-prueba("un artículo ya clasificado en otro test se clasifica igual en este", () => {
-  const mapa = new Map([["2010", { mismaEntidad: false, entidadDeLasCifras: "roturas agudas del supraespinoso" }]]);
-  // Elegido como "patología entera" en el Drop arm: se corrige a lo ya decidido.
-  const elegido = aplicarClasificaciones({ pmid: "2010", mismaEntidad: true, otrasFuentes: [
-    { pmid: "9", mismaEntidad: false, mismaParteQueElElegido: true },
-  ] }, mapa);
-  assert.equal(elegido.mismaEntidad, false);
-  assert.equal(elegido.entidadDeLasCifras, "roturas agudas del supraespinoso");
-  // El elegido ha cambiado de categoría: "la misma parte" ya no se sostiene.
-  assert.equal(elegido.otrasFuentes[0].mismaParteQueElElegido, false);
-  // Y entre los otros, igual.
-  const otro = aplicarClasificaciones({ pmid: "1", mismaEntidad: true, otrasFuentes: [{ pmid: "2010", mismaEntidad: true }] }, mapa);
-  assert.equal(otro.mismaEntidad, true);
-  assert.equal(otro.otrasFuentes[0].mismaEntidad, false);
-  // Lo que no está clasificado se queda como lo dijo el modelo.
-  assert.equal(aplicarClasificaciones({ pmid: "5", mismaEntidad: true }, mapa).mismaEntidad, true);
+prueba("una probabilidad de tener la patología no pasa por sensibilidad", () => {
+  const park = "When all three were positive, the individual had a 98% chance of having a rotator cuff tear.";
+  assert.equal(problemasDeCita(park, { esAgrupacion: true }).length, 1);
+  assert.equal(problemasDeCita("sensitivity of 80% and a PPV of 90%", { esAgrupacion: true }).length, 0);
+});
+
+prueba("la frase tiene que nombrar el test: por su nombre, por una palabra suya o por su sigla", () => {
+  const drop = ["drop arm sign", "drop arm test"];
+  assert.equal(problemasDeCita("SN (%) 62.1 34.5 75.9 48.3", { nombres: drop }).length, 1);
+  assert.equal(problemasDeCita("the drop-arm test (DAT) had a sensitivity of 0.37", { nombres: drop }).length, 0);
+  assert.equal(problemasDeCita("ERLS 13.2 98.4 83.3", { nombres: ["external rotation lag sign"] }).length, 0);
+  assert.equal(problemasDeCita("The BP test diagnosed tears with a sensitivity of 23.3%", { nombres: ["belly press test"] }).length, 0);
+  assert.equal(problemasDeCita("Jobe 84.9 45.4", { nombres: ["Jobe test", "empty can test"] }).length, 0);
+  // Una agrupación se describe, no se nombra.
+  assert.equal(problemasDeCita("When all three were positive: sensitivity 0.9", { nombres: ["Park"], esAgrupacion: true }).length, 0);
+});
+
+prueba("otro estudio cuya frase no nombra el test no se enseña", () => {
+  const otras = depurarFuentes({
+    pmidPrincipal: "1",
+    articulos: [{ pmid: "1" }, { pmid: "2" }, { pmid: "3" }],
+    nombres: ["Neer test"],
+    candidatas: [
+      { pmid: "2", sn: 0.627, sp: 0.894, citaLiteral: "Sensitivity (%) 94.1 84.3 78.4 62.7 Specificity (%) 76.6 89.4" },
+      { pmid: "3", sn: 0.632, sp: 0.823, citaLiteral: "Neer 63.2 82.3 68.6" },
+    ],
+  });
+  assert.deepEqual(otras.map((o) => o.pmid), ["3"]);
 });
 
 prueba("al modelo solo se le avisa de los artículos que tiene delante y ya están clasificados", () => {
