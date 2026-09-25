@@ -16,6 +16,7 @@ import { semaforo } from "../dominio/calidad.js";
 import { comprobarCita } from "../dominio/trazabilidad.js";
 import { comprobarAgrupacion } from "../dominio/agrupaciones.js";
 import { depurarFuentes, rangoPublicado, comparableConCitado } from "../dominio/fuentes.js";
+import { clasificacionesDe, recordarClasificaciones, aplicarClasificaciones, avisoClasificadas } from "./clasificacion.js";
 
 const ALMACEN = "evidencia";
 
@@ -330,15 +331,22 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
 
   const nombreEntidad = `${entidad} (${lista.join("; ")})`;
 
+  // Lo que ya se decidió en otros tests sobre qué mide cada artículo: se le
+  // dice al modelo y, por si no lo respeta, se aplica después.
+  const conocidas = await clasificacionesDe(articulos.map((a) => a.pmid), termino).catch(() => new Map());
+  const yaClasificadas = avisoClasificadas(conocidas, articulos.map((a) => a.pmid));
+  const fijar = (d) => aplicarClasificaciones(d, conocidas);
+
   const antesDeExtraer = Date.now();
   let datos;
   try {
     ({ datos } = await pedirJson({
       sistema: SISTEMA_EXTRACCION,
-      mensaje: mensajeExtraccion({ test, entidad: nombreEntidad, articulos, esAgrupacion }),
+      mensaje: mensajeExtraccion({ test, entidad: nombreEntidad, articulos, esAgrupacion }) + yaClasificadas,
       esquema: ESQUEMA_EXTRACCION,
       senal: conPlazo(),
     }));
+    datos = fijar(datos);
   } catch (e) {
     if (!e.porPlazo) throw e;
     // No se guarda: no es que no haya cifras, es que no ha dado tiempo a
@@ -374,10 +382,12 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
       if (completo) {
         const segunda = await pedirJson({
           sistema: SISTEMA_EXTRACCION,
-          mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto, esAgrupacion }),
+          mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto, esAgrupacion }) +
+            avisoClasificadas(conocidas, [fuente.pmid]),
           esquema: ESQUEMA_EXTRACCION,
           senal: conPlazo(),
         });
+        if (segunda.datos) segunda.datos = fijar(segunda.datos);
         // Solo se adopta si sigue encontrando el dato: el texto completo está
         // para afinar la valoración, no para perder una cifra que ya teníamos.
         // Y si sus cifras son coherentes: una segunda lectura que mezcla filas
@@ -476,10 +486,12 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
         probados += 1;
         const otra = await pedirJson({
           sistema: SISTEMA_EXTRACCION,
-          mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto, esAgrupacion }),
+          mensaje: mensajeExtraccionCompleta({ test, entidad: nombreEntidad, articulo: fuente, texto: completo.texto, esAgrupacion }) +
+            avisoClasificadas(conocidas, [fuente.pmid]),
           esquema: ESQUEMA_EXTRACCION,
           senal: conPlazo(),
         });
+        if (otra.datos) otra.datos = fijar(otra.datos);
         // Solo se adopta si es más útil que lo que había: un texto completo
         // que trae lo mismo, o algo peor, deja el resultado como estaba.
         const u = utilidad(otra.datos);
@@ -571,10 +583,11 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
         "Si no encuentras las razones de verosimilitud en esa misma fila, déjalas en null. Vuelve a extraer.";
       const otra = await pedirJson({
         sistema: SISTEMA_EXTRACCION,
-        mensaje: mensajeExtraccion({ test, entidad: nombreEntidad, articulos, esAgrupacion }) + aviso,
+        mensaje: mensajeExtraccion({ test, entidad: nombreEntidad, articulos, esAgrupacion }) + yaClasificadas + aviso,
         esquema: ESQUEMA_EXTRACCION,
         senal: conPlazo(),
       });
+      if (otra.datos) otra.datos = fijar(otra.datos);
       if (otra.datos?.encontrado && coherencia(otra.datos).valido) {
         console.warn(`[coherencia] ${test}: la segunda extracción sí es coherente`);
         datos = normalizar(otra.datos);
@@ -596,6 +609,15 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     await anotar(rechazado);
     return rechazado;
   }
+
+  // Otra vez, justo antes de publicar: los tests de una batería se buscan de
+  // tres en tres, y otro puede haber clasificado alguno de estos artículos
+  // mientras este se buscaba. Manda el primero que lo decidió.
+  const alFinal = await clasificacionesDe(
+    [datos.pmid, ...(datos.otrasFuentes || []).map((o) => o?.pmid)],
+    termino,
+  ).catch(() => new Map());
+  datos = aplicarClasificaciones(datos, alFinal);
 
   const fuente = articulos.find((a) => a.pmid === datos.pmid) || articulos[0];
 
@@ -642,6 +664,14 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     articulos,
     pmidPrincipal: fuente?.pmid,
   });
+
+  // Lo que se ha decidido aquí sobre qué mide cada artículo pasa a valer para
+  // los demás tests de esta patología.
+  await recordarClasificaciones(
+    [{ pmid: fuente?.pmid, mismaEntidad: !indirecta, entidadDeLasCifras: datos.entidadDeLasCifras }, ...otrasFuentes],
+    termino,
+    alFinal,
+  ).catch(() => null);
 
   // La regla de elección pone por delante al estudio que publica las dos
   // cifras. Si aun así se cita uno con media cifra habiendo otro completo, el

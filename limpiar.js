@@ -21,6 +21,7 @@ const CONOCIDOS = {
   aliento: "las frases de la pantalla de espera",
   explicacion: "las explicaciones personalizadas de cada test (redactadas con IA)",
   conclusion: "los veredictos de la conclusión por combinación (redactados con IA)",
+  clasificacion: "qué mide cada artículo (la patología entera o una parte), decidido una vez por patología",
   curso: "las marcas de búsquedas en marcha (se borran solas; vaciarlas desatasca)",
 };
 

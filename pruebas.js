@@ -13,6 +13,7 @@ import { promete } from "./ia/europepmc.js";
 import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
 import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/redaccion.js";
 import { depurarFuentes, rangoPublicado, comparableConCitado } from "./dominio/fuentes.js";
+import { aplicarClasificaciones, avisoClasificadas } from "./ia/clasificacion.js";
 import { debeReactivar } from "./lib/contactos.js";
 
 let pasadas = 0;
@@ -884,6 +885,32 @@ prueba("\"la misma parte\" solo cuenta si las dos miden una parte", () => {
     }],
   });
   assert.equal(otras[0].mismaParteQueElCitado, false);
+});
+
+prueba("un artículo ya clasificado en otro test se clasifica igual en este", () => {
+  const mapa = new Map([["2010", { mismaEntidad: false, entidadDeLasCifras: "roturas agudas del supraespinoso" }]]);
+  // Elegido como "patología entera" en el Drop arm: se corrige a lo ya decidido.
+  const elegido = aplicarClasificaciones({ pmid: "2010", mismaEntidad: true, otrasFuentes: [
+    { pmid: "9", mismaEntidad: false, mismaParteQueElElegido: true },
+  ] }, mapa);
+  assert.equal(elegido.mismaEntidad, false);
+  assert.equal(elegido.entidadDeLasCifras, "roturas agudas del supraespinoso");
+  // El elegido ha cambiado de categoría: "la misma parte" ya no se sostiene.
+  assert.equal(elegido.otrasFuentes[0].mismaParteQueElElegido, false);
+  // Y entre los otros, igual.
+  const otro = aplicarClasificaciones({ pmid: "1", mismaEntidad: true, otrasFuentes: [{ pmid: "2010", mismaEntidad: true }] }, mapa);
+  assert.equal(otro.mismaEntidad, true);
+  assert.equal(otro.otrasFuentes[0].mismaEntidad, false);
+  // Lo que no está clasificado se queda como lo dijo el modelo.
+  assert.equal(aplicarClasificaciones({ pmid: "5", mismaEntidad: true }, mapa).mismaEntidad, true);
+});
+
+prueba("al modelo solo se le avisa de los artículos que tiene delante y ya están clasificados", () => {
+  const mapa = new Map([["1", { mismaEntidad: true }], ["2", { mismaEntidad: false, entidadDeLasCifras: "roturas del subescapular" }]]);
+  const aviso = avisoClasificadas(mapa, ["2", "3"]);
+  assert.match(aviso, /PMID 2: mide una parte.*subescapular/);
+  assert.doesNotMatch(aviso, /PMID 1|PMID 3/);
+  assert.equal(avisoClasificadas(mapa, ["3"]), "");
 });
 
 prueba("lo que responde a otra pregunta es lo último, pero algo", () => {
