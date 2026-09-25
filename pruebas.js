@@ -389,7 +389,7 @@ prueba("datos parciales muestran límites solo dentro del desplegable cerrado, s
   }
 });
 
-prueba("el avance móvil permite ver la confirmación y cancela avances pendientes", () => {
+prueba("la bajada a la fase 2 espera a que se pliegue la tarjeta y se puede cancelar", () => {
   let pendiente, demora;
   const movimientos = [];
   const ctx = vm.createContext({
@@ -402,19 +402,19 @@ prueba("el avance móvil permite ver la confirmación y cancela avances pendient
       : { setAttribute() {}, focus() {} } },
   });
   vm.runInContext(funcionUI("cancelarAvanceFase2") + funcionUI("avanzarAFase2"), ctx);
-  vm.runInContext("avanzarAFase2(true)", ctx);
-  assert.equal(demora, 360);
+  vm.runInContext("avanzarAFase2(780)", ctx);
+  assert.equal(demora, 780);
   assert.equal(movimientos.length, 0);
   pendiente();
   assert.deepEqual(movimientos, ["smooth"]);
-  vm.runInContext("avanzarAFase2(true); cancelarAvanceFase2()", ctx);
+  vm.runInContext("avanzarAFase2(780); cancelarAvanceFase2()", ctx);
   assert.equal(pendiente, null);
-  vm.runInContext("avanzarAFase2(true)", ctx);
+  vm.runInContext("avanzarAFase2(780)", ctx);
   ctx.ui = { avanceFase2: null }; // Otra consulta sustituye la interfaz.
   pendiente();
   assert.equal(movimientos.length, 1);
   ctx.window.matchMedia = () => ({ matches: true });
-  vm.runInContext("avanzarAFase2(true)", ctx);
+  vm.runInContext("avanzarAFase2(780)", ctx);
   assert.deepEqual(movimientos, ["smooth", "instant"]);
 });
 
