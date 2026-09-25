@@ -1455,6 +1455,7 @@ button.sello.explica { font-size: .8125rem; }
 .icono { flex: none; width: 20px; height: 20px; }
 .veredicto b { font-size: 1rem; letter-spacing: -.01em; }
 .veredicto .lectura { margin: 0; font-size: .9375rem; color: var(--tinta); }
+.matiz-partida { margin: 6px 0 0; font-size: .8125rem; color: var(--tinta-media); }
 .calculo {
   font-family: var(--mono); font-size: .75rem; color: var(--tinta-tenue);
   margin-top: 10px; font-variant-numeric: tabular-nums; line-height: 1.7;
@@ -3964,7 +3965,8 @@ button.sello.explica { font-size: .8125rem; }
       hueco.innerHTML =
         '<div class="veredicto ' + clase + '">' +
           '<div class="veredicto-cab">' + icono(clase) + "<b>" + esc(tituloVeredicto(clase, d)) + "</b></div>" +
-          '<p class="lectura">' + esc(d.lectura) + "</p>" +
+          '<p class="lectura">' + esc(d.lecturaBreve || d.lectura) + "</p>" +
+          matizPartida(clase, d) +
           lineaIa(nombre, resultado) +
           medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") +
           '<div class="calculo">' +
@@ -3999,6 +4001,24 @@ button.sello.explica { font-size: .8125rem; }
     var n = pct(post) - pct(pre);
     if (!n) return "";
     return (n > 0 ? "+" : "−") + Math.abs(n) + (Math.abs(n) === 1 ? " punto" : " puntos");
+  }
+
+  /*
+   * Cuando un test de poder diagnóstico bajo o moderado confirma o descarta,
+   * quien lo ha decidido en buena parte es la sospecha de partida. Sin decirlo,
+   * "Descarta" junto a "poder diagnóstico bajo" parecía una contradicción.
+   */
+  function matizPartida(clase, d) {
+    if (clase !== "decide") return "";
+    var nivel = d.detalle.magnitud.nivel;
+    if (nivel !== "pequeno" && nivel !== "moderado") return "";
+    var confirma = d.resultado === "positivo";
+    if (confirma && estado.nivel !== "alta") return "";
+    if (!confirma && estado.nivel !== "baja") return "";
+    return '<p class="matiz-partida">' + (confirma
+      ? "Confirma sobre todo porque ya partías de una sospecha alta: este test la ha terminado de subir."
+      : "Descarta sobre todo porque ya partías de una sospecha baja: este test la ha terminado de bajar.") +
+    "</p>";
   }
 
   function tituloVeredicto(clase, d) {

@@ -532,6 +532,16 @@ prueba("una cifra pobre no promete lo que no puede dar", () => {
   assert.ok(/[Nn]i en el mejor/.test(r.lectura));
 });
 
+prueba("la lectura breve dice lo mismo sin repetir el porcentaje", () => {
+  const sube = interpretar({ nivelPreTest: "media", sn: 0.39, sp: 0.91, resultado: "positivo" });
+  assert.ok(/78%/.test(sube.lectura));
+  assert.equal(sube.lecturaBreve, "Refuerza la sospecha, pero no la confirma.");
+  const nada = interpretar({ nivelPreTest: "media", sn: 0.97, sp: 0.05, resultado: "positivo" });
+  assert.ok(!/\d/.test(nada.lecturaBreve));
+  const descarta = interpretar({ nivelPreTest: "baja", sn: 0.8, sp: 0.95, resultado: "negativo" });
+  assert.equal(descarta.lecturaBreve, descarta.lectura);
+});
+
 prueba("una especificidad perfecta no da una razón infinita", () => {
   const r = acotarParcial({ nivelPreTest: "media", sn: null, sp: 1, resultado: "positivo" });
   assert.ok(Number.isFinite(r.detalle.razonDeVerosimilitud));

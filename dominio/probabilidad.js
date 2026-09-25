@@ -275,6 +275,9 @@ export function interpretar({ nivelPreTest, sn, sp, resultado }) {
   const fuerza = magnitud(lr);
 
   let lectura;
+  // La misma lectura sin el porcentaje, para la tarjeta de cada test: allí el
+  // número ya está en el título y en la barra, y repetirlo tres veces cansa.
+  let lecturaBreve;
 
   // El orden importa. Un test que no aporta nada puede dejar la probabilidad por
   // encima del umbral de confirmación si la sospecha previa ya era alta, y
@@ -285,19 +288,23 @@ export function interpretar({ nivelPreTest, sn, sp, resultado }) {
     lectura =
       `Este resultado apenas cambia la sospecha, que sigue en torno al ${pct(post)}%. ` +
       "No decidas en función de él.";
+    lecturaBreve = "Este resultado apenas cambia la sospecha. No decidas en función de él.";
   } else if (positivo && post >= UMBRAL_CONFIRMA) {
-    lectura = "Confirma la sospecha a efectos prácticos.";
+    lectura = lecturaBreve = "Confirma la sospecha a efectos prácticos.";
   } else if (!positivo && post <= UMBRAL_DESCARTA) {
-    lectura = "Descarta la sospecha a efectos prácticos.";
+    lectura = lecturaBreve = "Descarta la sospecha a efectos prácticos.";
   } else if (positivo) {
     lectura = `Refuerza la sospecha, pero no la confirma: quedaría en torno al ${pct(post)}%.`;
+    lecturaBreve = "Refuerza la sospecha, pero no la confirma.";
   } else {
     lectura = `Debilita la sospecha, pero no la descarta: quedaría en torno al ${pct(post)}%.`;
+    lecturaBreve = "Debilita la sospecha, pero no la descarta.";
   }
 
   return {
     interpretable: true,
     resultado,
+    lecturaBreve,
     lectura,
     detalle: {
       preTest: pre,
