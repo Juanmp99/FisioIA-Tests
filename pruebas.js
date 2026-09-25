@@ -8,7 +8,7 @@ import { PRE_TEST, razonesDeVerosimilitud, validarPrecision, postTest, magnitud,
 import { semaforo } from "./dominio/calidad.js";
 import { banderasPara } from "./dominio/banderas.js";
 import { coincidencia } from "./ia/entidades.js";
-import { mereceTextoCompleto, utilidad } from "./ia/evidencia.js";
+import { mereceTextoCompleto, utilidad, coherencia } from "./ia/evidencia.js";
 import { promete } from "./ia/europepmc.js";
 import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
 import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/redaccion.js";
@@ -815,6 +815,14 @@ prueba("las dos cifras de otra entidad parecida van por delante de media cifra d
   const indirecta = { encontrado: true, sn: 0.79, sp: 0.53, mismaEntidad: false };
   const media = { encontrado: true, sn: 0.77, sp: null, mismaEntidad: true };
   assert.ok(utilidad(indirecta) > utilidad(media));
+});
+
+prueba("unas razones que no cuadran con sus cifras delatan filas mezcladas", () => {
+  // El caso real del Drop arm: con Sn 0,37 y Sp 0,86 la negativa es 0,73, no 1,83.
+  assert.equal(coherencia({ sn: 0.37, sp: 0.86, lrPositiva: null, lrNegativa: 1.83 }).valido, false);
+  assert.equal(coherencia({ sn: 0.37, sp: 0.86, lrPositiva: null, lrNegativa: null }).valido, true);
+  assert.equal(coherencia({ sn: null, sp: 0.9 }).valido, true);
+  assert.equal(coherencia({ sn: null, sp: null }).valido, false);
 });
 
 prueba("lo que responde a otra pregunta es lo último, pero algo", () => {

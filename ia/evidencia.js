@@ -52,6 +52,28 @@ export function utilidad(d) {
   return directa ? 3 : 2;
 }
 
+/**
+ * ¿Son coherentes entre sí las cifras de una extracción? Con media cifra se
+ * comprueba el rango; con las dos, además, que las razones de verosimilitud
+ * declaradas cuadren con sensibilidad y especificidad. Si no cuadran, casi
+ * siempre es que salen de filas o de estudios distintos.
+ */
+export function coherencia(d) {
+  const conProporcion = (x) => (typeof x === "number" && x > 1 && x <= 100 ? x / 100 : x);
+  const sn = conProporcion(d?.sn);
+  const sp = conProporcion(d?.sp);
+  const haySn = typeof sn === "number";
+  const haySp = typeof sp === "number";
+  if (!haySn && !haySp) return { valido: false, problemas: ["No hay ninguna cifra."] };
+  if (!haySn || !haySp) return validarParcial({ sn: haySn ? sn : null, sp: haySp ? sp : null });
+  return validarPrecision({
+    sn,
+    sp,
+    lrPositiva: d.lrPositiva ?? undefined,
+    lrNegativa: d.lrNegativa ?? undefined,
+  });
+}
+
 /** Cuántos textos completos se abren para mejorar algo que ya se tiene. */
 const INTENTOS_MEJORA = 4;
 
@@ -322,7 +344,9 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
         });
         // Solo se adopta si sigue encontrando el dato: el texto completo está
         // para afinar la valoración, no para perder una cifra que ya teníamos.
-        if (segunda.datos?.encontrado) {
+        // Y si sus cifras son coherentes: una segunda lectura que mezcla filas
+        // no puede tirar una primera que estaba bien.
+        if (segunda.datos?.encontrado && coherencia(segunda.datos).valido) {
           datos = segunda.datos;
           pmcid = completo.pmcid;
         }
@@ -420,7 +444,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
         // Solo se adopta si es más útil que lo que había: un texto completo
         // que trae lo mismo, o algo peor, deja el resultado como estaba.
         const u = utilidad(otra.datos);
-        if (u > utilidad(datos)) {
+        if (u > utilidad(datos) && coherencia(otra.datos).valido) {
           // Las otras fuentes que ya se habían visto en los resúmenes no se
           // pierden: la extracción nueva solo ha leído un artículo.
           const previas = datos.otrasFuentes || [];
@@ -464,17 +488,17 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     return vacio;
   }
 
-  const tieneSnFinal = typeof datos.sn === "number";
-  const tieneSpFinal = typeof datos.sp === "number";
+  let tieneSnFinal = typeof datos.sn === "number";
+  let tieneSpFinal = typeof datos.sp === "number";
 
   // Solo una de las dos. Ocurre mucho en patologías que se diagnostican por
   // clínica, donde los estudios no tienen grupo control sin la enfermedad y por
   // tanto no pueden calcular la especificidad. No permite concluir, pero decir
   // "sin cifras" cuando existe una sensibilidad publicada es peor: da a entender
   // que no se sabe nada.
-  const parcial = !tieneSnFinal || !tieneSpFinal;
+  let parcial = !tieneSnFinal || !tieneSpFinal;
 
-  const validacion = parcial
+  let validacion = parcial
     ? validarParcial({ sn: datos.sn, sp: datos.sp })
     : validarPrecision({
         sn: datos.sn,
@@ -482,6 +506,35 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
         lrPositiva: datos.lrPositiva ?? undefined,
         lrNegativa: datos.lrNegativa ?? undefined,
       });
+
+  // Incoherente: se pide otra vez sobre los mismos resúmenes, diciéndole al
+  // modelo qué no cuadra. Antes se tiraba el test entero a la primera, y en la
+  // rotura del manguito se perdieron así el Jobe, el Drop arm y el External
+  // rotation lag sign, que tenían cifras publicadas.
+  if (!validacion.valido && !deRescate && cabeOtraExtraccion()) {
+    try {
+      const aviso =
+        `\n\nTu respuesta anterior no se ha podido usar porque sus cifras no son coherentes entre sí: ${validacion.problemas.join(" ")} ` +
+        "Sensibilidad, especificidad y razones de verosimilitud tienen que salir del mismo estudio, de la misma fila y del mismo grupo de pacientes. " +
+        "Si no encuentras las razones de verosimilitud en esa misma fila, déjalas en null. Vuelve a extraer.";
+      const otra = await pedirJson({
+        sistema: SISTEMA_EXTRACCION,
+        mensaje: mensajeExtraccion({ test, entidad: nombreEntidad, articulos, esAgrupacion }) + aviso,
+        esquema: ESQUEMA_EXTRACCION,
+        senal: conPlazo(),
+      });
+      if (otra.datos?.encontrado && coherencia(otra.datos).valido) {
+        console.warn(`[coherencia] ${test}: la segunda extracción sí es coherente`);
+        datos = normalizar(otra.datos);
+        tieneSnFinal = typeof datos.sn === "number";
+        tieneSpFinal = typeof datos.sp === "number";
+        parcial = !tieneSnFinal || !tieneSpFinal;
+        validacion = coherencia(datos);
+      }
+    } catch (e) {
+      console.warn(`[coherencia] ${test}: ${e.message}`);
+    }
+  }
 
   if (!validacion.valido) {
     const rechazado = sinDatos(
