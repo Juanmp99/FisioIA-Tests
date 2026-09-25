@@ -265,6 +265,15 @@ a { color: var(--azul); text-underline-offset: 3px; }
 .tira-pista:hover .tira-cinta,
 .tira-cinta:focus-within { animation-play-state: paused; }
 
+/* Con JavaScript, la cinta no se anima: se desplaza la pista, como un scroll
+   que avanza solo. Animar una cinta de nueve mil píxeles de ancho dejaba al
+   iPhone sin capa que pintar: se quedaba quieta, o en blanco, hasta que un
+   toque la obligaba a repintarse. Un scroll no tiene ese límite, y además se
+   puede arrastrar con el dedo. */
+.tira-pista.desplaza { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.tira-pista.desplaza::-webkit-scrollbar { display: none; }
+.tira-pista.desplaza .tira-cinta { animation: none; }
+
 .sugerencia {
   flex: none;
   background: var(--superficie); border: 1px solid var(--borde);
@@ -933,9 +942,51 @@ a { color: var(--azul); text-underline-offset: 3px; }
 
 /* ============ tarjeta de test ============ */
 
-/* Aire entre un test y el siguiente: cada tarjeta es una decisión aparte, y
-   pegadas se leían como un solo bloque. */
-.tests { display: grid; gap: 36px; }
+/* Entre un test y el siguiente, aire y una unión. Cada tarjeta es una decisión
+   aparte, pero forman una secuencia: una línea discontinua baja del número de
+   una al de la siguiente, con los trazos fluyendo hacia abajo y un destello
+   que la recorre. Animaciones de elementos de tres píxeles: no pesan. */
+.tests { display: grid; gap: 0; }
+.union { position: relative; z-index: 1; height: 84px; --x: 55px; }
+/* Halo detrás de la línea: una sombra luminosa, sin filtros que cuesten. */
+.union::before {
+  content: ""; position: absolute; top: 8px; bottom: 8px; left: calc(var(--x) - 1.5px); width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--azul) 35%, transparent), color-mix(in srgb, var(--violeta) 35%, transparent));
+  box-shadow: 0 0 16px 4px color-mix(in srgb, var(--azul) 30%, transparent), 0 0 34px 8px color-mix(in srgb, var(--violeta) 14%, transparent);
+}
+/* La línea: trazos recortados con una máscara que se desliza hacia abajo, y
+   el color debajo, fijo, pasando de azul a violeta de un test al siguiente.
+   Así los trazos fluyen sin que el degradado se mueva con ellos. Es un
+   elemento de tres píxeles de ancho: repintarlo no cuesta nada. */
+.union-linea {
+  position: absolute; top: 6px; bottom: 6px; left: calc(var(--x) - 1.5px); width: 3px;
+  overflow: hidden; border-radius: 3px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--azul) 90%, white), color-mix(in srgb, var(--violeta) 90%, white));
+  -webkit-mask-image: repeating-linear-gradient(180deg, #000 0 9px, transparent 9px 16px);
+  mask-image: repeating-linear-gradient(180deg, #000 0 9px, transparent 9px 16px);
+  -webkit-mask-size: 100% 16px; mask-size: 100% 16px;
+  animation: fluir 1.1s linear infinite;
+}
+.union-linea::after {
+  content: ""; position: absolute; left: -1px; right: -1px; top: -26px; height: 26px;
+  background: linear-gradient(180deg, transparent, #fff 55%, transparent);
+  animation: recorrer 2.6s calc(var(--u) * .45s) var(--curva) infinite;
+}
+.union-nodo {
+  position: absolute; left: calc(var(--x) - 6px); width: 12px; height: 12px; border-radius: 50%;
+  background: var(--superficie); border: 2px solid var(--azul);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--azul) 20%, transparent), 0 0 16px color-mix(in srgb, var(--azul) 80%, transparent);
+}
+.union-nodo.arriba { top: -6px; }
+.union-nodo.abajo { bottom: -6px; border-color: var(--violeta); box-shadow: 0 0 0 4px color-mix(in srgb, var(--violeta) 20%, transparent), 0 0 16px color-mix(in srgb, var(--violeta) 80%, transparent); }
+@keyframes fluir { from { -webkit-mask-position: 0 0; mask-position: 0 0; } to { -webkit-mask-position: 0 16px; mask-position: 0 16px; } }
+@keyframes recorrer {
+  0% { transform: translateY(0); opacity: 0; }
+  15% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(100px); opacity: 0; }
+}
 
 .test {
   background: linear-gradient(180deg, var(--superficie-alta) 0%, var(--superficie) 100%);
@@ -1902,7 +1953,7 @@ button.sello.explica { font-size: .8125rem; }
   .paso { grid-template-columns: 1fr; gap: 2px; }
   .niveles { grid-template-columns: 1fr; }
   .parte-tu-cab { flex-wrap: wrap; gap: 10px; }
-  .tests { gap: 28px; }
+  .union { height: 66px; --x: 44px; }
   .conclusion-dentro { padding: 22px 18px; }
 
   /* ---- Pantalla de trabajo en un móvil ----
@@ -2200,7 +2251,54 @@ button.sello.explica { font-size: .8125rem; }
     };
     // Dos vueltas de la misma lista: es lo que hace que el bucle no se note.
     cinta.innerHTML = EJEMPLOS.map(boton).join("") + EJEMPLOS.map(boton).join("");
+    moverTira(cinta.parentNode, cinta);
   })();
+
+  /*
+   * La tira avanza sola desplazando su propia pista, un poco en cada fotograma.
+   * Se para mientras el ratón está encima, mientras un dedo la toca —y un rato
+   * después, para que se pueda leer lo que se ha arrastrado— y mientras un
+   * botón tiene el foco. Quien pide al sistema menos movimiento la ve quieta,
+   * pero puede deslizarla.
+   */
+  function moverTira(pista, cinta) {
+    pista.classList.add("desplaza");
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    var VELOCIDAD = 0.045; // píxeles por milisegundo: la de la animación de antes
+    var parada = 0;         // cuántos motivos hay ahora mismo para estar quieta
+    var reanudar = null;
+    var pos = pista.scrollLeft;
+    var antes = null;
+
+    function parar() { parada += 1; clearTimeout(reanudar); }
+    function seguir(retraso) {
+      clearTimeout(reanudar);
+      reanudar = setTimeout(function () { parada = Math.max(0, parada - 1); pos = pista.scrollLeft; }, retraso || 0);
+    }
+
+    pista.addEventListener("pointerenter", function (e) { if (e.pointerType === "mouse") parar(); });
+    pista.addEventListener("pointerleave", function (e) { if (e.pointerType === "mouse") seguir(); });
+    pista.addEventListener("touchstart", parar, { passive: true });
+    pista.addEventListener("touchend", function () { seguir(2500); }, { passive: true });
+    pista.addEventListener("touchcancel", function () { seguir(2500); }, { passive: true });
+    pista.addEventListener("focusin", parar);
+    pista.addEventListener("focusout", function () { seguir(); });
+
+    function paso(t) {
+      var dt = antes === null ? 0 : Math.min(t - antes, 64);
+      antes = t;
+      // Oculta, que es lo normal en cuanto hay resultados, no hace nada.
+      if (!parada && pista.offsetParent !== null && !document.hidden) {
+        var mitad = cinta.scrollWidth / 2;
+        pos += VELOCIDAD * dt;
+        if (mitad > 0 && pos >= mitad) pos -= mitad;
+        pista.scrollLeft = pos;
+      }
+      requestAnimationFrame(paso);
+    }
+    requestAnimationFrame(paso);
+  }
 
   /* ============ el halo de espera ============ */
 
@@ -2885,7 +2983,7 @@ button.sello.explica { font-size: .8125rem; }
     // una nota sobre el conjunto de lo que acabas de hacer.
     return "<div>" +
       progreso +
-      '<div class="tests">' + estado.tests.map(tarjetaTest).join("") + "</div>" +
+      '<div class="tests">' + estado.tests.map(tarjetaTest).join(union()) + "</div>" +
       bloqueAgrupaciones() +
       '<p class="nota-cadena">Cada test se interpreta contra tu sospecha inicial, de forma independiente. Los resultados de varios tests sueltos no se encadenan: hacerlo daría una certeza que la evidencia no respalda, porque tests que exploran la misma estructura no aportan información independiente.</p>' +
     "</div>";
@@ -2949,6 +3047,17 @@ button.sello.explica { font-size: .8125rem; }
 
   function rotuloParte(tipoIcono, texto) {
     return '<h4 class="parte-rotulo"><span class="parte-ico">' + icono(tipoIcono) + "</span>" + texto + "</h4>";
+  }
+
+  /* Lo que une un test con el siguiente: una línea que baja de un número al
+     otro, con un destello que la recorre. La exploración es una secuencia, y
+     así se lee. */
+  var uniones = 0;
+  function union() {
+    uniones += 1;
+    return '<div class="union" aria-hidden="true" style="--u:' + (uniones % 4) + '">' +
+      '<span class="union-nodo arriba"></span><span class="union-linea"></span><span class="union-nodo abajo"></span>' +
+    "</div>";
   }
 
   function paso(etiqueta, texto) {
