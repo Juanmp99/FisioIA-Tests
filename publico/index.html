@@ -1226,6 +1226,13 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
   .filo::before { width: 300%; }
   /* Las entradas por escena y el cambio de caso de la demo, sin desenfoque. */
   [data-revelar], .app.fuera { filter: none; }
+  /* La historia: la luz detrás de cada escena ya es un degradado suave, sin
+     desenfoque encima; el arco de los medidores, sin resplandor que repintar
+     mientras se mueve; y las tarjetas se encienden con el check, sin el
+     destello de la sombra. */
+  .escena::before { filter: none; opacity: .5; }
+  .medidor .arco { filter: none; }
+  .beneficio.visible { animation: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1911,8 +1918,16 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
     return espera(45 + Math.random() * 50).then(function () { return escribir(f, n + 1); });
   }
 
+  // Cuando el monitor queda fuera de la pantalla, la demo espera en lugar de
+  // seguir cambiando cosas que nadie ve.
+  var aLaVista = true;
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (e) { aLaVista = e[0].isIntersecting; }).observe(app);
+  }
+
   var turno = 0;
   function escena() {
+    if (!aLaVista) return espera(800).then(escena);
     var e = ESCENAS[turno++ % ESCENAS.length];
 
     // Se limpia oculta y sin transiciones, para que no se vea la escena
@@ -2175,8 +2190,14 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
       li.classList.toggle("activo", num.top + num.height / 2 < vh * .62);
     });
   }
-  window.addEventListener("scroll", avanzar, { passive: true });
-  window.addEventListener("resize", avanzar);
+  // Una vez por fotograma como mucho: medir en cada evento de scroll obligaba
+  // al móvil a recalcular la página decenas de veces por segundo.
+  var pedidoAvance = 0;
+  function pedirAvance() {
+    if (!pedidoAvance) pedidoAvance = requestAnimationFrame(function () { pedidoAvance = 0; avanzar(); });
+  }
+  window.addEventListener("scroll", pedirAvance, { passive: true });
+  window.addEventListener("resize", pedirAvance);
 
   function abrir() {
     if (!historia.hidden) {
