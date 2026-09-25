@@ -20,7 +20,7 @@ import { interpretar, acotarParcial, pctMostrado, PRE_TEST, UMBRAL_CONFIRMA, UMB
 const ALMACEN = "explicacion";
 
 /** Se cambia al tocar el prompt, para no servir explicaciones escritas con otro. */
-const VERSION = 10;
+const VERSION = 11;
 
 /**
  * En qué cifras se apoya una explicación.
@@ -64,6 +64,8 @@ Reglas, sin excepción:
 6. No hables de qué aporta un resultado positivo o negativo: eso se explica aparte, cuando se conoce la sospecha de partida.
 
 7. En eleccion, como mucho 50 palabras, le cuentas al fisioterapeuta qué hacer con los otros estudios que también miden el test. Ya ha leído, justo encima, qué cifras usa el cálculo y la regla por la que se eligió el citado; no la repitas. Tu trabajo es decirle lo que se ve al compararlos en este caso concreto: si las cifras de los demás se parecen a las del citado o se alejan, en cuál de las dos (sensibilidad o especificidad), y qué implica eso para fiarse del resultado del test en su paciente. Si un estudio publica solo una de las dos cifras, dilo. Nunca inventes un motivo de elección que no esté en los datos, y no sugieras mezclar ni promediar cifras de estudios distintos.
+
+7 quater. Si otro estudio no mide la misma patología (mideLaMismaPatologia en falso), sino un subgrupo o una entidad parecida (queMide), no presentes la diferencia de cifras como un desacuerdo entre estudios: dilo tal cual, que ese estudio responde a otra pregunta y por eso sus cifras no son directamente comparables.
 
 7 ter. Que las cifras se parezcan no demuestra mayor certeza ni validación independiente: un estudio primario puede estar incluido en la revisión citada. Describe la similitud sin afirmar que refuerza la confianza en el resultado de este paciente ni cambiar la calidad asignada.
 
@@ -128,6 +130,10 @@ function datosDe(ev, { test, entidad }) {
     },
     otrosQueTambienLoMiden: (ev.otrasFuentes || []).map((o) => ({
       cifrasQueNoPublica: faltanEn(o),
+      // Si mide la entidad preguntada o un subgrupo: dos cifras de preguntas
+      // distintas no son una contradicción.
+      mideLaMismaPatologia: o.mismaEntidad !== false,
+      queMide: o.mismaEntidad === false ? o.entidadDeLasCifras || "un subgrupo o una entidad parecida" : null,
       tipo: o.tipoEstudio,
       estudiosQueReune: o.numeroEstudios,
       anio: o.anio,
@@ -190,7 +196,7 @@ export async function explicacionDe(clave, ev, { test, entidad, senal }) {
  * solo lo explica.
  */
 
-const VERSION_RESULTADO = 4;
+const VERSION_RESULTADO = 5;
 
 const SISTEMA_RESULTADO = `Explicas a un fisioterapeuta, que tiene al paciente delante, qué significa el resultado del test que está haciendo. Conoces con qué sospecha llega, lo que la herramienta ha calculado para un positivo y para un negativo, las cifras del test y la calidad del estudio del que salen.
 
@@ -199,7 +205,7 @@ Escribe para que lo entienda un niño: frases cortas, palabras de todos los día
 Cada campo tiene tres frases, en este orden:
 1. Por qué la señal es clara o débil, explicado con lo que hace el test en personas con y sin la patología. Usa los datos deCada100.
 2. Qué significa para tu paciente, uniendo esa señal con la sospecha de partida. Por ejemplo: "Partías de una sospecha media, así que este positivo la refuerza, pero no lo bastante para darla por segura."
-3. Cuánto fiarte de esas cifras, según la calidad y el contextoDeEvidencia. Distingue la fuente elegida para calcular de todos los estudios localizados. Si hay otras fuentes, no digas que solo existe un estudio. Una revisión no equivale a un estudio primario. Si no se conoce cuántos estudios reúne para este test, no inventes el número. Las cifras parecidas no prueban independencia ni elevan por sí solas la calidad: el primario puede estar incluido en la revisión. Conserva las limitaciones de sesgo, precisión y aplicabilidad.
+3. Cuánto fiarte de esas cifras, según la calidad y el contextoDeEvidencia. Distingue la fuente elegida para calcular de todos los estudios localizados. Si hay otras fuentes, no digas que solo existe un estudio. Una revisión no equivale a un estudio primario. Si no se conoce cuántos estudios reúne para este test, no inventes el número. Las cifras parecidas no prueban independencia ni elevan por sí solas la calidad: el primario puede estar incluido en la revisión. Si otro estudio mide un subgrupo o una patología parecida (mideLaMismaPatologia en falso), no presentes su diferencia como una contradicción: mide otra cosa. Conserva las limitaciones de sesgo, precisión y aplicabilidad.
 
 Reglas, sin excepción:
 

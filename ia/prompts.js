@@ -157,6 +157,7 @@ Reglas, sin excepción:
    Lo primero es que se publiquen las dos: con una sola no se puede calcular cuánto cambia la sospecha, y el test deja de servir para la conclusión. Por eso un estudio primario con las dos cifras va por delante de una revisión con una sola, aunque la revisión sea más fiable. Y lo segundo, que se hayan medido sobre la entidad preguntada: un estudio primario sobre la entidad preguntada va por delante de una revisión sobre otra parecida, porque responde a la pregunta del fisioterapeuta. La revisión con una sola cifra no se pierde: va a otrasFuentes y se enseña al lado. Marca la consistencia como discrepante si las cifras de unos y otros difieren de forma apreciable.
 
 5 bis. Los demás textos que publiquen cifras de ESE test para ESA entidad van en otrasFuentes, hasta tres, cada uno con su PMID y su propia frase copiada palabra por palabra. No se van a mezclar con las que devuelves arriba —la sensibilidad y la especificidad salen de la misma tabla y del mismo grupo de pacientes, así que combinarlas entre estudios daría un número que nadie ha medido—, sino que se enseñan al lado para que se vea entre qué valores se mueve la literatura. No repitas ahí el artículo que ya has elegido. Si ningún otro publica cifras, deja la lista vacía: es una respuesta correcta y frecuente.
+   Para cada uno, dime con el mismo criterio de las reglas 3 bis y 3 ter qué mide exactamente: mismaEntidad en verdadero si mide la entidad preguntada, y en falso si mide una entidad relacionada o un subgrupo (solo roturas posterosuperiores, solo subescapular…), anotando en entidadDeLasCifras, en español y en pocas palabras, cuál. Es lo que evita que dos cifras que responden a preguntas distintas se lean como una contradicción.
 
 6. Valoración de calidad. Rellena estos campos con lo que puedas deducir del propio resumen, sin inventar:
    - tipoEstudio: si es revisión sistemática o metaanálisis, o estudio primario.
@@ -227,9 +228,17 @@ export const ESQUEMA_EXTRACCION = {
             description: "Qué es ESE artículo. Hace falta para poder explicar por qué se ha elegido otro.",
           },
           numeroEstudios: { type: "number", description: "Cuántos estudios reúne ESE artículo. 1 si es un estudio primario." },
+          mismaEntidad: {
+            type: "boolean",
+            description: "Verdadero si ESE artículo mide la entidad preguntada; falso si una entidad relacionada o un subgrupo.",
+          },
+          entidadDeLasCifras: {
+            type: ["string", "null"],
+            description: "Si mismaEntidad es falso, qué mide ESE artículo, en español y en pocas palabras. Null si no.",
+          },
           citaLiteral: { type: "string", description: "La frase de ESE artículo donde constan esas cifras, copiada palabra por palabra." },
         },
-        required: ["pmid", "sn", "sp", "tipoEstudio", "numeroEstudios", "citaLiteral"],
+        required: ["pmid", "sn", "sp", "tipoEstudio", "numeroEstudios", "mismaEntidad", "entidadDeLasCifras", "citaLiteral"],
         additionalProperties: false,
       },
     },

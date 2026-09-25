@@ -62,6 +62,11 @@ export function depurarFuentes({ candidatas, articulos, pmidPrincipal }) {
       // Qué es cada artículo, para poder decir por qué se eligió el otro.
       tipoEstudio: TIPOS.has(c.tipoEstudio) ? c.tipoEstudio : null,
       numeroEstudios: Number.isFinite(c.numeroEstudios) && c.numeroEstudios > 0 ? c.numeroEstudios : null,
+      // Qué mide: la misma entidad, o un subgrupo o una parecida. Dos cifras
+      // que responden a preguntas distintas no se comparan como si
+      // discreparan. Si el modelo no lo dice, se da por la misma.
+      mismaEntidad: c.mismaEntidad !== false,
+      entidadDeLasCifras: c.mismaEntidad === false && c.entidadDeLasCifras ? String(c.entidadDeLasCifras) : null,
       citaLiteral: String(c.citaLiteral || ""),
     });
   }
@@ -76,8 +81,9 @@ export function depurarFuentes({ candidatas, articulos, pmidPrincipal }) {
  * hay una cifra, y decir "entre 0,77 y 0,77" sería ruido.
  */
 export function rangoPublicado({ principal, otras }) {
+  // Solo las que miden lo mismo: un subgrupo abriría un rango que no es tal.
   const reunir = (campo) =>
-    [principal?.[campo], ...(otras || []).map((o) => o[campo])].filter(esProporcion);
+    [principal?.[campo], ...(otras || []).filter((o) => o.mismaEntidad !== false).map((o) => o[campo])].filter(esProporcion);
 
   const tramo = (campo) => {
     const valores = reunir(campo);

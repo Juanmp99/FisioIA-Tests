@@ -1698,6 +1698,7 @@ button.sello.explica { font-size: .8125rem; }
 .oc-lista { margin: 10px 0 0; padding-left: 16px; }
 .oc-lista li { margin-bottom: 5px; line-height: 1.45; }
 .oc-cifras { font-family: var(--mono); color: var(--tinta); font-weight: 600; white-space: nowrap; }
+.oc-otra-cosa { display: block; margin-top: 3px; font-size: .75rem; color: var(--ambar); }
 .oc-leyenda { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .75rem; color: var(--tinta-tenue); }
 .oc-leyenda .oc-punto { position: static; margin: 0; display: inline-block; }
 .oc-ia {
@@ -3943,7 +3944,11 @@ button.sello.explica { font-size: .8125rem; }
     var tira = function (campo, nombre) {
       var valores = [];
       if (ev[campo] != null) valores.push({ v: ev[campo], citado: true });
-      otras.forEach(function (o) { if (o[campo] != null) valores.push({ v: o[campo], citado: false }); });
+      // Solo los que miden lo mismo: comparar con un subgrupo haría pasar por
+      // desacuerdo lo que es otra pregunta.
+      otras.forEach(function (o) {
+        if (o[campo] != null && o.mismaEntidad !== false) valores.push({ v: o[campo], citado: false });
+      });
       if (valores.length < 2) return "";
       var min = Math.min.apply(null, valores.map(function (x) { return x.v; }));
       var max = Math.max.apply(null, valores.map(function (x) { return x.v; }));
@@ -3977,7 +3982,12 @@ button.sello.explica { font-size: .8125rem; }
         '<span class="oc-cifras">Sn ' + (o.sn != null ? num(o.sn, true) : "—") + " · Sp " + (o.sp != null ? num(o.sp, true) : "—") + "</span> " +
         '<a href="' + esc(o.url) + '" target="_blank" rel="noopener">' + esc(o.titulo) + "</a>" +
         (o.anio ? " · " + esc(o.anio) : "") +
-        (tipo ? ' <span class="tipo-fuente">' + tipo + "</span>" : "") + "</li>";
+        (tipo ? ' <span class="tipo-fuente">' + tipo + "</span>" : "") +
+        (o.mismaEntidad === false
+          ? '<span class="oc-otra-cosa">Mide ' + esc(o.entidadDeLasCifras || "un subgrupo o una entidad parecida") +
+            ", no " + esc(enFrase(estado.entidad)) + " en general: no es directamente comparable.</span>"
+          : "") +
+        "</li>";
     }).join("");
 
     var exp = estado.explicaciones[nombreDelTest(ev)];

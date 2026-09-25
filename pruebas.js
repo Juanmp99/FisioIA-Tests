@@ -841,6 +841,23 @@ prueba("los textos completos que más prometen se abren primero", () => {
   assert.equal(orden[0].pmid, "3");
 });
 
+prueba("otro estudio que mide un subgrupo se marca, y no abre el rango", () => {
+  const articulos = [{ pmid: "1", titulo: "A" }, { pmid: "2", titulo: "B" }];
+  const otras = depurarFuentes({
+    pmidPrincipal: "1",
+    articulos,
+    candidatas: [{
+      pmid: "2", sn: 0.77, sp: null, tipoEstudio: "revision_sistematica", numeroEstudios: 14,
+      mismaEntidad: false, entidadDeLasCifras: "roturas posterosuperiores",
+      citaLiteral: "The highest pooled sensitivity was 0.77 for the Jobe test",
+    }],
+  });
+  assert.equal(otras[0].mismaEntidad, false);
+  assert.equal(otras[0].entidadDeLasCifras, "roturas posterosuperiores");
+  // El 0,77 de un subgrupo no convierte el 0,60 en un rango "0,60–0,77".
+  assert.equal(rangoPublicado({ principal: { sn: 0.6, sp: 0.63 }, otras }).sn, null);
+});
+
 prueba("lo que responde a otra pregunta es lo último, pero algo", () => {
   const otra = { encontrado: true, sn: 0.7, sp: 0.17, mismaEntidad: false, otraPregunta: true };
   const media = { encontrado: true, sn: null, sp: 0.9, mismaEntidad: false };
