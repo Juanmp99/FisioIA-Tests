@@ -1456,6 +1456,8 @@ button.sello.explica { font-size: .8125rem; }
 .icono { flex: none; width: 20px; height: 20px; }
 .veredicto b { font-size: 1rem; letter-spacing: -.01em; }
 .veredicto .lectura { margin: 0; font-size: .9375rem; color: var(--tinta); }
+.senal { margin: 12px 0 0; font-size: .875rem; line-height: 1.55; color: var(--tinta-media); }
+.senal b { color: var(--tinta); font-weight: 650; }
 .matiz-partida { margin: 6px 0 0; font-size: .8125rem; color: var(--tinta-media); }
 .calculo {
   font-family: var(--mono); font-size: .75rem; color: var(--tinta-tenue);
@@ -3315,8 +3317,8 @@ button.sello.explica { font-size: .8125rem; }
             " veces</b> más probable en quien no tiene " + ent + ".") +
         "<br><br>Sale de las dos cifras del test: " +
         (positiva ? "sensibilidad ÷ (1 − especificidad)" : "(1 − sensibilidad) ÷ especificidad") + ". " +
-        "Y es lo que marca su poder diagnóstico: alto por encima de 10 (o por debajo de 0,1), moderado entre 5 y 10, " +
-        "bajo entre 2 y 5, mínimo cerca de 1.";
+        "Por eso decimos que es una señal muy clara si pasa de 10 veces, clara entre 5 y 10, débil entre 2 y 5, " +
+        "y que no sirve como señal por debajo de 2.";
       return { titulo: titulo, cuerpo: cuerpo, ia: null, conIa: false };
     }
 
@@ -4011,12 +4013,11 @@ button.sello.explica { font-size: .8125rem; }
           matizPartida(clase, d) +
           lineaIa(nombre, resultado) +
           medidor(x.preTest, x.postTest, clase === "nulo" ? "nulo" : "") +
+          '<p class="senal">' + fraseSenal(d) + "</p>" +
+          // El número técnico, en pequeño y con su "?", para quien quiera
+          // comprobar la cuenta o lo conozca de un curso.
           '<div class="calculo">' +
-            // Con su nombre entero y su "?": "RV" a secas no lo reconoce
-            // quien no viva en la estadística, y es el número del que sale todo.
-            esc(x.preTestTexto) + "  →  " +
             pista("rv", nombre, "rv-pista", "razón de verosimilitud " + esc(x.cual) + " " + num(x.razonDeVerosimilitud)) +
-            "  ·  " + esc(x.magnitud.texto) +
             (x.corregida
               ? "<br>precisión publicada del 100%: se calcula con 0,999 para no dar una certeza absoluta"
               : "") +
@@ -4064,6 +4065,39 @@ button.sello.explica { font-size: .8125rem; }
       ? "Confirma sobre todo porque ya partías de una sospecha alta: este test la ha terminado de subir."
       : "Descarta sobre todo porque ya partías de una sospecha baja: este test la ha terminado de bajar.") +
     "</p>";
+  }
+
+  /*
+   * Qué significa la razón de verosimilitud, dicho como se diría en voz alta.
+   *
+   * La línea de antes —"Sospecha baja, en torno al 15% → razón de
+   * verosimilitud positiva 10,13 · poder diagnóstico alto"— era correcta y no
+   * se entendía. La idea entera cabe en una frase: este resultado aparece tantas
+   * veces más con la lesión que sin ella, y por eso es una señal más o menos
+   * clara. Las veces se redondean: lo que se lee es el orden de magnitud, y el
+   * número exacto queda debajo, en pequeño.
+   */
+  var SENAL = {
+    concluyente: "es una señal muy clara",
+    moderado: "es una señal clara",
+    pequeno: "es una señal débil"
+  };
+  function fraseSenal(d) {
+    var x = d.detalle;
+    var lr = x.razonDeVerosimilitud;
+    var positivo = d.resultado === "positivo";
+    var veces = lr >= 1 ? lr : 1 / lr;
+    var ent = esc(enFrase(estado.entidad));
+    var quien = positivo
+      ? "en quien tiene " + ent + " que en quien no"
+      : "en quien no tiene " + ent + " que en quien sí";
+    var hacia = positivo ? " a favor de tu sospecha" : " en contra de tu sospecha";
+
+    if (x.magnitud.nivel === "irrelevante") {
+      return "Un " + d.resultado + " aparece casi igual " + quien + ": <b>no sirve como señal</b>.";
+    }
+    return "Un " + d.resultado + " aparece <b>unas " + Math.round(veces) + " veces más</b> " + quien +
+      ": <b>" + SENAL[x.magnitud.nivel] + hacia + "</b>.";
   }
 
   function tituloVeredicto(clase, d) {

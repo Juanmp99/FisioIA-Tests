@@ -19,7 +19,7 @@ import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "../dominio
 const ALMACEN = "explicacion";
 
 /** Se cambia al tocar el prompt, para no servir explicaciones escritas con otro. */
-const VERSION = 6;
+const VERSION = 7;
 
 /**
  * En qué cifras se apoya una explicación.
@@ -61,7 +61,7 @@ Reglas, sin excepción:
 
 5. Devuelve null SOLO cuando el dato no exista: indirecta si las cifras se midieron sobre la misma patología, parcial si constan las dos cifras. Si una cifra consta en los datos, su campo no puede quedarse vacío.
 
-6. Sobre los resultados positivo y negativo, apóyate en el poder diagnóstico que te doy (alto, moderado, bajo, mínimo). Es una propiedad del test, no del cambio en el paciente: cuánto se mueva la sospecha depende también de la sospecha de partida, que no conoces, y con una sospecha intermedia incluso un test de poder bajo la mueve bastantes puntos. Por eso nunca califiques el cambio ("aumenta de forma pequeña", "un cambio pequeño"): di qué clase de test es y en qué dirección empuja un positivo o un negativo ("es un test de poder diagnóstico bajo: un positivo empuja la sospecha hacia arriba, pero por sí solo no la confirma"). No afirmes que confirma o descarta: eso depende de la sospecha previa.
+6. Sobre los resultados positivo y negativo, apóyate en la clase de señal que te doy: señal muy clara, señal clara, señal débil o no sirve como señal. Usa esas mismas palabras, que son las que el fisioterapeuta ve en pantalla, y no hables de "poder diagnóstico". Es una propiedad del test, no del cambio en el paciente: cuánto se mueva la sospecha depende también de la sospecha de partida, que no conoces, y con una sospecha intermedia incluso una señal débil la mueve bastantes puntos. Por eso nunca califiques el cambio ("aumenta de forma pequeña", "un cambio pequeño"): di qué clase de señal es y hacia dónde empuja ("un positivo es una señal débil a favor de la rotura: empuja la sospecha hacia arriba, pero por sí solo no la confirma"). No afirmes que confirma o descarta: eso depende de la sospecha previa.
 
 7. En eleccion, como mucho 50 palabras, le cuentas al fisioterapeuta qué hacer con los otros estudios que también miden el test. Ya ha leído, justo encima, qué cifras usa el cálculo y la regla por la que se eligió el citado; no la repitas. Tu trabajo es decirle lo que se ve al compararlos en este caso concreto: si las cifras de los demás se parecen a las del citado o se alejan, en cuál de las dos (sensibilidad o especificidad), y qué implica eso para fiarse del resultado del test en su paciente. Si un estudio publica solo una de las dos cifras, dilo. Nunca inventes un motivo de elección que no esté en los datos, y no sugieras mezclar ni promediar cifras de estudios distintos.
 
@@ -78,8 +78,8 @@ const ESQUEMA = {
     indirecta: campo("Qué implica que las cifras se midieran en otra patología. Null si no es indirecta."),
     eleccion: campo("Qué se ve al comparar el estudio citado con los demás que miden el test, y qué implica para fiarse. Null si no hay otros."),
     parcial: campo("Qué implica que solo conste una de las dos cifras. Null si constan las dos."),
-    positivo: campo("Qué aporta que el test salga positivo, según su poder diagnóstico."),
-    negativo: campo("Qué aporta que el test salga negativo, según su poder diagnóstico."),
+    positivo: campo("Qué aporta que el test salga positivo, según la clase de señal que es."),
+    negativo: campo("Qué aporta que el test salga negativo, según la clase de señal que es."),
   },
   required: ["sensibilidad", "especificidad", "calidad", "indirecta", "parcial", "positivo", "negativo"],
   additionalProperties: false,
@@ -97,8 +97,8 @@ function faltanEn(x) {
 }
 
 /** El nivel del dominio dicho como se enseña en pantalla. */
-const PODER = { concluyente: "alto, a menudo concluyente", moderado: "moderado", pequeno: "bajo", irrelevante: "mínimo" };
-const poderDe = (nivel) => (nivel ? PODER[nivel] || null : null);
+const SENAL = { concluyente: "señal muy clara", moderado: "señal clara", pequeno: "señal débil", irrelevante: "no sirve como señal" };
+const senalDe = (nivel) => (nivel ? SENAL[nivel] || null : null);
 
 /** Los datos que se le enseñan al modelo: los de la ficha y nada más. */
 function datosDe(ev, { test, entidad }) {
@@ -110,8 +110,8 @@ function datosDe(ev, { test, entidad }) {
     cifraQueFalta: ev.parcial ? ev.falta : null,
     razonPositiva: ev.rv?.positiva ?? null,
     razonNegativa: ev.rv?.negativa ?? null,
-    poderDiagnosticoSiPositivo: poderDe(ev.rv?.magnitudPositiva),
-    poderDiagnosticoSiNegativo: poderDe(ev.rv?.magnitudNegativa),
+    senalSiPositivo: senalDe(ev.rv?.magnitudPositiva),
+    senalSiNegativo: senalDe(ev.rv?.magnitudNegativa),
     calidad: ev.calidad?.etiqueta ?? null,
     motivosDeLaCalidad: ev.calidad?.motivos ?? [],
     medidaEnOtraPatologia: ev.indirecta ? ev.entidadDeLasCifras : null,

@@ -80,7 +80,7 @@ export default async (req) => {
       especificidad: ev.sp,
       dejaLaSospechaEn: `${pctMostrado(d.detalle.postTest)}%`,
       puntosQueMueve: `${mov > 0 ? "+" : "-"}${Math.abs(mov)} puntos`,
-      poderDiagnosticoDelTest: d.detalle.magnitud.texto,
+      claseDeSenal: d.detalle.magnitud.texto,
       calidadDelEstudio: ev.calidad?.etiqueta || null,
       medidaSobreOtraPatologia: ev.indirecta ? ev.entidadDeLasCifras : null,
       sube: d.detalle.postTest > d.detalle.preTest,
