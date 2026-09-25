@@ -1979,7 +1979,15 @@ button.sello.explica { font-size: .8125rem; }
      fija —el nombre de la herramienta no hace falta mientras exploras— y el
      carril se compacta. */
   .barra { position: static; }
-  .carril { top: 8px; padding: 9px 12px 8px; margin: 0 -4px 14px; border-radius: 20px; }
+  /* En el móvil, de lado a lado, como una cabecera: sin bordes laterales ni
+     esquinas. Como cápsula se confundía con los cajetines de los tests. El
+     filo de azul a violeta queda solo abajo, y la sombra lo separa de lo que
+     pasa por debajo. */
+  .carril {
+    top: 0; margin: 0 -20px 14px; padding: 9px 20px 8px;
+    border-radius: 0; border-width: 0 0 1px;
+    box-shadow: 0 14px 30px -16px rgba(0, 0, 0, .85), 0 12px 28px -22px color-mix(in srgb, var(--azul) 80%, transparent);
+  }
   .carril .alerta-banderas { padding: 4px 11px 4px 9px; margin-bottom: 8px; font-size: .75rem; }
   .paso-num { width: 24px; height: 24px; font-size: .6875rem; }
   .paso-carril { gap: 4px; }
