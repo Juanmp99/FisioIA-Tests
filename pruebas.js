@@ -15,7 +15,7 @@ import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/
 import { depurarFuentes, rangoPublicado, comparableConCitado } from "./dominio/fuentes.js";
 import { avisoClasificadas } from "./ia/clasificacion.js";
 import { mensajeEntidad, SISTEMA_EXTRACCION } from "./ia/prompts.js";
-import { tocaRevisar, juntarFuentes, CADA_CONSULTAS } from "./ia/revision.js";
+import { tocaRevisar, juntarFuentes, conPendienteCaducada, CADA_CONSULTAS } from "./ia/revision.js";
 import { supera } from "./ia/evidencia.js";
 import { problemasDeCita } from "./dominio/trazabilidad.js";
 import { debeReactivar } from "./lib/contactos.js";
@@ -955,6 +955,25 @@ prueba("la revisión periódica toca cada tantas consultas, y como mucho una vez
   assert.equal(tocaRevisar({ consultas: 40, pendiente: new Date().toISOString() }, guardado), false);
   // Lo que no tiene cifras ya caduca solo: no se revisa por aquí.
   assert.equal(tocaRevisar({ consultas: 40 }, { hayCifras: false, fecha: hace(60) }), false);
+});
+
+prueba("una revisión que falla no se reintenta en la consulta siguiente", () => {
+  const hace = (dias) => new Date(Date.now() - dias * 86400000).toISOString();
+  const guardado = { hayCifras: true, fecha: hace(60) };
+  // Falló hace una hora: espera un día.
+  assert.equal(tocaRevisar({ consultas: 20, fallos: 1, ultimoFallo: hace(0.04) }, guardado), false);
+  assert.equal(tocaRevisar({ consultas: 20, fallos: 1, ultimoFallo: hace(2) }, guardado), true);
+  // Tres fallos seguidos: espera al mes siguiente.
+  assert.equal(tocaRevisar({ consultas: 20, fallos: 3, ultimoFallo: hace(2) }, guardado), false);
+  assert.equal(tocaRevisar({ consultas: 20, fallos: 3, ultimoFallo: hace(31) }, guardado), true);
+  // Una lanzada que murió sin avisar cuenta como fallo, con su fecha.
+  const muerta = conPendienteCaducada({ consultas: 20, pendiente: hace(0.1) });
+  assert.equal(muerta.pendiente, null);
+  assert.equal(muerta.fallos, 1);
+  assert.equal(tocaRevisar(muerta, guardado), false);
+  // Y una que sigue en marcha no se toca.
+  const viva = { consultas: 20, pendiente: new Date().toISOString() };
+  assert.equal(conPendienteCaducada(viva), viva);
 });
 
 prueba("lo nuevo solo sustituye a lo que había si es estrictamente mejor", () => {

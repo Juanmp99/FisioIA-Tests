@@ -31,6 +31,16 @@ export const DIAS_MINIMOS = 30;
 /** Si una revisión lanzada no ha terminado en este tiempo, se da por muerta. */
 const CADUCIDAD_PENDIENTE = 20 * 60 * 1000;
 
+/**
+ * Tras un intento fallido, cuánto se espera antes de volver a probar. Sin esta
+ * espera, un test que fallara siempre relanzaría una búsqueda cara en cada
+ * consulta, porque el contador sigue por encima del umbral.
+ */
+const ESPERA_TRAS_FALLO_DIAS = 1;
+
+/** A partir de tantos fallos seguidos, se espera ya al mes siguiente. */
+const FALLOS_MAXIMOS = 3;
+
 /** Cuántos cambios se recuerdan por test. */
 const HISTORIAL_MAX = 10;
 
@@ -44,7 +54,21 @@ export function tocaRevisar(estado, guardado, ahora = Date.now()) {
   const desde = estado?.ultima || guardado.fecha;
   if (desde && (ahora - new Date(desde).getTime()) / 86400000 < DIAS_MINIMOS) return false;
   if (estado?.pendiente && ahora - new Date(estado.pendiente).getTime() < CADUCIDAD_PENDIENTE) return false;
+  if (estado?.ultimoFallo) {
+    const dias = (ahora - new Date(estado.ultimoFallo).getTime()) / 86400000;
+    const espera = (estado.fallos || 0) >= FALLOS_MAXIMOS ? DIAS_MINIMOS : ESPERA_TRAS_FALLO_DIAS;
+    if (dias < espera) return false;
+  }
   return true;
+}
+
+/**
+ * Una revisión lanzada que no terminó —el trabajador murió sin avisar— cuenta
+ * como un fallo más, con la fecha en que se lanzó. Así también ella espera.
+ */
+export function conPendienteCaducada(estado, ahora = Date.now()) {
+  if (!estado?.pendiente || ahora - new Date(estado.pendiente).getTime() < CADUCIDAD_PENDIENTE) return estado || {};
+  return { ...estado, pendiente: null, fallos: (estado.fallos || 0) + 1, ultimoFallo: estado.pendiente };
 }
 
 /**
@@ -58,7 +82,7 @@ export function tocaRevisar(estado, guardado, ahora = Date.now()) {
  * da igual.
  */
 export async function contarConsulta(k, guardado) {
-  const estado = (await leer(ALMACEN, k)) || {};
+  const estado = conPendienteCaducada(await leer(ALMACEN, k));
   const consultas = (estado.consultas || 0) + 1;
   const toca = tocaRevisar({ ...estado, consultas }, guardado);
   await escribir(ALMACEN, k, {
@@ -137,6 +161,8 @@ export async function revisar(k, { test, busqueda, nombresTest, entidad, termino
       ...extra,
       consultas: 0,
       pendiente: null,
+      fallos: 0,
+      ultimoFallo: null,
       ultima: new Date().toISOString(),
     });
 
@@ -156,9 +182,15 @@ export async function revisar(k, { test, busqueda, nombresTest, entidad, termino
     console.warn(`[revision] ${test}: ${e.message}`);
   }
 
-  // Un corte por plazo no es un resultado: se deja pendiente para la próxima.
+  // Un corte por plazo no es un resultado: lo que había se queda, y se vuelve
+  // a probar más adelante, no en la consulta siguiente.
   if (!nuevo || nuevo.transitorio) {
-    await escribir(ALMACEN, k, { ...estado, pendiente: null });
+    await escribir(ALMACEN, k, {
+      ...estado,
+      pendiente: null,
+      fallos: (estado.fallos || 0) + 1,
+      ultimoFallo: new Date().toISOString(),
+    });
     return { hecho: false, motivo: "la búsqueda no ha terminado" };
   }
 
