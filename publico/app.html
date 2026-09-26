@@ -2401,15 +2401,21 @@ button.sello.explica { font-size: .8125rem; }
   // Entidades concretas a propósito: un síndrome como "hombro doloroso" hace
   // que la herramienta pida que concretes, y como carta de presentación
   // conviene que la primera consulta de alguien salga bien a la primera.
+  //
+  // Y en orden: primero las patologías cuyos tests tienen precisión publicada
+  // y sólida, que es donde la herramienta sorprende. Al final las que se
+  // diagnostican sobre todo por la clínica, donde lo honesto es que la mayoría
+  // de tests salgan sin cifras: una capsulitis como primera prueba se leía
+  // como "no funciona".
   var EJEMPLOS = [
-    "rotura del manguito rotador", "tendinopatía del supraespinoso", "capsulitis adhesiva",
-    "inestabilidad glenohumeral anterior", "epicondilalgia lateral", "epitrocleítis",
-    "síndrome del túnel carpiano", "tenosinovitis de De Quervain", "rizartrosis",
-    "pinzamiento femoroacetabular", "tendinopatía glútea", "rotura del labrum acetabular",
-    "rotura del ligamento cruzado anterior", "rotura de menisco medial", "tendinopatía rotuliana",
-    "condromalacia rotuliana", "esguince del ligamento peroneoastragalino anterior",
-    "fascitis plantar", "tendinopatía aquílea", "radiculopatía cervical",
-    "hernia discal lumbar", "estenosis de canal lumbar"
+    "rotura del ligamento cruzado anterior", "inestabilidad glenohumeral anterior",
+    "hernia discal lumbar", "radiculopatía cervical", "rotura de menisco medial",
+    "síndrome del túnel carpiano", "rotura del manguito rotador",
+    "esguince del ligamento peroneoastragalino anterior", "rotura del labrum acetabular",
+    "tenosinovitis de De Quervain", "pinzamiento femoroacetabular", "tendinopatía glútea",
+    "rizartrosis", "tendinopatía del supraespinoso", "estenosis de canal lumbar",
+    "tendinopatía aquílea", "tendinopatía rotuliana", "fascitis plantar",
+    "epicondilalgia lateral", "capsulitis adhesiva"
   ];
 
   (function pintarTira() {
