@@ -901,6 +901,8 @@ prueba("la frase tiene que nombrar el test: por su nombre, por una palabra suya 
   assert.equal(problemasDeCita("ERLS 13.2 98.4 83.3", { nombres: ["external rotation lag sign"] }).length, 0);
   assert.equal(problemasDeCita("The BP test diagnosed tears with a sensitivity of 23.3%", { nombres: ["belly press test"] }).length, 0);
   assert.equal(problemasDeCita("Jobe 84.9 45.4", { nombres: ["Jobe test", "empty can test"] }).length, 0);
+  // El nombre en el título de la sección, y la fila después.
+  assert.equal(problemasDeCita("Empty can test … Any RCT 3 0.60 (0.52, 0.68) 0.63 (0.55, 0.71)", { nombres: ["Jobe test", "empty can test"] }).length, 0);
   // Una agrupación se describe, no se nombra.
   assert.equal(problemasDeCita("When all three were positive: sensitivity 0.9", { nombres: ["Park"], esAgrupacion: true }).length, 0);
 });
