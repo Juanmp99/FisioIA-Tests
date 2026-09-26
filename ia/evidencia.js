@@ -10,7 +10,10 @@ import { buscarPrecision, urlPubmed } from "./pubmed.js";
 import { textoCompleto } from "./pmc.js";
 import { abiertos, textoCompletoAbierto } from "./europepmc.js";
 import { pedirJson } from "./cliente.js";
-import { SISTEMA_EXTRACCION, ESQUEMA_EXTRACCION, mensajeExtraccion, mensajeExtraccionCompleta } from "./prompts.js";
+import {
+  SISTEMA_EXTRACCION, ESQUEMA_EXTRACCION, mensajeExtraccion, mensajeExtraccionCompleta,
+  SISTEMA_ENTIDAD, ESQUEMA_ENTIDAD, mensajeEntidad,
+} from "./prompts.js";
 import { validarPrecision, validarParcial, razonesDeVerosimilitud, magnitud } from "../dominio/probabilidad.js";
 import { semaforo } from "../dominio/calidad.js";
 import { comprobarCita, problemasDeCita } from "../dominio/trazabilidad.js";
@@ -346,6 +349,33 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   // Cuánto vale una extracción: lo que no se puede publicar no vale nada.
   const valor = (d) => (problemasCita(d).length ? 0 : utilidad(d));
 
+  // Segunda mirada a la entidad cuando el modelo dice que su elección mide la
+  // patología entera: una sola pregunta, sobre el título, el resumen y la
+  // frase citada. Si resulta ser una parte, la extracción vale menos y se
+  // buscan los textos completos. Si la pregunta falla, se queda como estaba.
+  const confirmarEntidad = async (d) => {
+    if (esAgrupacion || !d?.encontrado || d.mismaEntidad === false || d.otraPregunta) return d;
+    if (typeof d.sn !== "number" && typeof d.sp !== "number") return d;
+    const articulo = articulos.find((a) => a.pmid === d.pmid);
+    try {
+      const { datos: juicio } = await pedirJson({
+        sistema: SISTEMA_ENTIDAD,
+        mensaje: mensajeEntidad({ test, entidad: nombreEntidad, articulo, cita: d.citaLiteral }),
+        esquema: ESQUEMA_ENTIDAD,
+        esfuerzo: "low",
+        maxTokens: 1500,
+        senal: conPlazo(),
+      });
+      if (juicio?.mismaEntidad === false) {
+        console.warn(`[entidad] ${test}: ${d.pmid} mide ${juicio.entidadDeLasCifras}, no la entidad entera (${juicio.motivo})`);
+        return { ...d, mismaEntidad: false, entidadDeLasCifras: juicio.entidadDeLasCifras || d.entidadDeLasCifras || null };
+      }
+    } catch (e) {
+      console.warn(`[entidad] ${test}: ${e.message}`);
+    }
+    return d;
+  };
+
   const antesDeExtraer = Date.now();
   let datos;
   try {
@@ -428,6 +458,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     return d;
   };
   normalizar(datos);
+  datos = await confirmarEntidad(datos);
 
   const tieneSn = typeof datos.sn === "number";
   const tieneSp = typeof datos.sp === "number";
@@ -500,6 +531,11 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
         });
         // Solo se adopta si es más útil que lo que había: un texto completo
         // que trae lo mismo, o algo peor, deja el resultado como estaba.
+        // Lo que dice medir la entidad entera se comprueba antes de compararlo:
+        // si no, un texto completo sobre una parte desplazaría a lo que hay.
+        if (utilidad(otra.datos) > valor(datos) && otra.datos?.mismaEntidad !== false) {
+          otra.datos = await confirmarEntidad(otra.datos);
+        }
         const u = utilidad(otra.datos);
         if (u > valor(datos) && coherencia(otra.datos).valido && aceptable(otra.datos)) {
           // Las otras fuentes que ya se habían visto en los resúmenes no se
@@ -604,7 +640,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
       });
       if (otra.datos?.encontrado && coherencia(otra.datos).valido && !problemasCita(otra.datos).length) {
         console.warn(`[coherencia] ${test}: la segunda extracción sí es coherente`);
-        datos = normalizar(otra.datos);
+        datos = await confirmarEntidad(normalizar(otra.datos));
         tieneSnFinal = typeof datos.sn === "number";
         tieneSpFinal = typeof datos.sp === "number";
         parcial = !tieneSnFinal || !tieneSpFinal;

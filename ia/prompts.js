@@ -146,6 +146,8 @@ Reglas, sin excepción:
 
 3 quater. Distingue una entidad parecida de otra pregunta diagnóstica. Hay estudios que miden el test para responder algo distinto de "¿tiene el paciente esta entidad?": por ejemplo, distinguir quién tiene una rotura dentro del tendón entre pacientes que ya tienen tendinopatía lateral del codo, o detectar una complicación o una fractura oculta. Sus cifras no dicen cuánto cambia la sospecha de la entidad preguntada, y usarlas daría un número que responde a otra cosa. En ese caso marca otraPregunta en verdadero y explica en otraPreguntaMotivo, en una frase y en español, qué pregunta responde el estudio. Si hay otro texto que sí mida la entidad preguntada, elige ese y deja otraPregunta en falso.
 
+3 quinquies. Fíjate en contra de quién se midió el test. Hay estudios que dan dos comparaciones: frente a personas sanas y frente a pacientes con otras patologías de la misma zona. Usa siempre la segunda: el fisioterapeuta no tiene que distinguir un hombro enfermo de uno sano, sino de otro hombro que también duele, y frente a sanos casi cualquier test parece perfecto. Si da la especificidad como un rango entre varios grupos de pacientes, usa el valor más bajo, que es el prudente. Si el estudio solo compara con personas sanas, sus cifras se pueden usar, pero marca quadas2 como alto: es un sesgo de espectro que las infla.
+
 4. Expresa sensibilidad y especificidad como proporciones entre 0 y 1. Si el texto las da en porcentaje, divide entre cien y nada más.
 
 4 bis. Solo valen sensibilidad y especificidad publicadas como tales. No las calcules tú a partir de recuentos de una tabla (verdaderos y falsos positivos y negativos): es fácil leer las columnas al revés y dar una cifra que el artículo no dice. Si el artículo solo da recuentos, trátalo como si no publicara esa cifra.
@@ -168,7 +170,7 @@ Reglas, sin excepción:
 6. Valoración de calidad. Rellena estos campos con lo que puedas deducir del propio resumen, sin inventar:
    - tipoEstudio: si es revisión sistemática o metaanálisis, o estudio primario.
    - amstar2: solo para revisiones. Calidad aparente según lo que el resumen deje ver de su método: si describe búsqueda en varias bases, criterios de inclusión explícitos y valoración del riesgo de sesgo de los estudios incluidos, la calidad aparente es alta o moderada. Si no describe método, es baja. Si no es una revisión o no puedes juzgarlo, usa no_valorable.
-   - quadas2: riesgo de sesgo aparente de los estudios de precisión. Bajo si describe patrón de referencia adecuado y muestra consecutiva o aleatoria; dudoso si no lo aclara; alto si hay problemas evidentes, como usar como patrón de referencia el propio hallazgo clínico o seleccionar solo casos confirmados. Si el resumen no da nada con lo que juzgarlo, usa no_valorable.
+   - quadas2: riesgo de sesgo aparente de los estudios de precisión. Bajo si describe patrón de referencia adecuado y muestra consecutiva o aleatoria; dudoso si no lo aclara; alto si hay problemas evidentes, como usar como patrón de referencia el propio hallazgo clínico, seleccionar solo casos confirmados o comparar solo con personas sanas. Si el resumen no da nada con lo que juzgarlo, usa no_valorable.
    - intervalos: si constan intervalos de confianza y si son estrechos o amplios.
 
 7. Cita literal. En citaLiteral copia, palabra por palabra y sin resumir ni traducir, la frase del texto donde aparecen las cifras que has extraído. Tiene que contener los números literalmente y nombrar el test, por su nombre o por su sigla. Si las cifras están en una tabla, copia la fila que lleva el nombre del test. Si el nombre del test no está en la fila sino en un título o encabezado de sección por encima de ella, copia ese título, después " … " y después la fila, tal cual: por ejemplo "Empty can test … Any RCT 3 0.60 (0.52, 0.68) 0.63 (0.55, 0.71)". Una fila de números sin ningún nombre del test, ni en ella ni en su título, no sirve, porque nadie puede comprobar de qué columna salen. Es lo que permite que un humano compruebe tu trabajo en dos segundos, y sin ella el dato no vale.
@@ -434,5 +436,43 @@ export function mensajeExtraccion({ test, entidad, articulos, esAgrupacion }) {
     `Test: ${test}\nEntidad clínica: ${entidad}\n` +
     (esAgrupacion ? exigenciaAgrupacion() : "") +
     `\nTextos disponibles:\n\n${textos}`
+  );
+}
+
+
+// Segunda mirada al estudio elegido, con una sola pregunta. Al elegir, el
+// modelo es indulgente con su propia elección: el ROW, cuya frase dice "among
+// tests for supraspinatus tears", salía como la rotura del manguito entera, y
+// por eso no se abrían los textos completos donde estaba el metaanálisis.
+export const SISTEMA_ENTIDAD = `Revisas un único dato de un estudio de precisión diagnóstica. Te doy la entidad clínica preguntada, el test, el título y el resumen del artículo, y la frase de la que salen las cifras. Responde solo a esto: ¿esas cifras se midieron sobre la entidad preguntada entera, o sobre otra cosa?
+
+Es otra cosa, y mismaEntidad va en falso, cuando las cifras se midieron sobre:
+- una parte de la entidad: un tendón concreto, una localización o un tipo concreto de lesión (solo roturas del supraespinoso, solo del subescapular, posterosuperiores, parciales de lado bursal…, cuando se pregunta por rotura del manguito rotador);
+- una categoría más amplia que la incluye junto con otras cosas ("rotator cuff pathology", "shoulder pain");
+- una entidad relacionada (pinzamiento subacromial cuando se pregunta por rotura).
+
+Sigue siendo la entidad entera, y mismaEntidad va en verdadero:
+- su forma habitual o su definición estándar (roturas de espesor completo, cuando se pregunta por rotura del manguito);
+- una población o un contexto concretos (pacientes agudos, deportistas, atención primaria, candidatos a cirugía).
+
+Decide por la definición de caso del estudio: mira la frase citada, y si no lo aclara, el título y el resumen. Si el título restringe la entidad ("tears of the supraspinatus tendon") aunque la frase use el nombre general, manda el título. Si mismaEntidad es falso, di en entidadDeLasCifras, en español y en pocas palabras, qué se midió.`;
+
+export const ESQUEMA_ENTIDAD = {
+  type: "object",
+  properties: {
+    mismaEntidad: { type: "boolean" },
+    entidadDeLasCifras: { type: ["string", "null"], description: "Si mismaEntidad es falso, qué se midió. Null si no." },
+    motivo: { type: "string", description: "Una frase que lo justifique." },
+  },
+  required: ["mismaEntidad", "entidadDeLasCifras", "motivo"],
+  additionalProperties: false,
+};
+
+export function mensajeEntidad({ test, entidad, articulo, cita }) {
+  return (
+    `Entidad preguntada: ${entidad}\nTest: ${test}\n\n` +
+    `Título: ${articulo?.titulo || "no consta"}\n` +
+    `Resumen: ${recortarResumen(articulo?.resumen) || "(sin resumen disponible)"}\n\n` +
+    `Frase de la que salen las cifras: ${cita || "no consta"}`
   );
 }

@@ -14,6 +14,7 @@ import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
 import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/redaccion.js";
 import { depurarFuentes, rangoPublicado, comparableConCitado } from "./dominio/fuentes.js";
 import { avisoClasificadas } from "./ia/clasificacion.js";
+import { mensajeEntidad, SISTEMA_EXTRACCION } from "./ia/prompts.js";
 import { problemasDeCita } from "./dominio/trazabilidad.js";
 import { debeReactivar } from "./lib/contactos.js";
 
@@ -927,6 +928,18 @@ prueba("al modelo solo se le avisa de los artículos que tiene delante y ya est�
   assert.match(aviso, /PMID 2: mide una parte.*subescapular/);
   assert.doesNotMatch(aviso, /PMID 1|PMID 3/);
   assert.equal(avisoClasificadas(mapa, ["3"]), "");
+});
+
+prueba("la segunda mirada a la entidad ve el título, el resumen y la frase citada", () => {
+  const m = mensajeEntidad({
+    test: "Jobe test", entidad: "rotura del manguito rotador",
+    articulo: { titulo: "The ROW Cohort Study", resumen: "Among tests for supraspinatus tears…" },
+    cita: "Among tests for supraspinatus tears, Jobe test had a sensitivity of 88%",
+  });
+  assert.match(m, /ROW Cohort/);
+  assert.match(m, /Frase de la que salen las cifras: Among tests for supraspinatus tears/);
+  // Y la extracción sabe que frente a sanos casi todo parece perfecto.
+  assert.match(SISTEMA_EXTRACCION, /frente a personas sanas/);
 });
 
 prueba("lo que responde a otra pregunta es lo último, pero algo", () => {
