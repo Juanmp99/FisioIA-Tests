@@ -32,13 +32,20 @@ const esProporcion = (x) => typeof x === "number" && Number.isFinite(x) && x > 0
  * Tomarla al pie de la letra daría una razón de verosimilitud infinita y, con
  * ella, una certeza absoluta tras un solo test. Ningún estudio sostiene eso:
  * que no se vieran falsos positivos en una muestra no significa que no
- * existan. Se recorta una milésima, que deja una razón de verosimilitud
- * enorme pero finita y una conclusión que sigue siendo "confirma".
+ * existan, y un 100% casi siempre dice más del tamaño de la muestra que del
+ * test.
+ *
+ * Se calcula con 0,95. Es la regla de tres: con cero errores en n pacientes,
+ * la tasa real de error puede llegar a 3/n, y 0,95 corresponde a una muestra
+ * típica de unos sesenta. Antes se recortaba solo una milésima (0,999), y un
+ * lift-off que detecta una de cada ocho roturas, con una especificidad
+ * publicada del 100%, salía como "señal muy clara" y dejaba la sospecha casi
+ * en el 99% tras un positivo.
  *
  * Antes se rechazaba el dato entero por no ser "una proporción entre 0 y 1",
  * que además de tirar información buena era falso: 1 sí lo es.
  */
-export const CORRECCION = 0.999;
+export const CORRECCION = 0.95;
 
 const acotar = (x) => (x === 1 ? CORRECCION : x);
 
@@ -227,7 +234,7 @@ export function acotarParcial({ nivelPreTest, sn, sp, resultado }) {
       valor: `≈ ${pct(post)}%`,
       supuesto: `Se supone una ${haySn ? "especificidad" : "sensibilidad"} del 100%, el mejor valor posible para el dato que falta. No se ha medido ese valor en el estudio citado.`,
       ajuste: necesitaCorreccion(sn, sp)
-        ? "La cifra publicada de 1,00 se ajusta a 0,999 para hacer el cálculo."
+        ? "La cifra publicada de 1,00 se calcula como 0,95: un 100% en un estudio suele reflejar una muestra pequeña, no un test perfecto."
         : null,
       redondeo: Math.round(post * 100) !== pct(post)
         ? `La pantalla muestra ${pct(post)}% para evitar aparentar certeza absoluta. Es una convención de visualización, no un límite exacto.`

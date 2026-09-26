@@ -777,13 +777,14 @@ prueba("con el interruptor apagado no se reactiva a nadie", () => {
   assert.equal(debeReactivar({ baja: true, listas: [5, 10] }, { activo: false, newsletter: 10 }), false);
 });
 
-prueba("el límite ajustado explica el supuesto y el 99% de visualización", () => {
+prueba("el límite ajustado explica el supuesto, el ajuste del 100% y el redondeo", () => {
   const r = acotarParcial({ nivelPreTest: "media", sn: null, sp: 1, resultado: "positivo" });
   assert.match(r.orientacion.titulo, /Techo/);
-  assert.equal(r.orientacion.valor, "≈ 99%");
+  // Con la especificidad publicada del 100% calculada como 0,95.
+  assert.equal(r.orientacion.valor, "≈ 94%");
   assert.match(r.orientacion.supuesto, /sensibilidad del 100%/);
-  assert.match(r.orientacion.ajuste, /0,999/);
-  assert.match(r.orientacion.redondeo, /no un límite exacto/);
+  assert.match(r.orientacion.ajuste, /0,95/);
+  assert.match(r.orientacion.redondeo, /no es un límite exacto/);
   const negativo = acotarParcial({ nivelPreTest: "media", sn: .91, sp: null, resultado: "negativo" });
   assert.match(negativo.orientacion.titulo, /Límite inferior/);
   assert.match(negativo.orientacion.supuesto, /especificidad del 100%/);
@@ -797,8 +798,8 @@ prueba("la IA recibe el mismo límite y sus advertencias, o el motivo de no pode
   const ctx = vm.createContext({ acotarParcial, interpretar, pctMostrado });
   vm.runInContext(fuente.slice(inicio, fin), ctx);
   const datos = vm.runInContext('calculado({parcial:true, sn:null, sp:1}, "media", "positivo").datos', ctx);
-  assert.equal(datos.orientacionTeorica.valor, "≈ 99%");
-  assert.match(datos.orientacionTeorica.ajuste, /0,999/);
+  assert.equal(datos.orientacionTeorica.valor, "≈ 94%");
+  assert.match(datos.orientacionTeorica.ajuste, /0,95/);
   assert.equal(datos.laSospechaQuedaEn, undefined);
   const sinCota = vm.runInContext('calculado({parcial:true, sn:null, sp:1}, "media", "negativo").datos', ctx);
   assert.equal(sinCota.orientacionTeorica, null);

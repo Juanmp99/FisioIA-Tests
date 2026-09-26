@@ -4374,7 +4374,7 @@ button.sello.explica { font-size: .8125rem; }
         '<div class="calculo">' +
           pista("rv", nombre, "rv-pista", "razón de verosimilitud " + esc(x.cual) + " " + num(x.razonDeVerosimilitud)) +
           (x.corregida
-            ? "<br>precisión publicada del 100%: se calcula con 0,999 para no dar una certeza absoluta"
+            ? "<br>precisión publicada del 100%: se calcula con 0,95, porque un 100% en un estudio suele reflejar una muestra pequeña, no un test perfecto"
             : "") +
         "</div>" +
       "</div>";
