@@ -152,6 +152,22 @@ if (!soloDudosas && limpias.length) {
   limpias.forEach(ficha);
 }
 
+// Lo que ha cambiado la revisión periódica. Nadie aprueba esos cambios antes
+// de que se publiquen, así que se enseñan aquí, con la orden para deshacerlos.
+const revisiones = (await todos("revision")).filter((r) => (r.historial || []).some((h) => h.cambia));
+if (revisiones.length) {
+  console.log("\n\n" + "#".repeat(78));
+  console.log("CAMBIOS DE LA REVISIÓN PERIÓDICA — lo que se ha sustituido solo");
+  console.log("#".repeat(78));
+  for (const r of revisiones) {
+    const h = r.historial.find((x) => x.cambia);
+    console.log(`\n  ${r.test || "?"} · ${r.entidad || "?"} · ${h.fecha.slice(0, 10)}`);
+    console.log(`    antes:   ${h.antes?.titulo || "?"} (${h.antes?.tipoEstudio || "?"}) Sn ${num(h.antes?.sn)} Sp ${num(h.antes?.sp)}`);
+    console.log(`    ahora:   ${h.despues?.titulo || "?"} (${h.despues?.tipoEstudio || "?"}) Sn ${num(h.despues?.sn)} Sp ${num(h.despues?.sp)}`);
+    if (r.anterior) console.log(`    deshacer: npm run deshacer -- "${r.clave}"`);
+  }
+}
+
 console.log("\n" + "=".repeat(78));
 console.log("Qué comprobar a mano en cada ficha:");
 console.log("  1. Que la frase citada dice lo que dice, abriendo el enlace de PubMed.");

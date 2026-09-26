@@ -15,6 +15,8 @@ import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/
 import { depurarFuentes, rangoPublicado, comparableConCitado } from "./dominio/fuentes.js";
 import { avisoClasificadas } from "./ia/clasificacion.js";
 import { mensajeEntidad, SISTEMA_EXTRACCION } from "./ia/prompts.js";
+import { tocaRevisar, juntarFuentes, CADA_CONSULTAS } from "./ia/revision.js";
+import { supera } from "./ia/evidencia.js";
 import { problemasDeCita } from "./dominio/trazabilidad.js";
 import { debeReactivar } from "./lib/contactos.js";
 
@@ -940,6 +942,46 @@ prueba("la segunda mirada a la entidad ve el título, el resumen y la frase cita
   assert.match(m, /Frase de la que salen las cifras: Among tests for supraspinatus tears/);
   // Y la extracción sabe que frente a sanos casi todo parece perfecto.
   assert.match(SISTEMA_EXTRACCION, /frente a personas sanas/);
+});
+
+prueba("la revisión periódica toca cada tantas consultas, y como mucho una vez al mes", () => {
+  const hace = (dias) => new Date(Date.now() - dias * 86400000).toISOString();
+  const guardado = { hayCifras: true, fecha: hace(60) };
+  assert.equal(tocaRevisar({ consultas: CADA_CONSULTAS - 1 }, guardado), false);
+  assert.equal(tocaRevisar({ consultas: CADA_CONSULTAS }, guardado), true);
+  // Revisado hace diez días: aunque se consulte mucho, espera.
+  assert.equal(tocaRevisar({ consultas: 40, ultima: hace(10) }, guardado), false);
+  // Ya hay una en marcha.
+  assert.equal(tocaRevisar({ consultas: 40, pendiente: new Date().toISOString() }, guardado), false);
+  // Lo que no tiene cifras ya caduca solo: no se revisa por aquí.
+  assert.equal(tocaRevisar({ consultas: 40 }, { hayCifras: false, fecha: hace(60) }), false);
+});
+
+prueba("lo nuevo solo sustituye a lo que había si es estrictamente mejor", () => {
+  const ev = (o) => ({ hayCifras: true, sn: 0.6, sp: 0.6, indirecta: false, trazable: true,
+    valoracion: { tipoEstudio: "estudio_primario", numeroEstudios: 1 }, calidad: { id: "ambar" }, ...o });
+  const primario = ev({});
+  const revision = ev({ valoracion: { tipoEstudio: "revision_sistematica", numeroEstudios: 3 }, calidad: { id: "verde" } });
+  // El metaanálisis del Jobe gana al estudio primario.
+  assert.equal(supera(revision, primario), true);
+  assert.equal(supera(primario, revision), false);
+  // Una revisión que mide una parte no gana a un primario que mide la patología entera.
+  assert.equal(supera(ev({ indirecta: true, valoracion: { tipoEstudio: "revision_sistematica", numeroEstudios: 9 } }), primario), false);
+  // Empate: se queda lo que había.
+  assert.equal(supera(ev({}), primario), false);
+  // Media cifra no gana a las dos.
+  assert.equal(supera(ev({ sp: null }), primario), false);
+  // Lo que no se puede comprobar no entra.
+  assert.equal(supera({ ...revision, trazable: false }, primario), false);
+});
+
+prueba("al sustituir, el estudio de antes pasa a otros estudios", () => {
+  const viejo = { hayCifras: true, sn: 0.85, sp: 0.45, indirecta: false, citaLiteral: "Jobe 84.9 45.4",
+    cita: { pmid: "1", titulo: "Primario" }, valoracion: { tipoEstudio: "estudio_primario", numeroEstudios: 1 },
+    otrasFuentes: [{ pmid: "2" }, { pmid: "3" }] };
+  const nuevo = { cita: { pmid: "3" }, otrasFuentes: [{ pmid: "4" }] };
+  assert.deepEqual(juntarFuentes(nuevo, viejo).map((o) => o.pmid), ["4", "1", "2"]);
+  assert.equal(juntarFuentes(nuevo, viejo)[1].sn, 0.85);
 });
 
 prueba("lo que responde a otra pregunta es lo último, pero algo", () => {

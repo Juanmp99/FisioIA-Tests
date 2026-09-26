@@ -1639,6 +1639,7 @@ button.sello.explica { font-size: .8125rem; }
   display: flex; gap: 10px; align-items: flex-start;
 }
 .fuente a { color: var(--tinta-media); }
+.fuente-revisada { display: block; margin-top: 4px; font-size: .75rem; color: var(--tinta-tenue); }
 .fuente-matiz {
   display: block; margin-top: 6px; font-size: .75rem; color: var(--ambar);
 }
@@ -3854,6 +3855,13 @@ button.sello.explica { font-size: .8125rem; }
   }
 
   /** La cita, siempre visible. Es lo que permite comprobar el número. */
+  function fechaCorta(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return "";
+    var meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    return d.getDate() + " de " + meses[d.getMonth()] + " de " + d.getFullYear();
+  }
+
   function fuente(ev) {
     if (!ev) return "";
 
@@ -3887,6 +3895,9 @@ button.sello.explica { font-size: .8125rem; }
         /systematic review|meta-?analy|revisi[oó]n sistem|metaan[aá]lisis/i.test(ev.cita.titulo || "")
         ? '<span class="fuente-matiz">La cifra es la de uno de los estudios que reúne esta revisión, no la agrupada.</span>'
         : "") +
+      // La base se revisa sola cada cierto número de consultas, y cuando algo
+      // mejor sustituye a lo que había, se dice cuándo.
+      (ev.revisadaEl ? '<span class="fuente-revisada">Evidencia actualizada el ' + esc(fechaCorta(ev.revisadaEl)) + "</span>" : "") +
       otrasCifras(ev) +
       resto +
     "</span></div>";

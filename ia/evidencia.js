@@ -92,7 +92,7 @@ export function trazable(d) {
  * Antes se seguía el orden de PubMed y se probaban los cuatro primeros; en el
  * arco doloroso, el estudio que tenía la cifra estaba el decimoquinto.
  */
-export function ordenarPorPromesa(articulos, { nombresTest = [], terminos = [] }) {
+export function ordenarPorPromesa(articulos, { nombresTest = [], terminos = [], preferirRevisiones = false }) {
   const norma = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const palabras = (lista) => lista.map(norma).filter(Boolean);
   const tests = palabras(nombresTest);
@@ -103,12 +103,40 @@ export function ordenarPorPromesa(articulos, { nombresTest = [], terminos = [] }
     if (tests.some((t) => texto.includes(t))) p += 3;
     if (entidad.some((t) => texto.includes(t))) p += 2;
     if (/sensitiv|specific|diagnostic accuracy|likelihood ratio|clinical tests?/.test(texto)) p += 1;
+    // En la revisión periódica se busca justo lo que la primera vez no se
+    // abrió: el metaanálisis cuya cifra está en una tabla.
+    if (preferirRevisiones && esRevisionPublicada(a)) p += 4;
     return p;
   };
   return articulos
     .map((a, i) => ({ a, i, p: puntos(a) }))
     .sort((x, y) => y.p - x.p || x.i - y.i)
     .map((x) => x.a);
+}
+
+const esRevisionPublicada = (a) => (a?.tipos || []).some((t) => /systematic review|meta-analysis/i.test(t));
+
+/**
+ * ¿Es un resultado guardado mejor que otro? Se comparan en este orden, y el
+ * primero que decide, decide: que haya las dos cifras y midan la patología
+ * entera; que sea una revisión frente a un estudio primario; cuántos estudios
+ * reúne; y el color de la calidad. Solo gana lo que es estrictamente mejor: un
+ * empate deja lo que había.
+ */
+const ORDEN_CALIDAD = { verde: 3, ambar: 2, rojo: 1 };
+function escalones(ev) {
+  if (!ev?.hayCifras) return [0, 0, 0, 0];
+  const dos = typeof ev.sn === "number" && typeof ev.sp === "number";
+  const nivel = dos ? (ev.indirecta ? 4 : 5) : ev.indirecta ? 2 : 3;
+  const revision = ev.valoracion?.tipoEstudio === "revision_sistematica" ? 1 : 0;
+  return [nivel, revision, Number(ev.valoracion?.numeroEstudios) || 0, ORDEN_CALIDAD[ev.calidad?.id] || 0];
+}
+export function supera(nuevo, viejo) {
+  if (!nuevo?.hayCifras || nuevo.trazable === false) return false;
+  const a = escalones(nuevo);
+  const b = escalones(viejo);
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] > b[i];
+  return false;
 }
 
 /** Cuántos textos completos se abren para mejorar algo que ya se tiene. */
@@ -269,7 +297,7 @@ export async function deLaBase(k) {
  * Los resultados sin cifras también se guardan, para no repetir una búsqueda
  * infructuosa en cada consulta, pero caducan: la literatura crece.
  */
-export async function evidenciaDe({ test, busqueda, nombresTest, entidad, terminos, tipo, componentes, bateria, senal }) {
+export async function evidenciaDe({ test, busqueda, nombresTest, entidad, terminos, tipo, componentes, bateria, senal, revision = null }) {
   const esAgrupacion = tipo === "agrupacion";
   const inicio = Date.now();
 
@@ -299,15 +327,19 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   const lista = terminosUtiles({ entidad, terminos });
   const termino = lista[0];
   const k = clave(consulta, termino);
-  const anotar = (valor) => guardar(k, valor, { test: consulta, entidad: termino });
+  // En una revisión periódica no se guarda nada aquí: el resultado nuevo se
+  // compara antes con el que había, y quien decide es ia/revision.js.
+  const anotar = (valor) => (revision ? null : guardar(k, valor, { test: consulta, entidad: termino }));
 
-  const guardado = await deLaBase(k);
-  if (guardado) return { ...guardado, deCache: true };
+  if (!revision) {
+    const guardado = await deLaBase(k);
+    if (guardado) return { ...guardado, deCache: true };
+  }
 
   let articulos = [];
   let estrategia = "sin_resultados";
   try {
-    const hallazgo = await buscarPrecision({ test: consulta, nombresTest, terminos: lista, senal: conPlazo() });
+    const hallazgo = await buscarPrecision({ test: consulta, nombresTest, terminos: lista, senal: conPlazo(), revision });
     articulos = hallazgo.articulos;
     estrategia = hallazgo.estrategia;
   } catch (e) {
@@ -486,9 +518,13 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   let deRescate = null;
   const sinCifras = !datos.encontrado || (!tieneSn && !tieneSp);
   const utilidadInicial = valor(datos);
-  const buscarMejor = utilidadInicial < UTILIDAD_MAXIMA;
+  // En la revisión periódica, lo completo y directo tampoco basta si no es una
+  // revisión: se sigue buscando una que lo supere.
+  const buscarMejor = utilidadInicial < UTILIDAD_MAXIMA || (revision && datos.tipoEstudio !== "revision_sistematica");
   // Con algo ya en la mano, se prueban unos pocos: es mejorar, no rescatar.
-  const tope = sinCifras ? Infinity : INTENTOS_MEJORA;
+  // En la revisión periódica, dos más: nadie espera, y las revisiones van
+  // delante pero no siempre están en abierto.
+  const tope = sinCifras ? Infinity : INTENTOS_MEJORA + (revision ? 2 : 0);
   let probados = 0;
 
   if (buscarMejor && !cabeOtraExtraccion()) {
@@ -505,7 +541,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
     // aprovecha solo, y si es más corto, no se pasa.
     const candidatos = ordenarPorPromesa(
       articulos.filter((a) => disponibles.has(a.pmid)),
-      { nombresTest: [test, consulta, ...(nombresTest || [])], terminos: lista },
+      { nombresTest: [test, consulta, ...(nombresTest || [])], terminos: lista, preferirRevisiones: Boolean(revision) },
     );
 
     if (!candidatos.length) {
@@ -533,11 +569,17 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
         // que trae lo mismo, o algo peor, deja el resultado como estaba.
         // Lo que dice medir la entidad entera se comprueba antes de compararlo:
         // si no, un texto completo sobre una parte desplazaría a lo que hay.
-        if (utilidad(otra.datos) > valor(datos) && otra.datos?.mismaEntidad !== false) {
+        if ((utilidad(otra.datos) > valor(datos) || (revision && utilidad(otra.datos) === valor(datos))) &&
+            otra.datos?.mismaEntidad !== false) {
           otra.datos = await confirmarEntidad(otra.datos);
         }
         const u = utilidad(otra.datos);
-        if (u > valor(datos) && coherencia(otra.datos).valido && aceptable(otra.datos)) {
+        // Mejor es más útil; y en la revisión periódica, también igual de útil
+        // pero una revisión sistemática frente a un estudio primario.
+        const mejora = u > valor(datos) ||
+          (revision && u === valor(datos) && u > 0 &&
+            otra.datos?.tipoEstudio === "revision_sistematica" && datos.tipoEstudio !== "revision_sistematica");
+        if (mejora && coherencia(otra.datos).valido && aceptable(otra.datos)) {
           // Las otras fuentes que ya se habían visto en los resúmenes no se
           // pierden: la extracción nueva solo ha leído un artículo.
           // Tampoco el que se había elegido: pasa a estar entre los otros. Si
@@ -558,7 +600,7 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
           datos.otrasFuentes = [...(datos.otrasFuentes || []), ...previas];
           deRescate = completo.pmcid;
           console.warn(`[rescate] ${test}: el texto completo de ${fuente.pmid} mejora lo que había (${utilidadInicial} → ${u})`);
-          if (u === UTILIDAD_MAXIMA) break;
+          if (u === UTILIDAD_MAXIMA && (!revision || datos.tipoEstudio === "revision_sistematica")) break;
         }
       } catch (e) {
         console.warn(`[rescate] ${test}: ${e.message}`);
@@ -773,7 +815,12 @@ export async function evidenciaDe({ test, busqueda, nombresTest, entidad, termin
   );
 
   await anotar(resultado);
-  return resultado;
+  return revision ? { ...resultado, test: consulta, entidad: termino } : resultado;
+}
+
+/** Para ia/revision.js: guarda un resultado revisado en su clave, con su identidad. */
+export async function guardarEvidencia(k, valor) {
+  await guardar(k, valor, { test: valor.test, entidad: valor.entidad });
 }
 
 export async function tamanoCache() {

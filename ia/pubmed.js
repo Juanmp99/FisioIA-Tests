@@ -175,7 +175,7 @@ function clausulaOr(terminos) {
  * de más no protege de nada: el control de calidad está después, en la extracción
  * y en el semáforo. Aquí lo único que importa es no perder el artículo bueno.
  */
-export async function buscarPrecision({ test, nombresTest, terminos, senal }) {
+export async function buscarPrecision({ test, nombresTest, terminos, senal, revision = null }) {
   const nombres = [test, ...(Array.isArray(nombresTest) ? nombresTest : [])];
   const lista = Array.isArray(terminos) ? terminos : [terminos];
   const t = clausulaOr(nombres);
@@ -230,7 +230,19 @@ export async function buscarPrecision({ test, nombresTest, terminos, senal }) {
 
     // Se deja de ensanchar cuando hay de sobra para llenar los huecos que no
     // se reservan a la búsqueda en el cuerpo. Antes bastaba con uno.
-    if (revisiones.length + generales.length >= ARTICULOS_MAX - CUERPO_COMPLETO_MAX) break;
+    // En una revisión periódica no se para: lo que se busca es justo lo que
+    // la primera vez quedó fuera por haber llenado los huecos antes.
+    if (!revision && revisiones.length + generales.length >= ARTICULOS_MAX - CUERPO_COMPLETO_MAX) break;
+  }
+
+  // Lo publicado desde la última vez que se miró. Es la única forma de que
+  // un estudio nuevo llegue a competir con lo que ya estaba.
+  const recientes = [];
+  if (revision?.desde) {
+    const desde = String(revision.desde).slice(0, 10).replace(/-/g, "/");
+    const nuevos = await buscarIds(`${t} AND ${entidad} AND ("${desde}"[dp] : "3000"[dp])`, REVISIONES_MAX, senal);
+    await esperar(PAUSA);
+    for (const id of nuevos) if (!revisiones.includes(id)) recientes.push(id);
   }
 
   const cuerpo = await deCuerpoCompleto;
@@ -239,13 +251,13 @@ export async function buscarPrecision({ test, nombresTest, terminos, senal }) {
   // lo que aportó la búsqueda en el cuerpo, que desplaza a los últimos
   // resultados de PubMed y no a los primeros: si algo sobra de una lista
   // ordenada por relevancia, es la cola.
-  const ids = [...new Set([...revisiones, ...cuerpo, ...generales])].slice(0, ARTICULOS_MAX);
+  const ids = [...new Set([...revisiones, ...recientes, ...cuerpo, ...generales])].slice(0, ARTICULOS_MAX);
   if (!ids.length) return { articulos: [], estrategia: "sin_resultados", deCuerpoCompleto: 0 };
 
   const articulos = await traer(ids, senal);
   const porId = new Map(articulos.map((a) => [a.pmid, a]));
   const aportados = cuerpo.filter(
-    (id) => ids.includes(id) && !revisiones.includes(id) && !generales.includes(id),
+    (id) => ids.includes(id) && !revisiones.includes(id) && !recientes.includes(id) && !generales.includes(id),
   );
 
   return {

@@ -11,7 +11,7 @@
 // búsquedas. La caché ya era la cola de resultados sin que nadie lo hubiera
 // planeado.
 
-import { evidencia } from "../../lib/asistente.js";
+import { evidencia, revisarEvidencia } from "../../lib/asistente.js";
 import { claveDe, deLaBase } from "../../ia/evidencia.js";
 import { marcarFallo, olvidar } from "../../lib/encurso.js";
 import { cuerpoJson, conAcceso, cobrar, devolver } from "../../lib/http.js";
@@ -37,6 +37,19 @@ export default async (req) => {
   const puerta = await conAcceso(req);
   if (puerta.respuesta) {
     await marcarFallo(k, "Tu acceso ya no es válido.", false);
+    return new Response(null, { status: 202 });
+  }
+
+  // La revisión periódica no la paga quien hizo la consulta: es mantenimiento
+  // de la base. Tampoco toca las marcas de trabajos en curso, porque el test
+  // ya tiene su resultado. Solo se revisa lo que el despachador dejó marcado
+  // como pendiente, así que llamar aquí a mano no lanza nada.
+  if (cuerpo.revisar) {
+    try {
+      await revisarEvidencia({ entidad, terminos, elemento });
+    } catch (e) {
+      console.error("[revision]", e);
+    }
     return new Response(null, { status: 202 });
   }
 

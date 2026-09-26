@@ -15,6 +15,7 @@
 
 import { claveDe, deLaBase, enriquecer } from "../../ia/evidencia.js";
 import { estadoDe, marcarEnCurso, olvidar } from "../../lib/encurso.js";
+import { contarConsulta } from "../../ia/revision.js";
 import { json, error, cuerpoJson, conAcceso, tokenDe } from "../../lib/http.js";
 
 export default async (req) => {
@@ -44,6 +45,21 @@ export default async (req) => {
   const guardado = await deLaBase(k);
   if (guardado) {
     await olvidar(k);
+    // Se cuenta la consulta y, cada tantas, se lanza por detrás una búsqueda
+    // que intenta superar lo guardado. Quien pregunta no espera a nada de eso,
+    // y si falla, lo guardado sigue ahí.
+    try {
+      if (await contarConsulta(k, guardado)) {
+        const destino = new URL("/api/evidencia-trabajo", req.url).toString();
+        await fetch(destino, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-acceso": tokenDe(req) },
+          body: JSON.stringify({ entidad, terminosBusqueda: terminos, elemento, revisar: true }),
+        });
+      }
+    } catch (e) {
+      console.warn("[revision] no se ha podido lanzar", e?.message);
+    }
     return json({ estado: "listo", evidencia: enriquecer({ ...guardado, deCache: true }) });
   }
 

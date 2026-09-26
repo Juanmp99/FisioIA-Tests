@@ -22,6 +22,7 @@ const CONOCIDOS = {
   explicacion: "las explicaciones personalizadas de cada test (redactadas con IA)",
   conclusion: "los veredictos de la conclusión por combinación (redactados con IA)",
   clasificacion: "qué mide cada artículo (la patología entera o una parte), decidido una vez por patología",
+  revision: "cuántas veces se ha consultado cada test, cuándo se revisó y qué cambió (con la versión anterior)",
   curso: "las marcas de búsquedas en marcha (se borran solas; vaciarlas desatasca)",
 };
 
