@@ -2241,7 +2241,7 @@ button.sello.explica { font-size: .8125rem; }
         // entra. Lo manda el servidor; el píxel, con el mismo identificador,
         // solo si se aceptaron las cookies.
         if (d.primeraVez && window.fisioiaMedir) {
-          window.fisioiaMedir("CompleteRegistration", { content_name: "Copiloto de Exploración" }, { eventID: meta.id });
+          window.fisioiaMedir("CompleteRegistration", {}, { eventID: meta.id });
         }
       })
       .catch(function () {});

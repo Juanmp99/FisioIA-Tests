@@ -11,6 +11,11 @@
   "use strict";
 
   var PIXEL = "1202847511931978";
+  // Nombre del producto en los eventos de conversión. El píxel lo comparten
+  // varios productos de FisioIA y la agencia separa las conversiones de cada
+  // uno por este valor. DEBE coincidir con CONTENT_NAME de lib/meta.js (el
+  // servidor) y con lo que se le pasó a la agencia: sin tilde, tal cual.
+  var CONTENT_NAME = "Copiloto de exploracion";
   var CLAVE = "fisioia.cookies";
 
   function leer() {
@@ -43,7 +48,9 @@
   // dos veces.
   window.fisioiaMedir = function (evento, datos, opciones) {
     if (leer() !== "si" || !window.fbq) return;
-    window.fbq("track", evento, datos || {}, opciones || {});
+    var d = datos || {};
+    if (!d.content_name) d.content_name = CONTENT_NAME;
+    window.fbq("track", evento, d, opciones || {});
   };
 
   // Lo que el servidor necesita para que Meta sepa de qué anuncio viene cada

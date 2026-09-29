@@ -2105,7 +2105,7 @@ footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
         // Cliente potencial para Meta, cuando el alta está confirmada. Lo manda
         // siempre el servidor; el píxel, además, si se aceptaron las cookies,
         // con el mismo identificador para que cuente una sola vez.
-        if (window.fisioiaMedir) window.fisioiaMedir("Lead", { content_name: "Copiloto de Exploración" }, { eventID: meta.id });
+        if (window.fisioiaMedir) window.fisioiaMedir("Lead", {}, { eventID: meta.id });
         // Quien se apunta desde abajo ve la confirmación donde está; solo el
         // de arriba (y la barra, que no tiene sitio) llevan a la tarjeta grande.
         var origen = form.getAttribute("data-origen");
