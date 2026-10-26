@@ -12,6 +12,7 @@
 
 import { darDeBajaComercial } from "../../lib/contactos.js";
 import { json, error, cuerpoJson } from "../../lib/http.js";
+import { avisarCrm, esPrueba } from "../../lib/crm.js";
 
 /** Eventos que significan «no quiero correos vuestros». */
 const DE_BAJA = new Set(["unsubscribed", "spam"]);
@@ -41,6 +42,14 @@ export default async (req) => {
       const resultado = await darDeBajaComercial(correo);
       console.log(`[baja] ${correo}: ${a.event} en un transaccional → ${resultado}`);
       hechos.push({ correo, resultado });
+      const fecha = new Date().toISOString().slice(0, 10);
+      await avisarCrm({
+        id: `copiloto-baja-${correo}-${fecha}`,
+        tipo: "baja",
+        correo,
+        resumen: "Se dio de baja de los correos del copiloto",
+        prueba: esPrueba({ correo }),
+      });
     } catch (e) {
       // Un 5xx hace que Brevo reintente el aviso más tarde.
       console.error(`[baja] ${correo}: no se pudo marcar la baja`, e.message);

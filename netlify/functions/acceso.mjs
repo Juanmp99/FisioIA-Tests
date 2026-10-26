@@ -10,6 +10,7 @@ import { enviarAcceso, proveedorCorreo } from "../../lib/correo.js";
 import { leer, escribir, limpiar } from "../../lib/almacen.js";
 import { json, error, cuerpoJson } from "../../lib/http.js";
 import { enviarEvento } from "../../lib/meta.js";
+import { avisarCrm, esPrueba } from "../../lib/crm.js";
 
 /** Altas por dirección IP y día. Frena el registro automatizado masivo. */
 const ALTAS_POR_IP = Number(process.env.ALTAS_POR_IP) || 8;
@@ -114,22 +115,36 @@ export default async (req, context) => {
       );
     }
 
-    await contarOrigen(ORIGENES.has(cuerpo.origen) ? cuerpo.origen : "otro", dia);
+    const origen = ORIGENES.has(cuerpo.origen) ? cuerpo.origen : "otro";
+    await contarOrigen(origen, dia);
 
     // Cliente potencial para Meta, desde el servidor: llega aunque la persona
     // no aceptara cookies o tenga un bloqueador. El navegador manda el mismo
     // identificador con el píxel, si lo tiene, y Meta se queda con uno.
+    //
+    // Y el alta al CRM de FisioIA. Las dos a la vez: ninguna lanza y cada una
+    // tiene su propio tope de tiempo.
     const meta = cuerpo.meta || {};
-    await enviarEvento({
-      evento: "Lead",
-      idEvento: meta.id,
-      correo,
-      ip,
-      navegador: req.headers.get("user-agent"),
-      fbc: meta.fbc,
-      fbp: meta.fbp,
-      url: meta.url,
-    });
+    await Promise.all([
+      enviarEvento({
+        evento: "Lead",
+        idEvento: meta.id,
+        correo,
+        ip,
+        navegador: req.headers.get("user-agent"),
+        fbc: meta.fbc,
+        fbp: meta.fbp,
+        url: meta.url,
+      }),
+      avisarCrm({
+        id: `copiloto-registro-${correo}`,
+        tipo: "registro",
+        correo,
+        resumen: "Pidió acceso al copiloto de exploración",
+        datos: { origen },
+        prueba: esPrueba({ correo }),
+      }),
+    ]);
 
     return json({ ok: true, correo });
   } catch (e) {

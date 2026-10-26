@@ -1,6 +1,9 @@
 // Primer tiempo: de la sospecha a la batería de tests.
 
+import crypto from "node:crypto";
+
 import { bateria } from "../../lib/asistente.js";
+import { avisarCrm, esPrueba } from "../../lib/crm.js";
 import { json, error, cuerpoJson, conAcceso, cobrar, devolver } from "../../lib/http.js";
 
 export default async (req) => {
@@ -25,6 +28,18 @@ export default async (req) => {
 
   try {
     const r = await bateria(sospecha);
+
+    // Cada batería pedida, al CRM. Va la entidad que ha reconocido el modelo y
+    // su región, nunca lo que escribió el fisioterapeuta: ese texto libre
+    // puede llevar datos del paciente.
+    await avisarCrm({
+      id: `copiloto-consulta-${crypto.randomUUID()}`,
+      tipo: "consulta",
+      correo: puerta.registro.correo,
+      resumen: "Pidió una batería de tests",
+      datos: { sospecha: r.entidad || null, region: r.region || null, resultado: r.estado || "ok" },
+      prueba: esPrueba({ correo: puerta.registro.correo, registro: puerta.registro }),
+    });
 
     // La sospecha ya estaba en el registro: no se ha llamado al modelo y no ha
     // costado nada, así que se devuelve la consulta reservada.
