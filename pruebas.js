@@ -2,18 +2,23 @@
 // conclusión clínica, y tiene que poder comprobarse en un segundo.
 
 import assert from "node:assert/strict";
-import {
-  PRE_TEST,
-  razonesDeVerosimilitud,
-  validarPrecision,
-  postTest,
-  magnitud,
-  interpretar,
-  validarParcial,
-} from "./dominio/probabilidad.js";
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+import { PRE_TEST, razonesDeVerosimilitud, validarPrecision, postTest, magnitud, interpretar, validarParcial, necesitaCorreccion, pctMostrado, CORRECCION, acotarParcial } from "./dominio/probabilidad.js";
 import { semaforo } from "./dominio/calidad.js";
 import { banderasPara } from "./dominio/banderas.js";
 import { coincidencia } from "./ia/entidades.js";
+import { mereceTextoCompleto, utilidad, coherencia, trazable, ordenarPorPromesa } from "./ia/evidencia.js";
+import { promete } from "./ia/europepmc.js";
+import { comprobarAgrupacion, mismoTest } from "./dominio/agrupaciones.js";
+import { numerosPermitidos, comprobarNumeros, hablaAlPaciente } from "./dominio/redaccion.js";
+import { depurarFuentes, rangoPublicado, comparableConCitado } from "./dominio/fuentes.js";
+import { avisoClasificadas } from "./ia/clasificacion.js";
+import { mensajeEntidad, SISTEMA_EXTRACCION } from "./ia/prompts.js";
+import { tocaRevisar, juntarFuentes, conPendienteCaducada, CADA_CONSULTAS } from "./ia/revision.js";
+import { supera } from "./ia/evidencia.js";
+import { problemasDeCita } from "./dominio/trazabilidad.js";
+import { debeReactivar } from "./lib/contactos.js";
 
 let pasadas = 0;
 const cerca = (a, b, t = 0.01) => Math.abs(a - b) < t;
@@ -213,6 +218,211 @@ prueba("toda bandera trae señales y acción", () => {
   }
 });
 
+console.log("\nOrdenación de lo que encuentra Europe PMC");
+
+// Su API no ordena por relevancia, solo por fecha. Estas pruebas fijan el
+// criterio con el que se reordena, que es lo único que separa el estudio de
+// precisión del artículo quirúrgico reciente que nombra el test de pasada.
+
+prueba("un estudio de precisión diagnóstica puntúa alto", () => {
+  const p = promete({
+    title: "Diagnostic accuracy of clinical tests for rotator cuff tear",
+    abstractText: "Sensitivity and specificity were calculated against MRI.",
+  });
+  assert.ok(p >= 5, `esperaba 5 o más, salió ${p}`);
+});
+
+prueba("una técnica quirúrgica que nombra el test de pasada se queda fuera", () => {
+  const p = promete({
+    title: "Modified arthroscopic technique for repair of medial meniscus posterior root tears",
+    abstractText: "We describe a new repair technique and report outcomes at two years.",
+  });
+  assert.ok(p <= 0, `esperaba 0 o menos, salió ${p}`);
+});
+
+prueba("una revisión sistemática de precisión gana a un estudio primario igual", () => {
+  const comun = { abstractText: "Pooled sensitivity and specificity are reported." };
+  const revision = promete({ ...comun, title: "Diagnostic accuracy of provocative maneuvers: a systematic review" });
+  const primario = promete({ ...comun, title: "Diagnostic accuracy of provocative maneuvers" });
+  assert.ok(revision > primario);
+});
+
+prueba("no premia que el test aparezca en el título", () => {
+  // Es el punto entero de venir aquí: el artículo que interesa es el que
+  // estudia la exploración entera y publica el test en una tabla que el
+  // resumen no menciona. Premiar el título sería premiar lo que ya da PubMed.
+  const conNombre = promete({ title: "The Thessaly test: diagnostic accuracy", abstractText: "" });
+  const sinNombre = promete({ title: "Diagnostic accuracy of the knee examination", abstractText: "" });
+  assert.equal(conNombre, sinNombre);
+});
+
+prueba("un artículo de tratamiento que además mide precisión no se descarta", () => {
+  const p = promete({
+    title: "Diagnostic accuracy of physical examination before arthroscopic repair",
+    abstractText: "Sensitivity and specificity against arthroscopic findings.",
+  });
+  assert.ok(p > 0, `esperaba más de 0, salió ${p}`);
+});
+
+prueba("lo que no habla de diagnóstico ni de exploración no puntúa", () => {
+  assert.equal(promete({ title: "Epidemiology of knee pain in runners", abstractText: "A cohort study." }), 0);
+});
+
+console.log("\nAgrupaciones: que el artículo mida lo que decimos");
+
+// Una agrupación son unos tests concretos bajo una regla concreta. "Dos de
+// estos tres" y "los tres" son pruebas distintas con especificidades muy
+// distintas, así que llamar validada a una agrupación sin comprobar ninguna de
+// las dos cosas es prometer más de lo comprobado.
+
+prueba("el mismo test con nombres distintos no cuenta como discrepancia", () => {
+  assert.equal(mismoTest("Joint line tenderness", "Palpación de la interlínea articular"), true);
+  assert.equal(mismoTest("Jobe (empty can)", "Empty can test"), true);
+  assert.equal(mismoTest("Hoffmann-Tinel sign", "Tinel"), true);
+});
+
+prueba("dos tests distintos no se confunden", () => {
+  assert.equal(mismoTest("McMurray test", "Thessaly test"), false);
+  assert.equal(mismoTest("full can test", "empty can test"), false);
+});
+
+prueba("coincide cuando el artículo mide los mismos tests y dice la regla", () => {
+  const r = comprobarAgrupacion({
+    propuestos: ["Joint line tenderness", "McMurray test", "Pain with forced flexion"],
+    delArticulo: ["joint line tenderness", "McMurray sign", "pain with forced flexion"],
+    criterio: "at least two of the three positive",
+  });
+  assert.equal(r.coincide, true);
+});
+
+prueba("no coincide si el artículo combina otros tests", () => {
+  const r = comprobarAgrupacion({
+    propuestos: ["Joint line tenderness", "McMurray test", "Pain with forced flexion"],
+    delArticulo: ["joint line tenderness", "McMurray test", "Apley compression"],
+    criterio: "two of three",
+  });
+  assert.equal(r.coincide, false);
+  assert.deepEqual(r.sobran, ["Apley compression"]);
+  assert.deepEqual(r.faltan, ["Pain with forced flexion"]);
+});
+
+prueba("los mismos tests pero sin regla publicada tampoco es coincidir", () => {
+  // Sin saber cuántos positivos hacen falta, las cifras no son interpretables:
+  // "dos de tres" y "tres de tres" tienen especificidades muy distintas.
+  const r = comprobarAgrupacion({
+    propuestos: ["McMurray test", "Thessaly test"],
+    delArticulo: ["McMurray test", "Thessaly test"],
+    criterio: "",
+  });
+  assert.equal(r.coincide, false);
+  assert.match(r.motivo, /cuántos positivos/);
+});
+
+prueba("si el artículo no enumera lo que combina, no hay nada que comparar", () => {
+  const r = comprobarAgrupacion({
+    propuestos: ["McMurray test", "Thessaly test"],
+    delArticulo: [],
+    criterio: "two of three",
+  });
+  assert.equal(r.descrita, false);
+  assert.equal(r.coincide, false);
+});
+
+prueba("cada componente se devuelve con el nombre que lleva en la batería", () => {
+  const r = comprobarAgrupacion({
+    propuestos: ["Joint line tenderness", "Pain with forced flexion"],
+    delArticulo: ["joint line tenderness", "pain with forced flexion"],
+    criterio: "two of two",
+    bateria: ["Palpación de la interlínea articular", "McMurray"],
+  });
+  assert.equal(r.equivalencias[0].enBateria, "Palpación de la interlínea articular");
+  assert.equal(r.equivalencias[1].enBateria, null);
+});
+
+// Ejecuta las funciones reales de presentación sin red ni llamadas al modelo.
+const pagina = readFileSync(new URL("./publico/app.html", import.meta.url), "utf8");
+function funcionUI(nombre) {
+  const inicio = pagina.indexOf("  function " + nombre + "(");
+  const fin = pagina.indexOf("\n  function ", inicio + 1);
+  return pagina.slice(inicio, fin);
+}
+const contextoUI = vm.createContext({
+  estado: { entidad: "menisco", tests: [{ nombre: "Ege" }, { nombre: "Otro" }], evidencias: {}, explicaciones: {}, parciales: {}, interpretaciones: {} },
+  ui: { abiertos: {} }, esc: String, num: String, icono: () => "", lineaIa: () => "",
+  refrescarConclusion: () => {}, ultimosAvisos: {},
+  hueco: { innerHTML: "", querySelector: () => null, classList: { toggle() {} } },
+});
+vm.runInContext(pagina.match(/  var pct = function[^\n]+/)[0] + "\n" +
+  ["medidor", "nombreDelTest", "otrasCifras", "pintarInterpretacion"].map(funcionUI).join("\n") +
+  "\nfunction huecoDe() { return hueco; }", contextoUI);
+
+prueba("el medidor respeta el 99% y el 1% de los textos", () => {
+  assert.match(vm.runInContext("medidor(.45, .9999, '')", contextoUI), /data-hasta="99"/);
+  assert.match(vm.runInContext("medidor(.45, .0001, '')", contextoUI), /data-hasta="1"/);
+});
+
+prueba("abrir otros estudios de un test no abre otro con el mismo artículo", () => {
+  const ev = { sn: .66, sp: .86, cita: { pmid: "123" }, otrasFuentes: [{ sn: .67, sp: .81 }] };
+  contextoUI.estado.evidencias = { Ege: ev, Otro: { ...ev } };
+  const dibujar = nombre => vm.runInContext(`otrasCifras(estado.evidencias.${nombre})`, contextoUI);
+  assert.doesNotMatch(dibujar("Ege"), / open>/);
+  contextoUI.ui.abiertos['otras:' + JSON.stringify(["menisco", "Ege", "123"])] = true;
+  assert.match(dibujar("Ege"), / open>/);
+  assert.doesNotMatch(dibujar("Otro"), / open>/);
+});
+
+prueba("datos parciales muestran límites solo dentro del desplegable cerrado, sin barra", () => {
+  for (const resultado of ["positivo", "negativo"]) {
+    for (const cifras of [{ sn: null, sp: 1 }, { sn: .91, sp: null }]) {
+      contextoUI.estado.evidencias.Ege = cifras;
+      contextoUI.respuesta = { parcial: true, ...acotarParcial({ nivelPreTest: "media", ...cifras, resultado }) };
+      vm.runInContext(`pintarInterpretacion("Ege", respuesta, "${resultado}", true)`, contextoUI);
+      assert.match(contextoUI.hueco.innerHTML, /Probabilidad no calculable/);
+      assert.match(contextoUI.hueco.innerHTML, /No se utiliza para calcular la conclusión/);
+      const html = contextoUI.hueco.innerHTML;
+      assert.doesNotMatch(html, /class="medidor"|data-hasta=| open>/);
+      assert.doesNotMatch(html.split('<details')[0], /%/);
+      if (contextoUI.respuesta.acotable) {
+        assert.match(html, /escenario más favorable/);
+        assert.match(html, /no la probabilidad de tu paciente/);
+        assert.match(html, /≈ /);
+      } else {
+        assert.match(html, /No hay un límite útil/);
+        assert.doesNotMatch(html, /%/);
+      }
+    }
+  }
+});
+
+prueba("la bajada a la fase 2 espera a que se pliegue la tarjeta y se puede cancelar", () => {
+  let pendiente, demora;
+  const movimientos = [];
+  const ctx = vm.createContext({
+    ui: { avanceFase2: null }, estado: { nivel: "media" },
+    window: { matchMedia: () => ({ matches: false }) },
+    setTimeout: (fn, ms) => { pendiente = fn; demora = ms; return 1; },
+    clearTimeout: () => { pendiente = null; },
+    document: { getElementById: id => id === "paso-2"
+      ? { scrollIntoView: o => movimientos.push(o.behavior) }
+      : { setAttribute() {}, focus() {} } },
+  });
+  vm.runInContext(funcionUI("cancelarAvanceFase2") + funcionUI("avanzarAFase2"), ctx);
+  vm.runInContext("avanzarAFase2(780)", ctx);
+  assert.equal(demora, 780);
+  assert.equal(movimientos.length, 0);
+  pendiente();
+  assert.deepEqual(movimientos, ["smooth"]);
+  vm.runInContext("avanzarAFase2(780); cancelarAvanceFase2()", ctx);
+  assert.equal(pendiente, null);
+  vm.runInContext("avanzarAFase2(780)", ctx);
+  ctx.ui = { avanceFase2: null }; // Otra consulta sustituye la interfaz.
+  pendiente();
+  assert.equal(movimientos.length, 1);
+  ctx.window.matchMedia = () => ({ matches: true });
+  vm.runInContext("avanzarAFase2(780)", ctx);
+  assert.deepEqual(movimientos, ["smooth", "instant"]);
+});
+
 console.log(`\n${pasadas} pruebas correctas.\n`);
 
 console.log("\nCifras parciales");
@@ -277,6 +487,527 @@ prueba("devuelve nulo cuando ningún término está registrado", () => {
 prueba("no se rompe sin términos", () => {
   assert.equal(coincidencia(undefined, {}), null);
   assert.equal(coincidencia([], {}), null);
+});
+
+console.log("\nEscalada al texto completo");
+
+// Leer el artículo entero cuesta dinero y tiempo. Estas reglas deciden cuándo
+// vale la pena, así que conviene que no se muevan sin darse cuenta.
+
+const revision = {
+  encontrado: true,
+  tipoEstudio: "revision_sistematica",
+  intervalos: "desconocido",
+  quadas2: "no_valorable",
+};
+
+prueba("una revisión sin intervalos ni valoración de sesgo merece el texto completo", () => {
+  assert.equal(mereceTextoCompleto(revision), true);
+});
+
+prueba("le basta con que falte una de las dos cosas", () => {
+  assert.equal(mereceTextoCompleto({ ...revision, quadas2: "bajo" }), true);
+  assert.equal(mereceTextoCompleto({ ...revision, intervalos: "estrecho" }), true);
+});
+
+prueba("una revisión ya completa no se vuelve a leer", () => {
+  assert.equal(mereceTextoCompleto({ ...revision, intervalos: "estrecho", quadas2: "bajo" }), false);
+  assert.equal(mereceTextoCompleto({ ...revision, intervalos: "amplio", quadas2: "alto" }), false);
+});
+
+prueba("un estudio primario no se lee entero: no puede llegar a verde igualmente", () => {
+  assert.equal(mereceTextoCompleto({ ...revision, tipoEstudio: "estudio_primario" }), false);
+});
+
+prueba("sin cifras encontradas no hay nada que afinar", () => {
+  assert.equal(mereceTextoCompleto({ ...revision, encontrado: false }), false);
+});
+
+console.log("\nPrecisiones perfectas");
+
+// La literatura publica especificidades de 1,00 con frecuencia, y son justo
+// las de los tests más útiles para confirmar. Se rechazaban enteras.
+
+prueba("una especificidad de 1,00 es válida", () => {
+  assert.equal(validarPrecision({ sn: 0.72, sp: 1 }).valido, true);
+});
+
+prueba("una sensibilidad de 1,00 también", () => {
+  assert.equal(validarPrecision({ sn: 1, sp: 0.85 }).valido, true);
+});
+
+prueba("lo que está de verdad fuera de rango se sigue rechazando", () => {
+  assert.equal(validarPrecision({ sn: 0.7, sp: 1.3 }).valido, false);
+  assert.equal(validarPrecision({ sn: 0.7, sp: 0 }).valido, false);
+  assert.equal(validarPrecision({ sn: -0.1, sp: 0.8 }).valido, false);
+});
+
+prueba("la razón de verosimilitud nunca sale infinita", () => {
+  const a = razonesDeVerosimilitud(0.72, 1);
+  const b = razonesDeVerosimilitud(1, 0.85);
+  assert.ok(Number.isFinite(a.positiva) && Number.isFinite(a.negativa));
+  assert.ok(Number.isFinite(b.positiva) && Number.isFinite(b.negativa));
+});
+
+prueba("una especificidad perfecta confirma, pero sin prometer certeza", () => {
+  const r = interpretar({ nivelPreTest: "media", sn: 0.72, sp: 1, resultado: "positivo" });
+  assert.equal(r.interpretable, true);
+  assert.equal(r.detalle.corregida, true);
+  assert.ok(/[Cc]onfirma/.test(r.lectura));
+  assert.ok(r.detalle.postTest < 1, "la probabilidad nunca llega a 1");
+});
+
+prueba("se avisa solo cuando alguna cifra es exactamente 1", () => {
+  assert.equal(necesitaCorreccion(0.99, 0.99), false);
+  assert.equal(necesitaCorreccion(1, 0.5), true);
+  assert.equal(necesitaCorreccion(0.5, 1), true);
+});
+
+prueba("el porcentaje mostrado nunca es 0 ni 100", () => {
+  assert.equal(pctMostrado(0.9999), 99);
+  assert.equal(pctMostrado(0.0001), 1);
+  assert.equal(pctMostrado(0.46), 46);
+});
+
+console.log("\nCota del mejor caso con media cifra");
+
+// Seis de cada diez tests no tienen cifras, y de los que las tienen, muchos
+// solo publican una. Con media cifra no hay probabilidad, pero sí hay límite.
+
+prueba("un test sensible que sale negativo acota cuánto puede descartar", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: 0.91, sp: null, resultado: "negativo" });
+  assert.equal(r.acotable, true);
+  assert.equal(r.detalle.cual, "negativa");
+  // La razón mínima es (1 - Sn), que es lo que se consigue con Sp = 1.
+  assert.ok(Math.abs(r.detalle.razonDeVerosimilitud - 0.09) < 1e-9);
+  assert.ok(r.detalle.postTest < 0.45, "tiene que bajar la sospecha");
+});
+
+prueba("un test específico que sale positivo acota cuánto puede confirmar", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: null, sp: 0.98, resultado: "positivo" });
+  assert.equal(r.acotable, true);
+  assert.equal(r.detalle.cual, "positiva");
+  assert.ok(Math.abs(r.detalle.razonDeVerosimilitud - 50) < 1e-9);
+  assert.ok(r.detalle.postTest > 0.45, "tiene que subir la sospecha");
+});
+
+prueba("la cota es siempre lo más lejos que puede llegar, nunca más", () => {
+  // Con cualquier especificidad real, el resultado queda entre la sospecha
+  // previa y la cota: la cota no se puede superar.
+  const cota = acotarParcial({ nivelPreTest: "media", sn: 0.91, sp: null, resultado: "negativo" });
+  for (const sp of [0.1, 0.4, 0.7, 0.95, 1]) {
+    const real = interpretar({ nivelPreTest: "media", sn: 0.91, sp, resultado: "negativo" });
+    assert.ok(
+      real.detalle.postTest >= cota.detalle.postTest - 1e-9,
+      `con Sp ${sp} el real ${real.detalle.postTest} baja de la cota ${cota.detalle.postTest}`,
+    );
+  }
+});
+
+prueba("las dos combinaciones que no se pueden acotar lo dicen", () => {
+  const a = acotarParcial({ nivelPreTest: "media", sn: 0.91, sp: null, resultado: "positivo" });
+  const b = acotarParcial({ nivelPreTest: "media", sn: null, sp: 0.9, resultado: "negativo" });
+  assert.equal(a.acotable, false);
+  assert.equal(b.acotable, false);
+  assert.ok(a.motivo.length > 10 && b.motivo.length > 10);
+});
+
+prueba("con las dos cifras, o con ninguna, no es su sitio", () => {
+  assert.equal(acotarParcial({ nivelPreTest: "media", sn: 0.9, sp: 0.9, resultado: "positivo" }).acotable, false);
+  assert.equal(acotarParcial({ nivelPreTest: "media", sn: null, sp: null, resultado: "positivo" }).acotable, false);
+});
+
+prueba("una cifra pobre no promete lo que no puede dar", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: 0.38, sp: null, resultado: "negativo" });
+  assert.equal(r.detalle.magnitud.nivel, "irrelevante");
+  assert.ok(/[Nn]i en el mejor/.test(r.lectura));
+});
+
+prueba("la lectura breve dice lo mismo sin repetir el porcentaje", () => {
+  const sube = interpretar({ nivelPreTest: "media", sn: 0.39, sp: 0.91, resultado: "positivo" });
+  assert.ok(/78%/.test(sube.lectura));
+  assert.equal(sube.lecturaBreve, "Refuerza la sospecha, pero no la confirma.");
+  const nada = interpretar({ nivelPreTest: "media", sn: 0.97, sp: 0.05, resultado: "positivo" });
+  assert.ok(!/\d/.test(nada.lecturaBreve));
+  const descarta = interpretar({ nivelPreTest: "baja", sn: 0.8, sp: 0.95, resultado: "negativo" });
+  assert.equal(descarta.lecturaBreve, descarta.lectura);
+});
+
+prueba("una especificidad perfecta no da una razón infinita", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: null, sp: 1, resultado: "positivo" });
+  assert.ok(Number.isFinite(r.detalle.razonDeVerosimilitud));
+  assert.ok(r.detalle.postTest < 1);
+});
+
+console.log("\nCandado de los textos redactados por el modelo");
+
+// Cada número que escriba el modelo tiene que salir de los datos que se le
+// dieron. Un "sube al 80%" inventado se lee igual que uno calculado.
+
+const permitidosJobe = numerosPermitidos({ proporciones: [0.77, 0.68], razones: [2.40625, 0.338] });
+
+prueba("acepta las cifras en cualquiera de sus formas", () => {
+  assert.equal(comprobarNumeros("De cada 100 personas, el test detecta a 77.", permitidosJobe).valido, true);
+  assert.equal(comprobarNumeros("Una sensibilidad de 0,77 y una especificidad del 68%.", permitidosJobe).valido, true);
+  assert.equal(comprobarNumeros("Un positivo multiplica las probabilidades por 2,4.", permitidosJobe).valido, true);
+});
+
+prueba("rechaza un porcentaje que no estaba en los datos", () => {
+  const r = comprobarNumeros("Con un positivo tu sospecha sube al 80%.", permitidosJobe);
+  assert.equal(r.valido, false);
+  assert.deepEqual(r.intrusos, ["80"]);
+});
+
+prueba("rechaza una cifra clínica inventada aunque parezca plausible", () => {
+  // Sin números de prevalencia en los datos, no puede aparecer ninguno.
+  assert.equal(comprobarNumeros("Afecta a un 20% de los mayores de 60 años.", permitidosJobe).valido, false);
+});
+
+prueba("un texto sin números pasa, porque no hay nada que comprobar", () => {
+  assert.equal(comprobarNumeros("Si sale negativo, ayuda a descartar.", permitidosJobe).valido, true);
+});
+
+prueba("se detecta cuando el texto le habla al paciente y no al fisioterapeuta", () => {
+  // Salió en producción, con el signo de Tinel: "la probabilidad de que tengas
+  // síndrome del túnel carpiano". Quien lee es quien explora.
+  assert.equal(hablaAlPaciente("Aumenta la probabilidad de que tengas síndrome del túnel carpiano."), true);
+  assert.equal(hablaAlPaciente("No cambia si tienes o no la enfermedad."), true);
+  assert.equal(hablaAlPaciente("No cambia la probabilidad de que tengas o no la enfermedad."), true);
+  assert.equal(hablaAlPaciente("Esto no dice nada sobre tu lesión."), true);
+});
+
+prueba("no confunde al paciente con la sospecha del fisioterapeuta", () => {
+  // "Tu sospecha", "tu paciente" y "has hecho" son correctos y tienen que pasar.
+  assert.equal(hablaAlPaciente("Un negativo apenas cambia tu sospecha."), false);
+  assert.equal(hablaAlPaciente("Aumenta la probabilidad de que tu paciente tenga la lesión."), false);
+  assert.equal(hablaAlPaciente("El test que has hecho no decide por sí solo."), false);
+});
+
+console.log("\nOtras cifras publicadas del mismo test");
+
+const ARTICULOS = [
+  { pmid: "111", titulo: "Estudio A", revista: "Rev A", anio: "2019" },
+  { pmid: "222", titulo: "Estudio B", revista: "Rev B", anio: "2012" },
+  { pmid: "333", titulo: "Estudio C", revista: "Rev C", anio: "2021" },
+];
+
+prueba("acepta una fuente con sus cifras en su propia frase citada", () => {
+  const r = depurarFuentes({
+    candidatas: [{ pmid: "222", sn: 0.45, sp: 0.78, citaLiteral: "sensitivity of 0.45 and specificity of 0.78" }],
+    articulos: ARTICULOS,
+    pmidPrincipal: "111",
+  });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].url, "https://pubmed.ncbi.nlm.nih.gov/222/");
+});
+
+prueba("descarta la que no tiene sus números en la frase", () => {
+  // Es la misma exigencia que a la cifra principal: sin frase que lo respalde,
+  // no se enseña.
+  const r = depurarFuentes({
+    candidatas: [{ pmid: "222", sn: 0.45, sp: 0.78, citaLiteral: "the test performed well in our series" }],
+    articulos: ARTICULOS,
+    pmidPrincipal: "111",
+  });
+  assert.equal(r.length, 0);
+});
+
+prueba("no repite el artículo del que ya salen las cifras principales", () => {
+  const r = depurarFuentes({
+    candidatas: [{ pmid: "111", sn: 0.77, sp: 0.58, citaLiteral: "sensitivity 0.77 and specificity 0.58" }],
+    articulos: ARTICULOS,
+    pmidPrincipal: "111",
+  });
+  assert.equal(r.length, 0);
+});
+
+prueba("descarta un artículo que no estaba entre los leídos", () => {
+  // Si el modelo se inventa un PMID, no hay forma de comprobarlo.
+  const r = depurarFuentes({
+    candidatas: [{ pmid: "999", sn: 0.45, sp: 0.78, citaLiteral: "sensitivity of 0.45 and specificity of 0.78" }],
+    articulos: ARTICULOS,
+    pmidPrincipal: "111",
+  });
+  assert.equal(r.length, 0);
+});
+
+prueba("admite media cifra, como en la principal", () => {
+  const r = depurarFuentes({
+    candidatas: [{ pmid: "333", sn: 0.9, sp: null, citaLiteral: "sensitivity was 90%" }],
+    articulos: ARTICULOS,
+    pmidPrincipal: "111",
+  });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].sp, null);
+});
+
+prueba("el rango solo aparece cuando hay más de un valor distinto", () => {
+  const sinOtras = rangoPublicado({ principal: { sn: 0.77, sp: 0.58 }, otras: [] });
+  assert.equal(sinOtras.sn, null);
+
+  const conOtras = rangoPublicado({
+    principal: { sn: 0.77, sp: 0.58 },
+    otras: [{ sn: 0.45, sp: 0.58 }, { sn: 0.88, sp: null }],
+  });
+  assert.deepEqual(conOtras.sn, { min: 0.45, max: 0.88, estudios: 3 });
+  // La especificidad coincide en los dos, así que no hay rango que enseñar.
+  assert.equal(conOtras.sp, null);
+});
+
+console.log("\nReactivación de quien se dio de baja");
+
+const conReactivacion = { activo: true, newsletter: 10 };
+
+prueba("a un contacto nuevo no se le toca: va por la secuencia", () => {
+  assert.equal(debeReactivar(null, conReactivacion), false);
+});
+
+prueba("quien se dio de baja de la newsletter vuelve a ella", () => {
+  assert.equal(debeReactivar({ baja: true, listas: [5, 10] }, conReactivacion), true);
+});
+
+prueba("quien se fue a mitad de la secuencia entra directo en la newsletter", () => {
+  // No está en la 10 y la automatización no le deja reentrar: sin esto,
+  // nunca llegaría a la newsletter.
+  assert.equal(debeReactivar({ baja: false, listas: [5] }, conReactivacion), true);
+});
+
+prueba("quien ya está en la newsletter sin baja se queda como está", () => {
+  assert.equal(debeReactivar({ baja: false, listas: [8, 10] }, conReactivacion), false);
+});
+
+prueba("con el interruptor apagado no se reactiva a nadie", () => {
+  assert.equal(debeReactivar({ baja: true, listas: [5, 10] }, { activo: false, newsletter: 10 }), false);
+});
+
+prueba("el límite ajustado explica el supuesto, el ajuste del 100% y el redondeo", () => {
+  const r = acotarParcial({ nivelPreTest: "media", sn: null, sp: 1, resultado: "positivo" });
+  assert.match(r.orientacion.titulo, /Techo/);
+  // Con la especificidad publicada del 100% calculada como 0,95.
+  assert.equal(r.orientacion.valor, "≈ 94%");
+  assert.match(r.orientacion.supuesto, /sensibilidad del 100%/);
+  assert.match(r.orientacion.ajuste, /0,95/);
+  assert.match(r.orientacion.redondeo, /no es un límite exacto/);
+  const negativo = acotarParcial({ nivelPreTest: "media", sn: .91, sp: null, resultado: "negativo" });
+  assert.match(negativo.orientacion.titulo, /Límite inferior/);
+  assert.match(negativo.orientacion.supuesto, /especificidad del 100%/);
+  assert.equal(negativo.orientacion.ajuste, null);
+});
+
+prueba("la IA recibe el mismo límite y sus advertencias, o el motivo de no poder acotar", () => {
+  const fuente = readFileSync(new URL("./ia/explicaciones.js", import.meta.url), "utf8");
+  const inicio = fuente.indexOf("function calculado(");
+  const fin = fuente.indexOf("\n/**", inicio);
+  const ctx = vm.createContext({ acotarParcial, interpretar, pctMostrado });
+  vm.runInContext(fuente.slice(inicio, fin), ctx);
+  const datos = vm.runInContext('calculado({parcial:true, sn:null, sp:1}, "media", "positivo").datos', ctx);
+  assert.equal(datos.orientacionTeorica.valor, "≈ 94%");
+  assert.match(datos.orientacionTeorica.ajuste, /0,95/);
+  assert.equal(datos.laSospechaQuedaEn, undefined);
+  const sinCota = vm.runInContext('calculado({parcial:true, sn:null, sp:1}, "media", "negativo").datos', ctx);
+  assert.equal(sinCota.orientacionTeorica, null);
+  assert.match(sinCota.motivoSinLimite, /sensibilidad/);
+});
+
+console.log("\nQué evidencia sirve más");
+
+prueba("las dos cifras de la entidad preguntada van por delante de todo", () => {
+  const directa = { encontrado: true, sn: 0.63, sp: 0.82, mismaEntidad: true };
+  const indirecta = { encontrado: true, sn: 0.79, sp: 0.53, mismaEntidad: false };
+  assert.ok(utilidad(directa) > utilidad(indirecta));
+});
+
+prueba("las dos cifras de otra entidad parecida van por delante de media cifra de la preguntada", () => {
+  const indirecta = { encontrado: true, sn: 0.79, sp: 0.53, mismaEntidad: false };
+  const media = { encontrado: true, sn: 0.77, sp: null, mismaEntidad: true };
+  assert.ok(utilidad(indirecta) > utilidad(media));
+});
+
+prueba("unas razones que no cuadran con sus cifras delatan filas mezcladas", () => {
+  // El caso real del Drop arm: con Sn 0,37 y Sp 0,86 la negativa es 0,73, no 1,83.
+  assert.equal(coherencia({ sn: 0.37, sp: 0.86, lrPositiva: null, lrNegativa: 1.83 }).valido, false);
+  assert.equal(coherencia({ sn: 0.37, sp: 0.86, lrPositiva: null, lrNegativa: null }).valido, true);
+  assert.equal(coherencia({ sn: null, sp: 0.9 }).valido, true);
+  assert.equal(coherencia({ sn: null, sp: null }).valido, false);
+});
+
+prueba("unas cifras calculadas de recuentos no se adoptan: no están en la frase citada", () => {
+  // El caso real del Drop arm: la frase solo trae recuentos.
+  assert.equal(trazable({ sn: 0.8106, sp: 0.2162, citaLiteral: "Drop arm test (+/−) 29/8 107/25 0.716" }), false);
+  assert.equal(trazable({ sn: 0.395, sp: 0.839, citaLiteral: "Painful arc 39.5 83.9 60.0 69.3 2.44 0.72" }), true);
+});
+
+prueba("los textos completos que más prometen se abren primero", () => {
+  const articulos = [
+    { pmid: "1", titulo: "Diagnosis, prevention and treatment of common shoulder injuries in sport", resumen: "" },
+    { pmid: "2", titulo: "Shoulder impingement: ultrasound", resumen: "" },
+    { pmid: "3", titulo: "The diagnostic value of clinical shoulder tests for rotator cuff tear", resumen: "painful arc, Neer, sensitivity" },
+  ];
+  const orden = ordenarPorPromesa(articulos, { nombresTest: ["painful arc"], terminos: ["rotator cuff tear"] });
+  assert.equal(orden[0].pmid, "3");
+});
+
+prueba("otro estudio que mide un subgrupo se marca, y no abre el rango", () => {
+  const articulos = [{ pmid: "1", titulo: "A" }, { pmid: "2", titulo: "B" }];
+  const otras = depurarFuentes({
+    pmidPrincipal: "1",
+    articulos,
+    candidatas: [{
+      pmid: "2", sn: 0.77, sp: null, tipoEstudio: "revision_sistematica", numeroEstudios: 14,
+      mismaEntidad: false, entidadDeLasCifras: "roturas posterosuperiores",
+      citaLiteral: "The highest pooled sensitivity was 0.77 for the Jobe test",
+    }],
+  });
+  assert.equal(otras[0].mismaEntidad, false);
+  assert.equal(otras[0].entidadDeLasCifras, "roturas posterosuperiores");
+  // El 0,77 de un subgrupo no convierte el 0,60 en un rango "0,60–0,77".
+  assert.equal(rangoPublicado({ principal: { sn: 0.6, sp: 0.63 }, otras }).sn, null);
+});
+
+prueba("se compara con los que miden lo mismo que el citado: la patología entera, o la misma parte", () => {
+  const entera = { mismaEntidad: true };
+  const supra = { mismaEntidad: false, mismaParteQueElCitado: true };
+  const subesc = { mismaEntidad: false, mismaParteQueElCitado: false };
+  const citadoEntero = { sn: 0.6, sp: 0.63, indirecta: false };
+  const citadoSupra = { sn: 0.88, sp: 0.62, indirecta: true };
+  assert.equal(comparableConCitado(entera, citadoEntero), true);
+  assert.equal(comparableConCitado(supra, citadoEntero), false);
+  assert.equal(comparableConCitado(entera, citadoSupra), false);
+  assert.equal(comparableConCitado(supra, citadoSupra), true);
+  assert.equal(comparableConCitado(subesc, citadoSupra), false);
+  // Si el citado mide solo el supraespinoso, una cifra de la patología entera no abre su rango.
+  assert.equal(rangoPublicado({ principal: citadoSupra, otras: [{ ...entera, sn: 0.45 }] }).sn, null);
+  assert.deepEqual(rangoPublicado({ principal: citadoSupra, otras: [{ ...supra, sn: 0.7 }] }).sn, { min: 0.7, max: 0.88, estudios: 2 });
+});
+
+prueba("\"la misma parte\" solo cuenta si las dos miden una parte", () => {
+  const otras = depurarFuentes({
+    pmidPrincipal: "1",
+    articulos: [{ pmid: "1" }, { pmid: "2" }],
+    candidatas: [{
+      pmid: "2", sn: 0.7, sp: null, mismaEntidad: true, mismaParteQueElElegido: true,
+      citaLiteral: "sensitivity of 0.7",
+    }],
+  });
+  assert.equal(otras[0].mismaParteQueElCitado, false);
+});
+
+prueba("una probabilidad de tener la patología no pasa por sensibilidad", () => {
+  const park = "When all three were positive, the individual had a 98% chance of having a rotator cuff tear.";
+  assert.equal(problemasDeCita(park, { esAgrupacion: true }).length, 1);
+  assert.equal(problemasDeCita("sensitivity of 80% and a PPV of 90%", { esAgrupacion: true }).length, 0);
+});
+
+prueba("la frase tiene que nombrar el test: por su nombre, por una palabra suya o por su sigla", () => {
+  const drop = ["drop arm sign", "drop arm test"];
+  assert.equal(problemasDeCita("SN (%) 62.1 34.5 75.9 48.3", { nombres: drop }).length, 1);
+  assert.equal(problemasDeCita("the drop-arm test (DAT) had a sensitivity of 0.37", { nombres: drop }).length, 0);
+  assert.equal(problemasDeCita("ERLS 13.2 98.4 83.3", { nombres: ["external rotation lag sign"] }).length, 0);
+  assert.equal(problemasDeCita("The BP test diagnosed tears with a sensitivity of 23.3%", { nombres: ["belly press test"] }).length, 0);
+  assert.equal(problemasDeCita("Jobe 84.9 45.4", { nombres: ["Jobe test", "empty can test"] }).length, 0);
+  // El nombre en el título de la sección, y la fila después.
+  assert.equal(problemasDeCita("Empty can test … Any RCT 3 0.60 (0.52, 0.68) 0.63 (0.55, 0.71)", { nombres: ["Jobe test", "empty can test"] }).length, 0);
+  // Una agrupación se describe, no se nombra.
+  assert.equal(problemasDeCita("When all three were positive: sensitivity 0.9", { nombres: ["Park"], esAgrupacion: true }).length, 0);
+});
+
+prueba("otro estudio cuya frase no nombra el test no se enseña", () => {
+  const otras = depurarFuentes({
+    pmidPrincipal: "1",
+    articulos: [{ pmid: "1" }, { pmid: "2" }, { pmid: "3" }],
+    nombres: ["Neer test"],
+    candidatas: [
+      { pmid: "2", sn: 0.627, sp: 0.894, citaLiteral: "Sensitivity (%) 94.1 84.3 78.4 62.7 Specificity (%) 76.6 89.4" },
+      { pmid: "3", sn: 0.632, sp: 0.823, citaLiteral: "Neer 63.2 82.3 68.6" },
+    ],
+  });
+  assert.deepEqual(otras.map((o) => o.pmid), ["3"]);
+});
+
+prueba("al modelo solo se le avisa de los artículos que tiene delante y ya están clasificados", () => {
+  const mapa = new Map([["1", { mismaEntidad: true }], ["2", { mismaEntidad: false, entidadDeLasCifras: "roturas del subescapular" }]]);
+  const aviso = avisoClasificadas(mapa, ["2", "3"]);
+  assert.match(aviso, /PMID 2: mide una parte.*subescapular/);
+  assert.doesNotMatch(aviso, /PMID 1|PMID 3/);
+  assert.equal(avisoClasificadas(mapa, ["3"]), "");
+});
+
+prueba("la segunda mirada a la entidad ve el título, el resumen y la frase citada", () => {
+  const m = mensajeEntidad({
+    test: "Jobe test", entidad: "rotura del manguito rotador",
+    articulo: { titulo: "The ROW Cohort Study", resumen: "Among tests for supraspinatus tears…" },
+    cita: "Among tests for supraspinatus tears, Jobe test had a sensitivity of 88%",
+  });
+  assert.match(m, /ROW Cohort/);
+  assert.match(m, /Frase de la que salen las cifras: Among tests for supraspinatus tears/);
+  // Y la extracción sabe que frente a sanos casi todo parece perfecto.
+  assert.match(SISTEMA_EXTRACCION, /frente a personas sanas/);
+});
+
+prueba("la revisión periódica toca cada tantas consultas, y como mucho una vez al mes", () => {
+  const hace = (dias) => new Date(Date.now() - dias * 86400000).toISOString();
+  const guardado = { hayCifras: true, fecha: hace(60) };
+  assert.equal(tocaRevisar({ consultas: CADA_CONSULTAS - 1 }, guardado), false);
+  assert.equal(tocaRevisar({ consultas: CADA_CONSULTAS }, guardado), true);
+  // Revisado hace diez días: aunque se consulte mucho, espera.
+  assert.equal(tocaRevisar({ consultas: 40, ultima: hace(10) }, guardado), false);
+  // Ya hay una en marcha.
+  assert.equal(tocaRevisar({ consultas: 40, pendiente: new Date().toISOString() }, guardado), false);
+  // Lo que no tiene cifras ya caduca solo: no se revisa por aquí.
+  assert.equal(tocaRevisar({ consultas: 40 }, { hayCifras: false, fecha: hace(60) }), false);
+});
+
+prueba("una revisión que falla no se reintenta en la consulta siguiente", () => {
+  const hace = (dias) => new Date(Date.now() - dias * 86400000).toISOString();
+  const guardado = { hayCifras: true, fecha: hace(60) };
+  // Falló hace una hora: espera un día.
+  assert.equal(tocaRevisar({ consultas: 20, fallos: 1, ultimoFallo: hace(0.04) }, guardado), false);
+  assert.equal(tocaRevisar({ consultas: 20, fallos: 1, ultimoFallo: hace(2) }, guardado), true);
+  // Tres fallos seguidos: espera al mes siguiente.
+  assert.equal(tocaRevisar({ consultas: 20, fallos: 3, ultimoFallo: hace(2) }, guardado), false);
+  assert.equal(tocaRevisar({ consultas: 20, fallos: 3, ultimoFallo: hace(31) }, guardado), true);
+  // Una lanzada que murió sin avisar cuenta como fallo, con su fecha.
+  const muerta = conPendienteCaducada({ consultas: 20, pendiente: hace(0.1) });
+  assert.equal(muerta.pendiente, null);
+  assert.equal(muerta.fallos, 1);
+  assert.equal(tocaRevisar(muerta, guardado), false);
+  // Y una que sigue en marcha no se toca.
+  const viva = { consultas: 20, pendiente: new Date().toISOString() };
+  assert.equal(conPendienteCaducada(viva), viva);
+});
+
+prueba("lo nuevo solo sustituye a lo que había si es estrictamente mejor", () => {
+  const ev = (o) => ({ hayCifras: true, sn: 0.6, sp: 0.6, indirecta: false, trazable: true,
+    valoracion: { tipoEstudio: "estudio_primario", numeroEstudios: 1 }, calidad: { id: "ambar" }, ...o });
+  const primario = ev({});
+  const revision = ev({ valoracion: { tipoEstudio: "revision_sistematica", numeroEstudios: 3 }, calidad: { id: "verde" } });
+  // El metaanálisis del Jobe gana al estudio primario.
+  assert.equal(supera(revision, primario), true);
+  assert.equal(supera(primario, revision), false);
+  // Una revisión que mide una parte no gana a un primario que mide la patología entera.
+  assert.equal(supera(ev({ indirecta: true, valoracion: { tipoEstudio: "revision_sistematica", numeroEstudios: 9 } }), primario), false);
+  // Empate: se queda lo que había.
+  assert.equal(supera(ev({}), primario), false);
+  // Media cifra no gana a las dos.
+  assert.equal(supera(ev({ sp: null }), primario), false);
+  // Lo que no se puede comprobar no entra.
+  assert.equal(supera({ ...revision, trazable: false }, primario), false);
+});
+
+prueba("al sustituir, el estudio de antes pasa a otros estudios", () => {
+  const viejo = { hayCifras: true, sn: 0.85, sp: 0.45, indirecta: false, citaLiteral: "Jobe 84.9 45.4",
+    cita: { pmid: "1", titulo: "Primario" }, valoracion: { tipoEstudio: "estudio_primario", numeroEstudios: 1 },
+    otrasFuentes: [{ pmid: "2" }, { pmid: "3" }] };
+  const nuevo = { cita: { pmid: "3" }, otrasFuentes: [{ pmid: "4" }] };
+  assert.deepEqual(juntarFuentes(nuevo, viejo).map((o) => o.pmid), ["4", "1", "2"]);
+  assert.equal(juntarFuentes(nuevo, viejo)[1].sn, 0.85);
+});
+
+prueba("lo que responde a otra pregunta es lo último, pero algo", () => {
+  const otra = { encontrado: true, sn: 0.7, sp: 0.17, mismaEntidad: false, otraPregunta: true };
+  const media = { encontrado: true, sn: null, sp: 0.9, mismaEntidad: false };
+  assert.ok(utilidad(media) > utilidad(otra));
+  assert.ok(utilidad(otra) > utilidad({ encontrado: false }));
 });
 
 console.log(`\n${pasadas} pruebas correctas.\n`);

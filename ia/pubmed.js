@@ -7,15 +7,64 @@
 // esquema de PubMed es estable y solo extraemos seis campos. Si algún día
 // hiciera falta más, toca traer un analizador de verdad.
 
+import { buscarCuerpoCompleto } from "./europepmc.js";
+
 const BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";
-const PAUSA = 350;
+
+/**
+ * Clave de NCBI, opcional y gratuita.
+ *
+ * Sin ella, PubMed corta a tres peticiones por segundo contando por dirección
+ * IP, no por usuario. Una búsqueda son siete peticiones y el navegador lanza
+ * tres tests a la vez, así que una sola persona ya va a 1,8 por segundo: con
+ * dos personas usando la herramienta al mismo tiempo nos pasamos del corte y
+ * PubMed empieza a devolver 429.
+ *
+ * Con clave el tope sube a diez por segundo, que da margen para varios
+ * usuarios simultáneos, y además permite acortar la pausa entre peticiones.
+ * Se saca gratis desde la cuenta de NCBI y se pone en NCBI_API_KEY.
+ */
+const CLAVE = process.env.NCBI_API_KEY || "";
+
+/** Con clave caben diez por segundo; sin ella, tres, y hay que ir más despacio. */
+const PAUSA = CLAVE ? 120 : 350;
 
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** La clave viaja como parámetro, que es como la pide E-utilities. */
+const conClave = (url) => (CLAVE ? `${url}&api_key=${encodeURIComponent(CLAVE)}` : url);
+
+/**
+ * Una petición a E-utilities, con paciencia ante el 429.
+ *
+ * El tope es por segundo, así que un 429 casi nunca es definitivo: basta con
+ * esperar un poco. Antes el primero tumbaba la búsqueda entera del test, y el
+ * fisioterapeuta veía "sin cifras publicadas" en un test que ni se había
+ * llegado a buscar. Ocurría incluso con clave: tres tests en paralelo, cada
+ * uno en su función, no saben unos de otros y pueden coincidir en el mismo
+ * segundo.
+ */
 async function pedir(url, senal) {
-  const respuesta = await fetch(url, { signal: senal });
-  if (!respuesta.ok) throw new Error(`PubMed respondió ${respuesta.status}`);
-  return respuesta;
+  const esperas = [800, 1800, 3500];
+  for (let intento = 0; ; intento++) {
+    const respuesta = await fetch(conClave(url), { signal: senal });
+    if (respuesta.status === 429 && intento < esperas.length) {
+      // Algo de azar para que las funciones que chocaron no vuelvan a chocar
+      // en el mismo instante.
+      await esperar(esperas[intento] + Math.random() * 400);
+      if (senal?.aborted) throw senal.reason ?? new Error("Cortado por plazo.");
+      continue;
+    }
+    if (respuesta.status === 429) {
+      throw new Error(
+        CLAVE
+          ? "PubMed está recibiendo demasiadas peticiones ahora mismo."
+          : "PubMed ha cortado por exceso de peticiones por segundo. Define NCBI_API_KEY para subir el tope.",
+      );
+    }
+    if (!respuesta.ok) throw new Error(`PubMed respondió ${respuesta.status}`);
+    return respuesta;
+  }
 }
 
 function entidades(texto) {
@@ -70,15 +119,39 @@ async function traer(ids, senal) {
   return extraerArticulos(xml);
 }
 
+/**
+ * Cuántos artículos se leen por test.
+ *
+ * Eran seis, y la auditoría dijo por qué se quedaban cortos: seis de cada diez
+ * tests acababan sin ninguna cifra. Con quince hay muchas más papeletas de que
+ * alguno publique sensibilidad y especificidad juntas. Cuesta un céntimo más de
+ * extracción por test y no añade ni una petición a PubMed: caben en la misma.
+ *
+ * Los huecos reservados a revisiones suben en la misma proporción, porque son
+ * las únicas que pueden dar un semáforo verde.
+ */
+const ARTICULOS_MAX = 15;
+const REVISIONES_MAX = 6;
+
+/**
+ * Cuántos de esos quince puede ocupar la búsqueda en el cuerpo del artículo.
+ *
+ * Cinco, y no más, porque lo que aporta Europe PMC es cobertura y no criterio:
+ * su API no ordena por relevancia, solo por fecha, y lo que llega arriba hay
+ * que reordenarlo aquí. Cinco huecos bastan para colar el estudio que PubMed no
+ * ve sin arriesgar los diez primeros, que vienen ya ordenados por relevancia.
+ */
+const CUERPO_COMPLETO_MAX = 5;
+
 const ACCURACY = '(sensitivity OR specificity OR "diagnostic accuracy" OR "likelihood ratio")';
 const REVISIONES = '(systematic[sb] OR meta-analysis[pt] OR "systematic review"[pt])';
 
 /** Los apóstrofes y paréntesis rompen la sintaxis de búsqueda de PubMed. */
 const limpiar = (s) => String(s).replace(/['’]s\b/g, "").replace(/[()'"’]/g, " ").replace(/\s+/g, " ").trim();
 
-/** Varios sinónimos de la entidad combinados con OR. */
-function clausulaEntidad(terminos) {
-  const utiles = terminos.map(limpiar).filter(Boolean);
+/** Varios sinónimos combinados con OR, para entidades y para tests. */
+function clausulaOr(terminos) {
+  const utiles = [...new Set((terminos || []).map(limpiar).filter(Boolean))];
   if (!utiles.length) return "";
   if (utiles.length === 1) return `"${utiles[0]}"`;
   return `(${utiles.map((t) => `"${t}"`).join(" OR ")})`;
@@ -90,18 +163,35 @@ function clausulaEntidad(terminos) {
  * Dos ideas gobiernan esta función, y las dos salieron de encontrarnos con cero
  * resultados donde sí había literatura.
  *
- * La primera es que la entidad se busca con varios sinónimos a la vez. El término
- * clínicamente correcto y el más indexado suelen ser distintos: "lateral
- * epicondylitis" tiene quince veces más artículos que "lateral epicondylalgia".
+ * La primera es que tanto la entidad como el test se buscan con varios sinónimos
+ * a la vez. El término clínicamente correcto y el más indexado suelen ser
+ * distintos: "lateral epicondylitis" tiene quince veces más artículos que
+ * "lateral epicondylalgia". Con los tests pasa igual y durante un tiempo se nos
+ * escapó: "Jobe test", "empty can test" y "supraspinatus test" son el mismo
+ * test, cada artículo elige uno, y buscando por uno solo se perdían los demás.
  *
  * La segunda es el ensanchado progresivo. Se empieza por la consulta más
  * específica y, solo si no devuelve nada, se van soltando restricciones. Filtrar
  * de más no protege de nada: el control de calidad está después, en la extracción
  * y en el semáforo. Aquí lo único que importa es no perder el artículo bueno.
  */
-export async function buscarPrecision({ test, terminos, senal }) {
-  const t = limpiar(test);
-  const entidad = clausulaEntidad(Array.isArray(terminos) ? terminos : [terminos]);
+export async function buscarPrecision({ test, nombresTest, terminos, senal, revision = null }) {
+  const nombres = [test, ...(Array.isArray(nombresTest) ? nombresTest : [])];
+  const lista = Array.isArray(terminos) ? terminos : [terminos];
+  const t = clausulaOr(nombres);
+  const entidad = clausulaOr(lista);
+
+  // Europe PMC busca dentro del cuerpo del artículo, que es donde vive la tabla
+  // de resultados con las cifras de cada test. Se lanza a la vez que la primera
+  // consulta a PubMed y se recoge al final, así que no cuesta tiempo. Sus
+  // hallazgos ocupan huecos que ya estaban pagados, no artículos de más: el
+  // total que se manda a extraer sigue siendo ARTICULOS_MAX.
+  const deCuerpoCompleto = buscarCuerpoCompleto({
+    nombresTest: nombres,
+    terminos: lista,
+    limite: CUERPO_COMPLETO_MAX,
+    senal,
+  });
 
   const estrategias = [
     { id: "especifica", termino: `${t} AND ${entidad} AND ${ACCURACY}` },
@@ -109,27 +199,72 @@ export async function buscarPrecision({ test, terminos, senal }) {
     { id: "solo_test", termino: `${t} AND ${ACCURACY}` },
   ];
 
+  // Las consultas se acumulan en vez de sustituirse.
+  //
+  // Antes la escalera se paraba en cuanto una vía devolvía algo, aunque ese
+  // algo fuese un único artículo, y se quedaba ahí. En el registro de
+  // producción se veía el resultado: "Duck walk test: 1 artículos",
+  // "Distraction test: ninguno de los 1 artículos está en abierto". Con un solo
+  // candidato no hay extracción que valga ni artículo que abrir, y el hueco
+  // para catorce más estaba pagado y sin usar.
+  //
+  // Como las tres vías son cada una más ancha que la anterior, lo que encuentra
+  // la segunda incluye lo de la primera: sumarlas por orden conserva las más
+  // específicas arriba y solo añade por abajo.
+  const revisiones = [];
+  const generales = [];
+  let ultima = "sin_resultados";
+
   for (const estrategia of estrategias) {
-    const revisiones = await buscarIds(`${estrategia.termino} AND ${REVISIONES}`, 3, senal);
+    const nuevasRevisiones = await buscarIds(`${estrategia.termino} AND ${REVISIONES}`, REVISIONES_MAX, senal);
+    await esperar(PAUSA);
+    const nuevosGenerales = await buscarIds(estrategia.termino, ARTICULOS_MAX, senal);
     await esperar(PAUSA);
 
-    const generales = (await buscarIds(estrategia.termino, 6, senal)).filter((id) => !revisiones.includes(id));
-    await esperar(PAUSA);
+    for (const id of nuevasRevisiones) if (!revisiones.includes(id)) revisiones.push(id);
+    for (const id of nuevosGenerales) {
+      if (!revisiones.includes(id) && !generales.includes(id)) generales.push(id);
+    }
 
-    const ids = [...revisiones, ...generales].slice(0, 6);
-    if (!ids.length) continue;
+    if (nuevasRevisiones.length || nuevosGenerales.length) ultima = estrategia.id;
 
-    const articulos = await traer(ids, senal);
-    const porId = new Map(articulos.map((a) => [a.pmid, a]));
-
-    // Se conserva el orden de la búsqueda: las revisiones primero.
-    return {
-      articulos: ids.map((id) => porId.get(id)).filter(Boolean),
-      estrategia: estrategia.id,
-    };
+    // Se deja de ensanchar cuando hay de sobra para llenar los huecos que no
+    // se reservan a la búsqueda en el cuerpo. Antes bastaba con uno.
+    // En una revisión periódica no se para: lo que se busca es justo lo que
+    // la primera vez quedó fuera por haber llenado los huecos antes.
+    if (!revision && revisiones.length + generales.length >= ARTICULOS_MAX - CUERPO_COMPLETO_MAX) break;
   }
 
-  return { articulos: [], estrategia: "sin_resultados" };
+  // Lo publicado desde la última vez que se miró. Es la única forma de que
+  // un estudio nuevo llegue a competir con lo que ya estaba.
+  const recientes = [];
+  if (revision?.desde) {
+    const desde = String(revision.desde).slice(0, 10).replace(/-/g, "/");
+    const nuevos = await buscarIds(`${t} AND ${entidad} AND ("${desde}"[dp] : "3000"[dp])`, REVISIONES_MAX, senal);
+    await esperar(PAUSA);
+    for (const id of nuevos) if (!revisiones.includes(id)) recientes.push(id);
+  }
+
+  const cuerpo = await deCuerpoCompleto;
+
+  // Las revisiones primero, porque son las únicas que pueden dar verde. Después
+  // lo que aportó la búsqueda en el cuerpo, que desplaza a los últimos
+  // resultados de PubMed y no a los primeros: si algo sobra de una lista
+  // ordenada por relevancia, es la cola.
+  const ids = [...new Set([...revisiones, ...recientes, ...cuerpo, ...generales])].slice(0, ARTICULOS_MAX);
+  if (!ids.length) return { articulos: [], estrategia: "sin_resultados", deCuerpoCompleto: 0 };
+
+  const articulos = await traer(ids, senal);
+  const porId = new Map(articulos.map((a) => [a.pmid, a]));
+  const aportados = cuerpo.filter(
+    (id) => ids.includes(id) && !revisiones.includes(id) && !recientes.includes(id) && !generales.includes(id),
+  );
+
+  return {
+    articulos: ids.map((id) => porId.get(id)).filter(Boolean),
+    estrategia: revisiones.length + generales.length ? ultima : "solo_cuerpo_completo",
+    deCuerpoCompleto: aportados.length,
+  };
 }
 
 export function urlPubmed(pmid) {

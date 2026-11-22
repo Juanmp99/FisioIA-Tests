@@ -1,373 +1,1996 @@
-<title>Asistente de tests · FisioIA</title>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Copiloto de Exploración · FisioIA</title>
+<meta name="description" content="Escribe tu sospecha y ten la exploración resuelta: qué tests hacer, cómo se ejecuta cada uno, cuánto puedes fiarte y qué concluir. Con la evidencia publicada delante.">
+<meta name="theme-color" content="#070a11">
+<meta name="color-scheme" content="dark">
+
+<meta property="og:title" content="Nadie se sabe 300 tests de memoria. Ahora no hace falta.">
+<meta property="og:description" content="Tu copiloto a pie de camilla: qué tests hacer, cómo se ejecutan, cuánto puedes fiarte de cada resultado y qué concluir. Gratis para fisioterapeutas.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_ES">
+
+<!-- La cursiva de «La herramienta que» se sirve desde aquí, no desde Google:
+     así nadie más recibe la IP de quien visita la página. Es Instrument Serif,
+     con licencia SIL Open Font License (fuentes/OFL.txt). Solo el juego
+     latino, que cubre el castellano. -->
+<script src="/consentimiento.js"></script>
+<link rel="preload" href="/fuentes/instrument-serif-cursiva.woff2" as="font" type="font/woff2" crossorigin>
 
 <style>
-  :root {
-    --papel: #ffffff;
-    --lienzo: #f5f7fb;
-    --superficie: #ffffff;
-    --tinta: #0a0a0a;
-    --tinta-suave: #333b4a;
-    --apagado: #5b6478;
-    --linea: #dfe3ec;
-    --linea-tenue: #edf0f6;
-    --azul: #004aad;
-    --azul-hondo: #003278;
-    --azul-lavado: #eaf0fa;
-    --oro: #d4af37;
-    --verde: #1a7f4b;
-    --ambar: #b5730a;
-    --rojo: #b3261e;
-    --sombra: 0 1px 2px rgba(10, 20, 45, .06), 0 12px 32px -18px rgba(10, 20, 45, .3);
-    --radio: 10px;
-    --ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fuentes/instrument-serif-cursiva.woff2") format("woff2");
+}
+
+/* ============================================================================
+   Mismo sistema visual que la herramienta, a propósito: quien deja su correo
+   aquí y entra después no debe notar que cambia de sitio.
+   ============================================================================ */
+
+:root {
+  --fondo: #070a11;
+  --superficie: #0d1320;
+  --superficie-alta: #121a29;
+  --superficie-viva: #182234;
+  --borde: #1c2637;
+  --borde-vivo: #2b3a52;
+
+  --tinta: #e9eff8;
+  --tinta-media: #a3b2c9;
+  --tinta-tenue: #66758d;
+
+  --azul: #4d9fff;
+  --azul-hondo: #1f6fd6;
+  --verde: #2fd6a6;
+  --ambar: #f5b544;
+  --rojo: #ff6f61;
+
+  --brillo-azul: rgba(77, 159, 255, .14);
+  --brillo-verde: rgba(47, 214, 166, .13);
+  --brillo-ambar: rgba(245, 181, 68, .12);
+  --brillo-rojo: rgba(255, 111, 97, .12);
+
+  /* Base del formulario del hero: más clara que la página para despegarse. */
+  --captura-base: color-mix(in srgb, var(--superficie-viva) 92%, var(--tinta));
+
+  --radio: 16px;
+  --sombra: 0 1px 0 rgba(255,255,255,.04) inset, 0 18px 40px -24px rgba(0,0,0,.9);
+  --curva: cubic-bezier(.16, 1, .3, 1);
+  --ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+/* Siempre oscura, como la herramienta. Hubo un modo claro que seguía al del
+   sistema, y en un móvil en modo claro la landing y la herramienta parecían
+   dos productos distintos. */
+:root { color-scheme: dark; }
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--tinta);
+  font-family: var(--ui);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* El mismo lienzo que la herramienta: azul pizarra algo más claro que las
+   tarjetas, para que oscuro sobre oscuro no se confundan. */
+body::before {
+  content: "";
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(70% 45% at 20% -5%, rgba(47, 214, 166, .15) 0%, transparent 68%),
+    radial-gradient(60% 40% at 95% 5%, rgba(77, 159, 255, .16) 0%, transparent 70%),
+    linear-gradient(180deg, #1c2536 0%, #161e2d 50%, #121927 100%);
+}
+
+
+a { color: var(--azul); text-underline-offset: 3px; }
+
+.rotulo {
+  display: inline-block;
+  font-size: .6875rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--tinta-tenue);
+}
+
+/* ============ hero ============ */
+
+/* El primer pantallazo tiene un solo trabajo: que deje el correo. Marca, el
+   formulario con su demo y un «Ver cómo funciona»; todo lo que explica está
+   escondido debajo hasta que se pide. Ocupa la pantalla entera y va a sangre
+   para que la constelación del fondo llegue a los bordes. */
+.hero {
+  position: relative; isolation: isolate; overflow: hidden;
+  min-height: 100vh; min-height: 100svh;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 38px 20px 92px;
+}
+
+/* Dos luces que se mueven muy despacio, y un grano fino encima para que el
+   degradado no parezca plástico. */
+.hero::before {
+  content: ""; position: absolute; inset: -20%; z-index: -2; pointer-events: none;
+  background:
+    radial-gradient(34% 30% at 30% 34%, var(--brillo-verde) 0%, transparent 70%),
+    radial-gradient(30% 28% at 72% 58%, var(--brillo-azul) 0%, transparent 70%);
+  filter: blur(20px);
+  animation: aurora 22s ease-in-out infinite alternate;
+}
+.hero::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  opacity: .07; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+.constelacion {
+  position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%;
+  -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
+}
+
+/* ============ marca ============ */
+
+/* La misma firma que la barra de la herramienta —el nombre en mayúsculas
+   espaciadas, con sus dos rayas y el brillo que cruza una vez—, un punto más
+   pequeña, y con FisioIA encima con peso propio. */
+.marca {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  animation: entrar .8s var(--curva) both;
+}
+.logo {
+  font-size: clamp(2rem, 5.4vw, 2.625rem); font-weight: 800;
+  letter-spacing: -.045em; line-height: 1;
+}
+.logo span {
+  background: linear-gradient(100deg, var(--verde), color-mix(in srgb, var(--verde) 55%, var(--azul)));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+.titulo-herramienta {
+  display: flex; align-items: center; gap: 14px;
+  white-space: nowrap; font-style: normal;
+}
+.titulo-herramienta::before, .titulo-herramienta::after {
+  content: ""; width: 40px; height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--verde) 60%, transparent));
+  animation: abrirRaya 1s .6s var(--curva) both;
+}
+.titulo-herramienta::before { transform-origin: right center; }
+.titulo-herramienta::after {
+  transform-origin: left center;
+  background: linear-gradient(270deg, transparent, color-mix(in srgb, var(--verde) 60%, transparent));
+}
+.titulo-texto {
+  font-size: 1rem; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .32em; margin-right: -.32em; /* el espaciado del final no descentra */
+  background: linear-gradient(100deg,
+    var(--tinta) 0%, var(--tinta) 38%,
+    color-mix(in srgb, var(--verde) 85%, white) 50%,
+    var(--tinta) 62%, var(--tinta) 100%);
+  background-size: 300% 100%; background-position: 100% 0;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: entrarTitulo 1.2s .15s var(--curva) both, brilloTitulo 1.6s 1s ease-in-out both;
+}
+.titulo-texto b { font-weight: 300; }
+
+/* ============ centro ============ */
+
+.hero-centro {
+  flex: 1; width: 100%; max-width: 1060px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding-top: 36px;
+}
+
+.insignia {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 6px 13px 6px 11px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--verde) 40%, transparent);
+  background: color-mix(in srgb, var(--verde) 12%, transparent);
+  font-size: .6875rem; font-weight: 750; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--verde);
+}
+.insignia i {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--verde);
+  box-shadow: 0 0 0 0 var(--verde); animation: pulso 2.4s ease-out 1.4s infinite;
+}
+
+/* ---- «Ver cómo funciona» ---- */
+/* Lo único que hay bajo el formulario: una invitación, no una explicación.
+   Anillo con un icono de reproducir que late, texto espaciado como un rótulo
+   de cine y, debajo, una línea que cae y sugiere que hay más. Al pulsarlo la
+   línea se convierte en un haz que baja hasta la historia. */
+.ver-como {
+  position: relative; margin-top: 34px;
+  display: inline-flex; align-items: center; gap: 14px;
+  padding: 10px 24px 10px 10px; border-radius: 999px; cursor: pointer;
+  font: inherit; color: var(--tinta);
+  background: color-mix(in srgb, var(--superficie) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--verde) 30%, var(--borde-vivo));
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--verde) 70%, transparent);
+  transition: transform .3s var(--curva), border-color .3s, box-shadow .3s;
+  animation: entrar .8s var(--curva) 1.1s both;
+}
+.ver-como:hover { transform: translateY(-2px); border-color: var(--verde); box-shadow: 0 16px 40px -16px var(--verde); }
+.ver-como-anillo {
+  position: relative; width: 40px; height: 40px; border-radius: 50%;
+  display: grid; place-items: center; color: #04140f;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--verde) 70%, white), var(--verde));
+}
+.ver-como-anillo::before, .ver-como-anillo::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  border: 1.5px solid var(--verde); animation: onda 2.4s ease-out infinite;
+}
+.ver-como-anillo::after { animation-delay: 1.2s; }
+.ver-como-anillo svg { margin-left: 2px; }
+.ver-como-texto {
+  font-size: .8125rem; font-weight: 700; letter-spacing: .22em; text-transform: uppercase;
+}
+.haz {
+  display: block; width: 2px; height: 46px; margin: 14px auto 0; border-radius: 2px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--verde) 80%, transparent), transparent);
+  transform-origin: top center;
+  animation: caer 2.4s ease-in-out 1.8s infinite;
+}
+.abriendo .haz {
+  height: 34vh; animation: none;
+  background: linear-gradient(180deg, var(--verde), color-mix(in srgb, var(--azul) 60%, transparent) 70%, transparent);
+  box-shadow: 0 0 18px var(--verde);
+  transition: height .7s var(--curva);
+}
+.abriendo .ver-como { border-color: var(--verde); }
+.abriendo .ver-como-anillo svg { transform: rotate(90deg); transition: transform .4s var(--curva); }
+
+/* ============ formulario ============ */
+
+.captura {
+  background: linear-gradient(180deg, var(--superficie-alta), var(--superficie));
+  border: 1px solid var(--borde-vivo); border-radius: 20px;
+  box-shadow: var(--sombra); padding: 26px 24px 22px;
+}
+
+/* En el hero el formulario es lo primero que se ve después de la marca y
+   donde tiene que ir la vista: un fondo propio, más claro y teñido de verde,
+   que se despega del fondo de la página en lugar de fundirse con él; un halo
+   detrás y un filo de luz que recorre el borde sin parar. */
+.hero .captura {
+  position: relative; width: 100%; max-width: 1020px;
+  text-align: left; padding: 32px 32px 30px; border-radius: 26px;
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--verde) 22%, transparent), transparent 60%),
+    radial-gradient(110% 90% at 100% 100%, color-mix(in srgb, var(--azul) 20%, transparent), transparent 60%),
+    var(--captura-base);
+  border-color: color-mix(in srgb, var(--verde) 35%, var(--borde-vivo));
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.08) inset,
+    0 30px 80px -30px color-mix(in srgb, var(--verde) 55%, transparent),
+    0 20px 50px -30px rgba(0,0,0,.8);
+  animation: entrar .8s var(--curva) .35s both;
+}
+.hero .campo { background: var(--superficie); }
+
+.captura-titulo {
+  margin: 0 0 8px;
+  font-size: clamp(1.625rem, 4.2vw, 3rem); line-height: 1.04;
+  letter-spacing: -.035em; font-weight: 800; color: var(--tinta); text-wrap: balance;
+}
+/* «en segundos» es la promesa: lleva un destello que la cruza cada pocos
+   segundos y un trazo a mano que se dibuja debajo al llegar. */
+.en-segundos {
+  position: relative; white-space: nowrap;
+  background: linear-gradient(100deg,
+    var(--verde) 0%, var(--verde) 38%,
+    color-mix(in srgb, var(--verde) 45%, white) 50%,
+    var(--verde) 62%, var(--verde) 100%);
+  background-size: 260% 100%; background-position: 100% 0;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: destello 5s ease-in-out 2.2s infinite;
+}
+.trazo {
+  position: absolute; left: -2%; right: -2%; bottom: -.2em; width: 104%; height: .32em;
+  overflow: visible; color: var(--verde);
+}
+.trazo path {
+  fill: none; stroke: currentColor; stroke-width: 3.2; stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  /* Con non-scaling-stroke el trazo se mide en píxeles de pantalla, así que
+     su largo depende del tamaño del titular: lo pone el script en --largo. */
+  stroke-dasharray: var(--largo, 600px); stroke-dashoffset: var(--largo, 600px);
+  animation: trazar 1s var(--curva) 1.3s both;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--verde) 70%, transparent));
+}
+/* El arranque de la frase va en pequeño y en su propia línea: dice qué es
+   (una herramienta) sin robarle el peso a lo que hace. */
+.captura-titulo small {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 2px;
+  font-family: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  font-style: italic; font-weight: 400;
+  font-size: clamp(1.5rem, 3.3vw, 2.25rem); line-height: 1.15; letter-spacing: .005em;
+}
+/* La raya que la precede se dibuja al entrar, como las de la firma. */
+.captura-titulo small::before {
+  content: ""; flex: none; width: 34px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--verde));
+  transform-origin: left center;
+  animation: abrirRaya .9s .55s var(--curva) both;
+}
+/* Plata que vira a menta, un brillo que la cruza una vez y una entrada
+   desenfocada: el mismo idioma que «Copiloto de Exploración». */
+.captura-titulo small em {
+  font-style: inherit; padding-right: .08em;
+  background: linear-gradient(100deg,
+    var(--tinta-media) 0%,
+    color-mix(in srgb, var(--tinta) 80%, var(--verde)) 30%,
+    color-mix(in srgb, var(--verde) 60%, white) 46%,
+    color-mix(in srgb, var(--tinta) 80%, var(--verde)) 60%,
+    color-mix(in srgb, var(--verde) 75%, var(--tinta-media)) 100%);
+  background-size: 250% 100%; background-position: 100% 0;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: entrarAntetitulo 1.1s .5s var(--curva) both, brilloTitulo 1.8s 1.3s ease-in-out both;
+}
+
+/* ---- reparto de la tarjeta ---- */
+/* En escritorio, dos columnas: a la izquierda qué es y el correo; a la
+   derecha la herramienta funcionando. En estrecho, una sola, con el correo
+   antes que la demo: lo que se pide va primero. */
+.oferta {
+  display: grid; gap: 0 38px; align-items: center;
+  grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+  grid-template-areas: "cab demo" "form demo";
+}
+/* Encima del recuadro, centrada: gratis, y para quién. Fuera, para que el
+   recuadro sea entero del titular, el correo y la demo. */
+.insignia-hero {
+  margin-bottom: 20px; font-size: .75rem; padding: 8px 17px 8px 14px;
+  animation: entrar .7s var(--curva) .25s both;
+}
+.captura-cab { grid-area: cab; align-self: end; text-align: left; margin-bottom: 22px; }
+.captura-form { grid-area: form; align-self: start; }
+.captura-form .letra-pequena { text-align: left; }
+.demo { grid-area: demo; }
+
+/* ---- la demo, dentro de una pantalla ---- */
+/* Un monitor dibujado con CSS: marco oscuro, cámara, reflejo y peana. Que
+   sea una pantalla dice «esto es la herramienta» sin explicarlo. Dentro, el
+   producto contado para que se entienda de un vistazo: escribes la sospecha,
+   salen los tests, marcas positivo o negativo y sale la conclusión. Sin
+   cifras por test ni barras: eso se explica más abajo. */
+.demo { perspective: 1400px; padding: 6px 0 0; }
+.monitor {
+  position: relative; transform-style: preserve-3d;
+  transform: rotateY(-9deg) rotateX(3deg);
+  animation: flotarMonitor 7s ease-in-out infinite;
+}
+.pantalla {
+  position: relative; padding: 11px; border-radius: 20px;
+  background: linear-gradient(160deg, #2a3242 0%, #0d1119 45%, #05070b 100%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.07) inset,
+    0 1px 0 rgba(255,255,255,.18) inset,
+    0 40px 70px -30px rgba(0,0,0,.85),
+    0 0 60px -20px color-mix(in srgb, var(--verde) 50%, transparent);
+}
+.pantalla::before { /* la cámara */
+  content: ""; position: absolute; top: 4px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px;
+  border-radius: 50%; background: #1d2433; box-shadow: 0 0 0 1px rgba(255,255,255,.06);
+}
+.display {
+  position: relative; overflow: hidden; border-radius: 11px;
+  min-height: 305px; display: flex; flex-direction: column;
+  background:
+    radial-gradient(80% 60% at 20% 0%, var(--brillo-verde), transparent 70%),
+    radial-gradient(70% 60% at 100% 100%, var(--brillo-azul), transparent 70%),
+    var(--fondo);
+}
+.display::after { /* el reflejo del cristal */
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  background: linear-gradient(115deg, rgba(255,255,255,.09) 0%, rgba(255,255,255,.02) 32%, transparent 33%);
+}
+.peana { position: relative; height: 46px; }
+.peana::before { /* el cuello */
+  content: ""; position: absolute; left: 50%; top: 0; width: 88px; height: 34px; margin-left: -44px;
+  background: linear-gradient(180deg, #0a0d14, #1f2633);
+  clip-path: polygon(14% 0, 86% 0, 100% 100%, 0 100%);
+}
+.peana::after { /* el pie */
+  content: ""; position: absolute; left: 50%; bottom: 4px; width: 190px; height: 9px; margin-left: -95px;
+  border-radius: 6px 6px 50% 50% / 6px 6px 100% 100%;
+  background: linear-gradient(180deg, #3a4456, #121722);
+  box-shadow: 0 14px 22px -6px rgba(0,0,0,.7);
+}
+
+.app-barra {
+  display: flex; align-items: center; gap: 8px; flex: none;
+  padding: 8px 13px; border-bottom: 1px solid var(--borde);
+  font-size: .6875rem; color: var(--tinta-tenue);
+}
+.app-barra b { font-size: .8125rem; font-weight: 800; letter-spacing: -.02em; color: var(--tinta); }
+.app-barra b span { color: var(--verde); }
+.app-barra em {
+  margin-left: auto; font-style: normal; font-weight: 750; font-size: .5625rem;
+  letter-spacing: .14em; text-transform: uppercase;
+  padding: 3px 7px; border-radius: 5px; color: var(--verde); background: var(--brillo-verde);
+}
+
+.app {
+  position: relative; flex: 1; display: flex; flex-direction: column; gap: 11px;
+  padding: 14px 16px; transition: opacity .45s, filter .45s;
+}
+.app.fuera { opacity: 0; filter: blur(4px); }
+.app.reinicio * { transition: none !important; }
+
+.demo-busca {
+  display: flex; align-items: center; gap: 9px; flex: none;
+  padding: 9px 12px; border-radius: 10px;
+  background: var(--superficie); border: 1px solid var(--borde-vivo);
+  font-size: .875rem; font-weight: 650; color: var(--tinta); min-height: 40px;
+}
+.demo-busca svg { flex: none; color: var(--verde); }
+.demo-texto { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.demo-texto:empty::before { content: "¿Qué sospechas?"; color: var(--tinta-tenue); font-weight: 400; }
+.demo-cursor {
+  flex: none; width: 2px; height: 1.1em; margin-left: -7px; border-radius: 1px;
+  background: var(--verde); animation: parpadeo 1s steps(1) infinite;
+}
+
+/* Los tests: nombre y dos botones, Positivo y Negativo. Nada más. */
+.tests { position: relative; display: flex; flex-direction: column; gap: 6px; transition: opacity .45s, filter .45s; }
+.app.concluida .tests { opacity: .4; filter: blur(1px); }
+.test {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 6px 7px 6px 12px; border-radius: 10px;
+  background: var(--superficie); border: 1px solid var(--borde);
+  font-size: .8125rem; font-weight: 650; color: var(--tinta);
+  animation: brotar .45s var(--curva) both;
+  transition: border-color .3s, background .3s;
+}
+.test.pos { border-color: color-mix(in srgb, var(--verde) 45%, var(--borde)); background: color-mix(in srgb, var(--verde) 8%, var(--superficie)); }
+.test.neg { border-color: var(--borde-vivo); }
+.botones { display: flex; gap: 5px; }
+.botones span {
+  height: 22px; padding: 0 8px; border-radius: 7px; display: grid; place-items: center;
+  font-size: .6875rem; font-weight: 700; line-height: 1;
+  color: var(--tinta-tenue); background: var(--superficie-viva); border: 1px solid var(--borde);
+  transition: background .25s, color .25s, transform .25s var(--curva), box-shadow .25s;
+}
+.botones span.si { transform: scale(1.06); }
+.botones span.mas.si { background: var(--verde); color: #04140f; border-color: transparent; box-shadow: 0 0 14px -2px var(--verde); }
+.botones span.menos.si { background: var(--tinta-media); color: var(--fondo); border-color: transparent; }
+
+/* El cursor que marca los resultados: se ve una mano haciendo el trabajo. */
+.puntero {
+  position: absolute; left: 0; top: 0; z-index: 4; width: 18px; height: 18px;
+  opacity: 0; pointer-events: none;
+  transition: transform .6s var(--curva), opacity .3s;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.5));
+}
+.puntero.ve { opacity: 1; }
+.puntero::after { /* la onda del clic */
+  content: ""; position: absolute; left: -9px; top: -9px; width: 18px; height: 18px;
+  border-radius: 50%; border: 2px solid var(--verde); opacity: 0;
+}
+.puntero.clic::after { animation: ondaClic .5s ease-out; }
+
+/* La conclusión: un número grande y una frase. */
+.veredicto {
+  position: absolute; left: 16px; right: 16px; bottom: 14px; z-index: 3;
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 14px; border-radius: 13px;
+  background: color-mix(in srgb, var(--superficie-alta) 88%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid var(--borde-vivo);
+  box-shadow: 0 18px 40px -16px rgba(0,0,0,.7);
+  opacity: 0; transform: translateY(14px) scale(.96);
+  transition: opacity .45s, transform .55s var(--curva);
+}
+.veredicto.ve { opacity: 1; transform: none; }
+.veredicto .cifra {
+  flex: none; font-size: 2rem; font-weight: 800; letter-spacing: -.04em; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.veredicto.confirma { border-color: color-mix(in srgb, var(--verde) 50%, var(--borde)); }
+.veredicto.confirma .cifra { color: var(--verde); text-shadow: 0 0 24px color-mix(in srgb, var(--verde) 50%, transparent); }
+.veredicto.descarta { border-color: color-mix(in srgb, var(--azul) 50%, var(--borde)); }
+.veredicto.descarta .cifra { color: var(--azul); text-shadow: 0 0 24px color-mix(in srgb, var(--azul) 50%, transparent); }
+.veredicto b { display: block; font-size: .875rem; line-height: 1.25; color: var(--tinta); }
+.veredicto small {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 4px;
+  font-size: .6875rem; font-weight: 650; color: var(--tinta-tenue);
+}
+.veredicto small::before {
+  content: "✓"; display: grid; place-items: center; width: 13px; height: 13px; border-radius: 50%;
+  font-size: .5625rem; background: var(--brillo-verde); color: var(--verde);
+}
+
+/* Entre tableta y portátil pequeño el giro sacaba el monitor del recuadro. */
+@media (max-width: 1100px) {
+  .monitor { transform: rotateY(-4deg) rotateX(2deg) scale(.97); }
+}
+
+@media (max-width: 860px) {
+  .hero .captura { max-width: 580px; }
+  .oferta { grid-template-columns: minmax(0, 1fr); grid-template-areas: "cab" "form" "demo"; }
+  .insignia-hero { margin-bottom: 16px; }
+  .captura-cab { text-align: center; }
+  .captura-titulo small { justify-content: center; }
+  .captura-titulo small::after {
+    content: ""; flex: none; width: 34px; height: 1px;
+    background: linear-gradient(270deg, transparent, var(--verde));
+    transform-origin: right center; animation: abrirRaya .9s .55s var(--curva) both;
+  }
+  .captura-form .letra-pequena { text-align: center; }
+  .demo { margin-top: 26px; }
+  .monitor { transform: none; }
+}
+
+/* ---- luz dentro de la tarjeta ---- */
+/* Un foco que sigue al ratón por dentro de la tarjeta, una trama de puntos
+   que se desvanece hacia abajo y un filo de luz en el canto superior. */
+.foco, .trama {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+}
+.foco {
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, -10%),
+    color-mix(in srgb, var(--verde) 16%, transparent), transparent 60%);
+  transition: opacity .4s;
+}
+.trama {
+  background-image: radial-gradient(color-mix(in srgb, var(--tinta) 16%, transparent) 1px, transparent 1.2px);
+  background-size: 16px 16px;
+  -webkit-mask-image: radial-gradient(90% 60% at 50% 0%, #000, transparent 75%);
+  mask-image: radial-gradient(90% 60% at 50% 0%, #000, transparent 75%);
+  opacity: .55;
+}
+.trama::after {
+  content: ""; position: absolute; top: 0; left: 14%; right: 14%; height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, white 70%, var(--verde)), transparent);
+  opacity: .7;
+}
+#oferta { position: relative; }
+
+/* ---- el botón ---- */
+.hero button.enviar { position: relative; overflow: hidden; isolation: isolate; }
+.hero button.enviar::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 45%; z-index: -1;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.5), transparent);
+  transform: skewX(-20deg);
+  animation: barridoBoton 5.5s ease-in-out 3s infinite;
+}
+/* Un aro de luz que recorre el botón sin parar, y un halo detrás que
+   respira: es lo único de la página que se mueve siempre, para que la vista
+   vuelva ahí.
+
+   Está hecho para que el navegador solo tenga que girar y fundir piezas ya
+   pintadas. El degradado es un cuadrado grande que gira (.aro-luz), recortado
+   por el borde del botón; el halo, un desenfoque fijo al que solo le cambia
+   la opacidad. Animar el ángulo del degradado obligaba a repintarlo en cada
+   fotograma, y en el móvil se notaba. */
+.aro {
+  position: relative; display: block; margin-top: 12px; padding: 3px;
+  border-radius: 16px; isolation: isolate;
+}
+.aro-luz {
+  position: absolute; inset: 0; z-index: -1; border-radius: inherit; overflow: hidden;
+}
+.aro-luz::before {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 160%; aspect-ratio: 1;
+  background: conic-gradient(
+    var(--verde) 0deg,
+    color-mix(in srgb, var(--verde) 40%, white) 50deg,
+    var(--azul) 110deg,
+    transparent 170deg, transparent 250deg,
+    var(--verde) 360deg);
+  transform: translate(-50%, -50%);
+  animation: giroLuz 3.4s linear infinite;
+  will-change: transform;
+}
+.aro::after {
+  content: ""; position: absolute; inset: -6px; z-index: -2; border-radius: inherit;
+  background: linear-gradient(90deg, var(--verde), var(--azul));
+  filter: blur(18px); opacity: .5;
+  animation: respirarAro 2.6s ease-in-out infinite;
+  will-change: opacity;
+}
+.aro button.enviar { display: block; margin-top: 0; border-radius: 13px; }
+
+.hero button.enviar:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 34px -12px var(--verde); }
+
+/* El filo que recorre el borde del recuadro: igual que el aro, un cuadrado
+   con el degradado que gira, visto solo a través de un marco de 1 px. */
+.filo {
+  position: absolute; inset: -1px; border-radius: inherit; padding: 1px;
+  pointer-events: none; overflow: hidden;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.filo::before {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 150%; aspect-ratio: 1;
+  background: conic-gradient(
+    transparent 0deg, transparent 230deg,
+    color-mix(in srgb, var(--verde) 80%, transparent) 300deg,
+    var(--azul) 335deg, transparent 360deg);
+  transform: translate(-50%, -50%);
+  animation: giroLuz 7s linear infinite;
+  will-change: transform;
+}
+.hero .captura::after {
+  content: ""; position: absolute; inset: 18% 8% -14%; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--verde) 26%, transparent), transparent);
+  filter: blur(34px); opacity: .7;
+}
+.captura.abajo { margin-top: 8px; }
+
+.campo {
+  display: flex; align-items: center; gap: 11px;
+  border: 1px solid var(--borde-vivo); border-radius: 13px;
+  background: var(--fondo); padding: 0 15px;
+  transition: border-color .2s, box-shadow .2s;
+}
+.campo:focus-within { border-color: var(--verde); box-shadow: 0 0 0 4px var(--brillo-verde); }
+.campo svg { flex: none; color: var(--verde); }
+
+input[type="email"] {
+  flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+  font: inherit; color: var(--tinta); padding: 16px 0;
+}
+input[type="email"]::placeholder { color: var(--tinta-tenue); }
+
+button.enviar {
+  width: 100%; margin-top: 11px; border: 0; border-radius: 13px;
+  background: linear-gradient(180deg, var(--verde) 0%, color-mix(in srgb, var(--verde) 70%, #000) 100%);
+  color: #04140f; font: inherit; font-weight: 750; font-size: 1.0625rem;
+  padding: 17px 20px; cursor: pointer;
+  box-shadow: 0 8px 24px -10px var(--verde);
+  transition: transform .15s var(--curva), filter .2s;
+}
+button.enviar:hover:not(:disabled) { filter: brightness(1.07); }
+button.enviar:active { transform: scale(.99); }
+button.enviar:disabled { opacity: .6; cursor: default; }
+
+.letra-pequena { margin: 14px 0 0; text-align: center; font-size: .8125rem; color: var(--tinta-tenue); }
+.letra-pequena a, .barra-legal a, footer a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.letra-pequena a:hover, .barra-legal a:hover, footer a:hover { color: var(--verde); }
+.barra-legal { margin: 6px 4px 0; font-size: .6875rem; line-height: 1.35; color: var(--tinta-tenue); text-align: center; }
+
+.aviso {
+  margin: 0 0 18px; padding: 13px 15px;
+  border-left: 3px solid var(--verde); background: var(--brillo-verde);
+  border-radius: 0 10px 10px 0; font-size: .9375rem; color: var(--tinta-media);
+}
+.aviso.malo { border-left-color: var(--rojo); background: var(--brillo-rojo); }
+
+/* ============ la historia ============ */
+
+/* Todo lo que explica, escondido hasta que se pide. Cada escena entra al
+   llegar a ella: sube, se enfoca y se enciende. El texto, corto y llano: lo
+   tiene que entender cualquiera a la primera. */
+.historia { position: relative; z-index: 1; }
+.historia[hidden] { display: none; }
+.historia.abierta { animation: aparecer .6s ease-out both; }
+
+.escena {
+  position: relative; max-width: 1060px; margin: 0 auto; padding: 120px 20px 0;
+}
+.escena::before { /* una luz propia detrás de cada escena */
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  left: 50%; top: 80px; width: 80%; height: 60%; transform: translateX(-50%);
+  background: radial-gradient(closest-side, var(--brillo-verde), transparent);
+  filter: blur(40px); opacity: .7;
+}
+
+[data-revelar] {
+  opacity: 0; transform: translateY(42px); filter: blur(10px);
+  transition: opacity 1s var(--curva), transform 1.1s var(--curva), filter 1s var(--curva);
+  transition-delay: calc(var(--i, 0) * 120ms);
+}
+[data-revelar].visible { opacity: 1; transform: none; filter: none; }
+
+.rotulo-escena {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: .75rem; font-weight: 750; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--verde);
+}
+.rotulo-escena::before { content: ""; width: 28px; height: 1px; background: currentColor; }
+.titulo-escena {
+  margin: 14px 0 0; max-width: 20ch;
+  font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.04; letter-spacing: -.045em; font-weight: 800;
+  text-wrap: balance;
+}
+.titulo-escena span {
+  background: linear-gradient(100deg, var(--verde) 0%, var(--azul) 80%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.entradilla-escena { margin: 18px 0 0; max-width: 56ch; font-size: 1.125rem; color: var(--tinta-media); }
+.entradilla-escena b { color: var(--tinta); }
+
+/* ---- 1. el problema ---- */
+.escena-problema { text-align: center; padding-top: 110px; }
+.gran-titulo {
+  margin: 0 auto; max-width: 16ch;
+  font-size: clamp(2.3rem, 6.4vw, 4.4rem); line-height: 1.02;
+  letter-spacing: -.048em; font-weight: 800; text-wrap: balance;
+}
+/* El segundo dolor, entre la pregunta y la respuesta: más pequeño y apagado,
+   para que el remate siga siendo «Ahora no hace falta». */
+.gran-titulo em {
+  display: block; margin: .22em 0 .26em;
+  font-style: normal; font-size: .52em; font-weight: 700; letter-spacing: -.03em;
+  color: var(--tinta-media);
+}
+.gran-titulo span {
+  display: block;
+  background: linear-gradient(100deg, var(--verde) 0%, var(--azul) 78%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* Las tres promesas, como tarjetas grandes: número, icono, frase y una línea
+   que la explica. Un filo de luz las recorre al pasar por encima. */
+.beneficios {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px;
+  margin-top: 64px; text-align: left;
+}
+.beneficio {
+  position: relative; overflow: hidden; isolation: isolate;
+  padding: 26px 24px 26px; border-radius: 22px;
+  background:
+    radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--verde) 12%, transparent), transparent 60%),
+    var(--superficie);
+  border: 1px solid var(--borde-vivo);
+  box-shadow: var(--sombra);
+  transition: transform .5s var(--curva), border-color .4s, box-shadow .4s;
+}
+.beneficio:hover, .beneficio.visible:hover {
+  transform: translateY(-6px);
+  border-color: color-mix(in srgb, var(--verde) 55%, var(--borde-vivo));
+  box-shadow: 0 30px 60px -30px color-mix(in srgb, var(--verde) 60%, transparent);
+}
+.beneficio::after { /* el barrido de luz */
+  content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--verde) 14%, transparent) 50%, transparent 70%);
+  transform: translateX(-100%); transition: transform .9s var(--curva);
+}
+.beneficio:hover::after { transform: translateX(100%); }
+/* Cada tarjeta es algo que ganas, así que lleva un check que se dibuja al
+   llegar, con un pequeño rebote, y la tarjeta se enciende en verde una
+   detrás de otra: conseguido, conseguido, conseguido. */
+.beneficio-check {
+  position: absolute; top: 22px; right: 22px;
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  color: #04140f; background: var(--verde);
+  box-shadow: 0 0 0 6px var(--brillo-verde), 0 0 28px -4px var(--verde);
+  transform: scale(0); opacity: 0;
+}
+.beneficio-check svg { width: 24px; height: 24px; }
+.beneficio-check path { stroke-dasharray: 24; stroke-dashoffset: 24; }
+.beneficio.visible .beneficio-check {
+  animation: popCheck .6s cubic-bezier(.34, 1.56, .64, 1) both;
+  animation-delay: calc(var(--i, 0) * 280ms + 450ms);
+}
+.beneficio.visible .beneficio-check path {
+  animation: trazar .45s var(--curva) both;
+  animation-delay: calc(var(--i, 0) * 280ms + 700ms);
+}
+/* Sin «forwards»: al acabar vuelve a mandar el CSS normal, y el hover sigue
+   funcionando. El borde verde tenue con el que se queda va aparte. */
+.beneficio.visible { border-color: color-mix(in srgb, var(--verde) 40%, var(--borde-vivo)); }
+.beneficio.visible {
+  animation: encenderTarjeta 1.4s ease-out backwards;
+  animation-delay: calc(var(--i, 0) * 280ms + 450ms);
+}
+.beneficio-icono {
+  width: 54px; height: 54px; border-radius: 16px; display: grid; place-items: center;
+  color: var(--verde); background: var(--brillo-verde);
+  border: 1px solid color-mix(in srgb, var(--verde) 30%, transparent);
+  box-shadow: 0 0 30px -8px color-mix(in srgb, var(--verde) 60%, transparent);
+}
+.beneficio h3 { margin: 26px 0 0; font-size: clamp(1.375rem, 2.4vw, 1.625rem); line-height: 1.18; letter-spacing: -.03em; text-wrap: balance; }
+
+/* ---- 2. así de fácil ---- */
+/* Una línea vertical que se llena al bajar, y en ella cuatro paradas que se
+   encienden. Cada paso: qué haces, en una frase, y cómo se ve. */
+.pasos {
+  --avance: 0;
+  position: relative; list-style: none; margin: 56px 0 0; padding: 0 0 0 64px;
+  display: grid; gap: 34px;
+}
+.pasos::before, .pasos::after {
+  content: ""; position: absolute; left: 21px; top: 22px; bottom: 22px; width: 2px; border-radius: 2px;
+}
+.pasos::before { background: var(--borde-vivo); }
+.pasos::after {
+  background: linear-gradient(180deg, var(--verde), var(--azul));
+  box-shadow: 0 0 14px var(--verde);
+  transform-origin: top; transform: scaleY(var(--avance));
+}
+.paso {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 30px; align-items: center;
+}
+.paso-num {
+  position: absolute; left: -64px; top: 50%; margin-top: -22px; z-index: 1;
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  font-weight: 800; color: var(--tinta-tenue);
+  background: var(--superficie); border: 2px solid var(--borde-vivo);
+  transition: background .5s, color .5s, border-color .5s, box-shadow .5s;
+}
+.paso.activo .paso-num {
+  color: #04140f; background: var(--verde); border-color: var(--verde);
+  box-shadow: 0 0 0 6px var(--brillo-verde), 0 0 24px var(--verde);
+}
+.paso h3 { margin: 0 0 6px; font-size: clamp(1.25rem, 2.6vw, 1.6rem); letter-spacing: -.03em; line-height: 1.15; }
+.paso p { margin: 0; color: var(--tinta-media); }
+.paso-visual {
+  padding: 18px; border-radius: 18px;
+  background: color-mix(in srgb, var(--superficie) 85%, transparent);
+  border: 1px solid var(--borde);
+  box-shadow: 0 24px 50px -30px rgba(0,0,0,.7);
+}
+
+.v-busca {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px;
+  background: var(--fondo); border: 1px solid var(--borde-vivo); font-weight: 650;
+}
+.v-busca svg { color: var(--verde); flex: none; }
+.v-busca i { width: 2px; height: 1.1em; margin-left: -6px; background: var(--verde); animation: parpadeo 1s steps(1) infinite; }
+
+.v-ficha b { display: block; font-size: 1.0625rem; margin-bottom: 10px; }
+.v-ficha dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 7px 12px; font-size: .875rem; }
+.v-ficha dt {
+  font-size: .6875rem; font-weight: 750; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--verde); padding-top: 2px;
+}
+.v-ficha dd { margin: 0; color: var(--tinta-media); }
+
+.v-marcas { display: grid; gap: 8px; }
+.v-marcas div {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 10px 9px 14px; border-radius: 11px; background: var(--fondo); border: 1px solid var(--borde);
+  font-size: .9375rem; font-weight: 650;
+}
+.v-marcas span { display: flex; gap: 6px; }
+.v-marcas em {
+  font-style: normal; font-size: .75rem; font-weight: 700; padding: 5px 10px; border-radius: 8px;
+  color: var(--tinta-tenue); background: var(--superficie-viva);
+}
+.v-marcas em.pos { color: #04140f; background: var(--verde); box-shadow: 0 0 14px -2px var(--verde); }
+.v-marcas em.neg { color: var(--fondo); background: var(--tinta-media); }
+
+.v-conclusion { display: flex; align-items: center; gap: 18px; }
+.v-conclusion strong {
+  font-size: 3rem; font-weight: 800; letter-spacing: -.05em; line-height: 1; color: var(--verde);
+  text-shadow: 0 0 30px color-mix(in srgb, var(--verde) 50%, transparent);
+}
+.v-conclusion b { display: block; font-size: 1.0625rem; }
+.v-conclusion small { display: block; margin-top: 4px; color: var(--tinta-tenue); font-size: .8125rem; }
+
+/* ---- 3. no todos los positivos valen lo mismo ---- */
+.duelo {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 22px; align-items: stretch; margin-top: 46px;
+}
+.duelo-vs {
+  align-self: center; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+  font-size: .8125rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--tinta-tenue); background: var(--superficie); border: 1px solid var(--borde-vivo);
+}
+.medidor-card {
+  --color: var(--ambar);
+  position: relative; padding: 24px 24px 26px; border-radius: 22px; text-align: center;
+  background:
+    radial-gradient(100% 70% at 50% 100%, color-mix(in srgb, var(--color) 14%, transparent), transparent 70%),
+    var(--superficie);
+  border: 1px solid color-mix(in srgb, var(--color) 30%, var(--borde-vivo));
+  box-shadow: var(--sombra);
+}
+.medidor-card.decide { --color: var(--verde); }
+.medidor-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; }
+.medidor-cab h3 { margin: 0; font-size: 1.125rem; letter-spacing: -.02em; }
+.chip-pos {
+  flex: none; font-size: .6875rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase;
+  padding: 5px 11px; border-radius: 999px; color: var(--verde); background: var(--brillo-verde);
+}
+.medidor { display: block; width: 100%; max-width: 280px; margin: 18px auto 0; overflow: visible; }
+.medidor .fondo-arco { fill: none; stroke: var(--superficie-viva); stroke-width: 14; stroke-linecap: round; }
+.medidor .zona-baja { fill: none; stroke: color-mix(in srgb, var(--azul) 45%, transparent); stroke-width: 14; }
+.medidor .zona-alta { fill: none; stroke: color-mix(in srgb, var(--verde) 45%, transparent); stroke-width: 14; }
+.medidor .arco {
+  fill: none; stroke: var(--color); stroke-width: 14; stroke-linecap: round;
+  stroke-dasharray: 100; stroke-dashoffset: calc(100 - var(--p, 45));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--color) 70%, transparent));
+  transition: stroke-dashoffset 1.8s var(--curva);
+}
+.medidor .aguja {
+  stroke: var(--tinta); stroke-width: 3; stroke-linecap: round;
+  transform-origin: 100px 100px; transform: rotate(calc(var(--p, 45) * 1.8deg - 90deg));
+  transition: transform 1.8s var(--curva);
+}
+.medidor .eje { fill: var(--tinta); }
+.medidor-cifra {
+  margin-top: -4px; font-size: 3.25rem; font-weight: 800; letter-spacing: -.05em; line-height: 1;
+  color: var(--color); font-variant-numeric: tabular-nums;
+}
+.medidor-desde { margin-top: 6px; font-size: .8125rem; color: var(--tinta-tenue); }
+.medidor-lectura { margin: 16px 0 0; font-size: 1rem; color: var(--tinta-media); }
+.medidor-lectura b { display: block; font-size: 1.125rem; color: var(--color); margin-bottom: 2px; }
+
+.remate-escena {
+  margin: 30px auto 0; max-width: 62ch; padding: 20px 24px; border-radius: 16px; text-align: center;
+  font-size: 1.0625rem; color: var(--tinta-media);
+  background: color-mix(in srgb, var(--superficie) 70%, transparent); border: 1px solid var(--borde);
+}
+.remate-escena b { color: var(--tinta); }
+
+/* ---- 4. banderas rojas ---- */
+.escena-alerta { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 50px; align-items: center; }
+.escena-alerta::before { background: radial-gradient(closest-side, var(--brillo-rojo), transparent); }
+.escena-alerta .rotulo-escena { color: var(--rojo); }
+.escena-alerta .titulo-escena span {
+  background: linear-gradient(100deg, var(--rojo), var(--ambar));
+  -webkit-background-clip: text; background-clip: text;
+}
+.bandera-card {
+  position: relative; padding: 22px; border-radius: 22px;
+  background: var(--superficie);
+  border: 1px solid color-mix(in srgb, var(--rojo) 40%, var(--borde-vivo));
+  box-shadow: 0 30px 70px -34px color-mix(in srgb, var(--rojo) 70%, transparent);
+}
+.bandera-cab {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  font-size: .75rem; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; color: var(--rojo);
+}
+.bandera-cab svg { animation: ondear 2.4s ease-in-out infinite; transform-origin: 4px 22px; }
+.bandera-card ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.bandera-card li {
+  padding: 13px 15px; border-radius: 13px; border-left: 3px solid var(--rojo);
+  background: var(--brillo-rojo);
+}
+.bandera-card li b { display: block; font-size: .96875rem; }
+.bandera-card li span { display: block; margin-top: 2px; font-size: .875rem; color: var(--tinta-media); }
+
+/* ---- 5. por qué fiarte ---- */
+.garantias-grid {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 46px;
+}
+.garantia {
+  padding: 24px 20px; border-radius: 20px;
+  background: var(--superficie); border: 1px solid var(--borde);
+  transition: transform .5s var(--curva), border-color .4s;
+}
+.garantia:hover { transform: translateY(-5px); border-color: color-mix(in srgb, var(--azul) 50%, var(--borde)); }
+.garantia-icono {
+  width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
+  color: var(--azul); background: var(--brillo-azul);
+}
+.garantia h3 { margin: 18px 0 6px; font-size: 1.0625rem; letter-spacing: -.02em; }
+.garantia p { margin: 0; font-size: .9375rem; color: var(--tinta-media); }
+
+/* ---- la confirmación ---- */
+/* Tras el alta, la tarjeta entera celebra: un círculo que se dibuja, un check
+   que entra con rebote, dos ondas que se expanden y ocho chispas que salen
+   disparadas. Luego, quieto; y un enlace discreto por si el correo iba mal. */
+.oferta.enviado { display: block; }
+.oferta.enviado > :not(.exito) { display: none; }
+.exito { text-align: center; padding: 6px 0 2px; animation: entrar .6s var(--curva) both; }
+.exito-check { position: relative; width: 112px; height: 112px; margin: 0 auto 22px; }
+.exito-check svg { position: relative; z-index: 1; width: 100%; height: 100%; overflow: visible; }
+.exito-check circle {
+  fill: var(--brillo-verde); stroke: var(--verde); stroke-width: 5;
+  stroke-dasharray: 277; stroke-dashoffset: 277;
+  transform: rotate(-90deg); transform-origin: 50% 50%;
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--verde) 70%, transparent));
+  animation: trazar .7s var(--curva) .1s forwards;
+}
+.exito-check path {
+  fill: none; stroke: var(--verde); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 70; stroke-dashoffset: 70;
+  animation: trazar .45s cubic-bezier(.34, 1.56, .64, 1) .7s forwards;
+}
+.exito-onda {
+  position: absolute; inset: 0; border-radius: 50%; border: 2px solid var(--verde);
+  opacity: 0; animation: ondaExito 1.3s ease-out .75s;
+}
+.exito-onda + .exito-onda { animation-delay: 1s; }
+.exito-check i {
+  position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px;
+  border-radius: 50%; background: var(--verde); opacity: 0;
+  box-shadow: 0 0 10px var(--verde);
+  animation: chispa .8s cubic-bezier(.2, .8, .3, 1) .8s;
+}
+.exito-check i:nth-of-type(1) { --a: 0deg; }
+.exito-check i:nth-of-type(2) { --a: 45deg; background: var(--azul); box-shadow: 0 0 10px var(--azul); }
+.exito-check i:nth-of-type(3) { --a: 90deg; }
+.exito-check i:nth-of-type(4) { --a: 135deg; background: var(--azul); box-shadow: 0 0 10px var(--azul); }
+.exito-check i:nth-of-type(5) { --a: 180deg; }
+.exito-check i:nth-of-type(6) { --a: 225deg; background: var(--azul); box-shadow: 0 0 10px var(--azul); }
+.exito-check i:nth-of-type(7) { --a: 270deg; }
+.exito-check i:nth-of-type(8) { --a: 315deg; background: var(--azul); box-shadow: 0 0 10px var(--azul); }
+.exito-rotulo {
+  margin: 0; font-size: .75rem; font-weight: 750; letter-spacing: .2em; text-transform: uppercase; color: var(--verde);
+}
+.exito-titulo { margin: 8px 0 12px; font-size: clamp(1.625rem, 3.6vw, 2.25rem); letter-spacing: -.035em; line-height: 1.1; }
+.exito-texto { margin: 0 auto 10px; max-width: 52ch; color: var(--tinta-media); }
+.exito-texto b { color: var(--tinta); }
+.exito-nota { margin: 0 auto; max-width: 52ch; font-size: .9375rem; color: var(--tinta-tenue); }
+.exito-corregir {
+  margin-top: 18px; padding: 6px 4px; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: .875rem; color: var(--tinta-tenue);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.exito-corregir:hover { color: var(--verde); }
+
+/* ---- el formulario del final ---- */
+/* Mismo campo y mismo botón con aro que arriba, para que se reconozca la
+   acción. */
+.linea-form { text-align: left; max-width: 640px; margin: 0 auto; }
+.final-card .linea-form { margin-top: 28px; }
+.linea-fila { display: flex; gap: 10px; align-items: stretch; }
+.linea-fila .campo { flex: 1; background: var(--superficie); }
+.linea-fila .aro { margin-top: 0; flex: none; }
+.linea-fila button.enviar { height: 100%; width: auto; padding: 0 26px; }
+.form-hecho {
+  display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0;
+  padding: 16px 18px; border-radius: 14px; font-weight: 650;
+  background: var(--brillo-verde); color: var(--tinta);
+  border: 1px solid color-mix(in srgb, var(--verde) 40%, transparent);
+}
+.form-hecho::before {
+  content: "✓"; flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--verde); color: #04140f; font-weight: 800;
+}
+
+/* ---- la invitación fija de abajo ---- */
+/* Aparece cuando no hay ningún formulario a la vista y se retira en cuanto
+   asoma uno. En ordenador es una píldora de cristal flotando en el centro;
+   en móvil, una barra de lado a lado pegada al borde. */
+.barra-fija {
+  position: fixed; left: 50%; bottom: 22px; z-index: 60;
+  width: min(640px, calc(100% - 40px)); padding: 8px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--superficie) 78%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid color-mix(in srgb, var(--verde) 35%, var(--borde-vivo));
+  box-shadow: 0 24px 60px -20px rgba(0,0,0,.75), 0 0 50px -24px var(--verde);
+  transform: translate(-50%, 160%); opacity: 0;
+  transition: transform .5s var(--curva), opacity .35s;
+}
+.barra-fija.ve { transform: translate(-50%, 0); opacity: 1; }
+.barra-fila { display: flex; gap: 8px; align-items: stretch; }
+.barra-fila input {
+  flex: 1; min-width: 0; border: 1px solid var(--borde-vivo); border-radius: 13px; outline: 0;
+  background: var(--fondo); color: var(--tinta); font: inherit; font-size: 1rem; padding: 13px 15px;
+}
+.barra-fila input:focus { border-color: var(--verde); box-shadow: 0 0 0 3px var(--brillo-verde); }
+.barra-fila .aro { margin-top: 0; flex: none; }
+.barra-fila button.enviar {
+  height: 100%; width: auto; margin: 0; padding: 0 22px; font-size: .9375rem; white-space: nowrap;
+}
+.barra-fija .corto { display: none; }
+.barra-fija .aviso { margin: 0 0 8px; font-size: .8125rem; padding: 8px 11px; }
+
+@media (max-width: 860px) {
+  .barra-fija {
+    left: 0; right: 0; bottom: 0; width: auto; border-radius: 0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    border-width: 1px 0 0; box-shadow: none;
+    transform: translateY(110%);
+  }
+  .barra-fija.ve { transform: none; }
+  .barra-fija .largo { display: none; }
+  .barra-fija .corto { display: inline; }
+  .barra-fila button.enviar { padding: 0 16px; }
+}
+
+/* ---- 6. llamada final ---- */
+.escena-final { padding-bottom: 20px; }
+.final-card {
+  position: relative; overflow: hidden; isolation: isolate; text-align: center;
+  padding: 60px 28px 54px; border-radius: 30px;
+  background:
+    radial-gradient(70% 90% at 50% 0%, color-mix(in srgb, var(--verde) 24%, transparent), transparent 70%),
+    radial-gradient(60% 80% at 100% 100%, color-mix(in srgb, var(--azul) 20%, transparent), transparent 70%),
+    var(--captura-base);
+  border: 1px solid color-mix(in srgb, var(--verde) 35%, var(--borde-vivo));
+  box-shadow: 0 40px 90px -40px color-mix(in srgb, var(--verde) 60%, transparent);
+}
+.final-card .titulo-escena { margin: 18px auto 0; }
+.final-card p { margin: 14px auto 0; max-width: 46ch; font-size: 1.0625rem; color: var(--tinta-media); }
+.final-card .letra-pequena { margin-top: 14px; font-size: .8125rem; color: var(--tinta-tenue); }
+
+@media (max-width: 860px) {
+  .escena { padding-top: 90px; }
+  .beneficios, .garantias-grid { grid-template-columns: minmax(0, 1fr); }
+  .garantias-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .paso { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .paso-num { top: 0; margin-top: 0; }
+  .duelo { grid-template-columns: minmax(0, 1fr); }
+  .duelo-vs { justify-self: center; }
+  .escena-alerta { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+}
+@media (max-width: 560px) {
+  .garantias-grid { grid-template-columns: minmax(0, 1fr); }
+  .pasos { padding-left: 54px; }
+  .pasos::before, .pasos::after { left: 17px; }
+  .paso-num { left: -54px; width: 36px; height: 36px; }
+  .final-card { padding: 44px 20px 40px; }
+  .paso-visual { padding: 12px; }
+  .v-marcas div { padding: 8px 8px 8px 11px; font-size: .875rem; }
+  .v-marcas em { padding: 5px 7px; font-size: .6875rem; }
+  .v-marcas div, .v-marcas span { white-space: nowrap; }
+  .final-card button.enviar { padding: 17px 24px; }
+  .linea-fila { flex-direction: column; }
+  .linea-fila button.enviar { width: 100%; padding: 17px 20px; }
+}
+
+/* ============ pie ============ */
+
+footer {
+  max-width: 1060px; margin: 90px auto 0; padding: 26px 20px 44px; border-top: 1px solid var(--borde);
+  text-align: center; font-size: .8125rem; color: var(--tinta-tenue);
+}
+footer p { margin: 0 0 10px; max-width: 62ch; margin-inline: auto; }
+
+.girando {
+  display: inline-block; width: 15px; height: 15px; vertical-align: -2px;
+  border: 2px solid rgba(0,0,0,.25); border-top-color: #04140f;
+  border-radius: 50%; animation: girar .7s linear infinite;
+}
+
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes giroLuz { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes destello { 0% { background-position: 100% 0; } 40%, 100% { background-position: 0% 0; } }
+@keyframes entrarAntetitulo {
+  from { opacity: 0; filter: blur(8px); letter-spacing: .18em; }
+  to { opacity: 1; filter: none; letter-spacing: .005em; }
+}
+@keyframes popCheck { from { transform: scale(0) rotate(-25deg); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes encenderTarjeta {
+  0% { border-color: var(--borde-vivo); }
+  25% { border-color: var(--verde); box-shadow: 0 0 0 1px var(--verde), 0 30px 70px -26px var(--verde); }
+  100% { border-color: color-mix(in srgb, var(--verde) 40%, var(--borde-vivo)); box-shadow: var(--sombra); }
+}
+@keyframes caer { 0% { transform: scaleY(0); opacity: 1; } 60% { transform: scaleY(1); opacity: 1; } 100% { transform: scaleY(1); opacity: 0; } }
+@keyframes onda { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(1.7); opacity: 0; } }
+@keyframes ondear { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-8deg); } }
+@keyframes ondaExito { 0% { transform: scale(.9); opacity: .8; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes chispa {
+  0% { opacity: 1; transform: rotate(var(--a)) translateY(0) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(-78px) scale(.3); }
+}
+@keyframes respirarAro { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+@keyframes parpadeo { 50% { opacity: 0; } }
+@keyframes flotarMonitor { 0%, 100% { translate: 0 0; } 50% { translate: 0 -6px; } }
+@keyframes ondaClic { from { opacity: .9; transform: scale(.4); } to { opacity: 0; transform: scale(1.8); } }
+@keyframes brotar { from { opacity: 0; transform: translateY(8px) scale(.9); } to { opacity: 1; transform: none; } }
+@keyframes barridoBoton { 0% { left: -60%; } 35%, 100% { left: 130%; } }
+@keyframes aurora { from { transform: translate3d(-4%, -2%, 0) rotate(0deg); } to { transform: translate3d(5%, 3%, 0) rotate(8deg); } }
+@keyframes entrarCine {
+  from { opacity: 0; transform: translateY(26px) scale(.985); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes entrarTitulo {
+  from { opacity: 0; letter-spacing: .75em; filter: blur(8px); }
+  to { opacity: 1; letter-spacing: .32em; filter: none; }
+}
+@keyframes brilloTitulo { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+@keyframes abrirRaya { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: none; } }
+@keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
+@keyframes flotar { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+@keyframes pulso {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--verde) 60%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 9px transparent; }
+}
+@keyframes entrar { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes trazar { to { stroke-dashoffset: 0; } }
+@keyframes barrer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes deslizar { from { left: var(--desde); } to { left: var(--hasta); } }
+
+@media (max-width: 560px) {
+  .hero { padding-top: 30px; }
+  .hero-centro { padding-top: 34px; }
+  .titulo-herramienta { gap: 10px; }
+  .titulo-herramienta::before, .titulo-herramienta::after { width: 20px; }
+  .titulo-texto { font-size: .8125rem; letter-spacing: .22em; margin-right: -.22em; animation: brilloTitulo 1.6s 1s ease-in-out both; }
+  .hero .captura { padding: 24px 16px 16px; border-radius: 20px; }
+  .captura-cab { margin-bottom: 18px; }
+  .pantalla { padding: 8px; border-radius: 16px; }
+  .display { min-height: 350px; }
+  .app { padding: 12px; }
+}
+
+/* ============ móvil: el mismo diseño, más barato ============ */
+/* En el móvil todo iba a tirones, la demo del monitor también. No por el
+   número de animaciones sino por las que obligan a repintar en cada fotograma:
+   el grano que se mezcla con el fondo, los cristales esmerilados que
+   desenfocan lo que tienen detrás y las luces del fondo en movimiento. Aquí se
+   quitan o se dejan quietas; la constelación, ya quieta, la resuelve el guion. */
+@media (max-width: 860px), (pointer: coarse) {
+  .hero::before { animation: none; }
+  .hero::after { display: none; }
+  .ver-como, .veredicto, .barra-fija { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .ver-como { background: var(--superficie); }
+  .veredicto { background: var(--superficie-alta); }
+  .barra-fija { background: color-mix(in srgb, var(--fondo) 96%, var(--superficie)); }
+  /* En un recuadro alto y estrecho el cuadrado que gira tiene que ser mayor
+     para llegar a las esquinas. */
+  .filo::before { width: 300%; }
+  /* Las entradas por escena y el cambio de caso de la demo, sin desenfoque. */
+  [data-revelar], .app.fuera { filter: none; }
+  /* La historia: la luz detrás de cada escena ya es un degradado suave, sin
+     desenfoque encima; el arco de los medidores, sin resplandor que repintar
+     mientras se mueve; y las tarjetas se encienden con el check, sin el
+     destello de la sombra. */
+  .escena::before { filter: none; opacity: .5; }
+  .medidor .arco { filter: none; }
+  .beneficio.visible { animation: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  [data-revelar] { opacity: 1; transform: none; filter: none; }
+  .beneficio-check { transform: none; opacity: 1; }
+  .beneficio-check path { stroke-dashoffset: 0; }
+  .exito-check circle, .exito-check path { stroke-dashoffset: 0; }
+  .titulo-texto { background-position: 0% 0; }
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <canvas class="constelacion" id="constelacion" aria-hidden="true"></canvas>
+
+  <div class="marca" id="marca">
+    <b class="logo">Fisio<span>IA</span></b>
+    <em class="titulo-herramienta"><span class="titulo-texto">Copiloto <b>de</b> Exploración</span></em>
+  </div>
+
+  <div class="hero-centro" id="hero-centro">
+    <span class="insignia insignia-hero"><i></i>Gratis para fisioterapeutas</span>
+
+    <div class="captura" id="captura">
+      <span class="filo" aria-hidden="true"></span>
+      <span class="foco" aria-hidden="true"></span>
+      <span class="trama" aria-hidden="true"></span>
+      <div id="oferta" class="oferta">
+        <div class="captura-cab">
+          <p class="captura-titulo"><small><em>La herramienta que</em></small> resuelve tu exploración física <span class="en-segundos">en segundos<svg class="trazo" viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 10 C 45 3, 115 1, 197 7"/></svg></span></p>
+        </div>
+
+        <div class="captura-form">
+        <form id="form" class="form-acceso" data-origen="arriba" novalidate>
+          <div id="avisos"></div>
+          <div class="campo">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+              <path d="m2 7 10 6 10-6"></path>
+            </svg>
+            <input id="correo" type="email" name="email" autocomplete="email" required
+                   placeholder="Tu correo electrónico" aria-label="Tu correo electrónico">
+          </div>
+          <span class="aro"><span class="aro-luz" aria-hidden="true"></span><button class="enviar" id="enviar" type="submit">Quiero mi acceso gratuito &nbsp;→</button></span>
+        </form>
+        <p class="letra-pequena">Te enviamos tu acceso directo por correo. Al solicitarlo, aceptas unirte a nuestra lista de correo y la <a href="/privacidad" target="_blank" rel="noopener">política de privacidad</a>.</p>
+        </div>
+
+        <!-- La herramienta, en una pantalla y en bucle: sospecha, tests,
+             positivo o negativo, conclusión. Solo lo justo para entenderla. -->
+        <div class="demo" id="demo" aria-hidden="true">
+          <div class="monitor">
+            <div class="pantalla">
+              <div class="display">
+                <div class="app-barra">
+                  <b>Fisio<span>IA</span></b><span>Copiloto de Exploración</span><em>Demo</em>
+                </div>
+                <div class="app" id="app">
+                  <div class="demo-busca">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                    <span class="demo-texto" id="demo-texto"></span><i class="demo-cursor"></i>
+                  </div>
+                  <div class="tests" id="tests"></div>
+                  <div class="veredicto" id="veredicto"><span class="cifra" id="cifra"></span><div><b id="frase"></b><small>Basado en evidencia científica</small></div></div>
+                  <svg class="puntero" id="puntero" viewBox="0 0 24 24"><path d="M5 3l14 8-6.2 1.6L10 19z" fill="#fff" stroke="#0b0f17" stroke-width="1.4" stroke-linejoin="round"/></svg>
+                </div>
+              </div>
+            </div>
+            <div class="peana"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="ver-como" id="ver-como" type="button" aria-controls="historia" aria-expanded="false">
+      <span class="ver-como-anillo"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg></span>
+      <span class="ver-como-texto">Ver cómo funciona</span>
+    </button>
+    <span class="haz" aria-hidden="true"></span>
+  </div>
+</header>
+
+<!-- Todo lo que explica la herramienta, escondido hasta que se pulsa «Ver
+     cómo funciona»: la primera pantalla es solo para dejar el correo. -->
+<main class="historia" id="historia" hidden>
+
+  <!-- 1. El problema, y las tres cosas que resuelve -->
+  <section class="escena escena-problema" id="como-funciona">
+    <h2 class="gran-titulo" data-revelar>Nadie se sabe 300 tests de memoria.<em>Ni qué significa de verdad un positivo.</em><span>Ahora no hace falta.</span></h2>
+
+    <div class="beneficios">
+      <article class="beneficio" data-revelar style="--i:1">
+        <span class="beneficio-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+        <div class="beneficio-icono"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.5-4.5"/><path d="M8 10.5h5M10.5 8v5"/></svg></div>
+        <h3>Qué tests hacer para cada patología</h3>
+      </article>
+      <article class="beneficio" data-revelar style="--i:2">
+        <span class="beneficio-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+        <div class="beneficio-icono"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="16" rx="2.5"/><rect x="13" y="4" width="8" height="16" rx="2.5"/><path d="M5.5 12h3M7 10.5v3M15.5 12h3"/></svg></div>
+        <h3>Qué significa que un test dé positivo o negativo</h3>
+      </article>
+      <article class="beneficio" data-revelar style="--i:3">
+        <span class="beneficio-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>
+        <div class="beneficio-icono"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="m9 14 2 2 4-4"/></svg></div>
+        <h3>Respaldado por estudios científicos</h3>
+      </article>
+    </div>
+  </section>
+
+  <!-- 2. Cómo se usa, en cuatro pasos -->
+  <section class="escena">
+    <div data-revelar>
+      <span class="rotulo-escena">Así de fácil</span>
+      <h2 class="titulo-escena">Cuatro pasos. <span>Menos de un minuto.</span></h2>
+    </div>
+
+    <ol class="pasos" id="pasos">
+      <li class="paso" data-revelar>
+        <span class="paso-num">1</span>
+        <div><h3>Escribes lo que sospechas</h3><p>Una patología, tal como la dirías en voz alta.</p></div>
+        <div class="paso-visual"><div class="v-busca"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Rotura del LCA</span><i></i></div></div>
+      </li>
+      <li class="paso" data-revelar>
+        <span class="paso-num">2</span>
+        <div><h3>Te dice qué tests hacer, y cómo</h3><p>Ordenados, y cada uno con cómo se hace y cuándo cuenta como positivo. Por si no lo recuerdas.</p></div>
+        <div class="paso-visual v-ficha">
+          <b>Lachman</b>
+          <dl>
+            <dt>Paciente</dt><dd>Boca arriba, rodilla en 20–30° de flexión y el muslo relajado.</dd>
+            <dt>Maniobra</dt><dd>Fija el fémur y lleva la tibia hacia delante con un impulso firme y rápido.</dd>
+            <dt>Positivo</dt><dd>Si la tibia se desplaza más que en el lado sano y sin un tope firme.</dd>
+          </dl>
+        </div>
+      </li>
+      <li class="paso" data-revelar>
+        <span class="paso-num">3</span>
+        <div><h3>Marcas si sale positivo o negativo</h3><p>Un toque en cada test, según vas explorando.</p></div>
+        <div class="paso-visual v-marcas">
+          <div>Lachman<span><em class="pos">Positivo</em><em>Negativo</em></span></div>
+          <div>Pivot shift<span><em>Positivo</em><em class="neg">Negativo</em></span></div>
+          <div>Cajón anterior<span><em class="pos">Positivo</em><em>Negativo</em></span></div>
+        </div>
+      </li>
+      <li class="paso" data-revelar>
+        <span class="paso-num">4</span>
+        <div><h3>Te da la conclusión</h3><p>Con un porcentaje y en palabras claras: si lo confirma, si lo descarta o si todavía no se puede saber.</p></div>
+        <div class="paso-visual v-conclusion"><strong>99%</strong><div><b>Muy probable: rotura del LCA</b><small>Basado en evidencia científica</small></div></div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- 3. Por qué hace falta: dos positivos que no valen lo mismo -->
+  <section class="escena" id="positivos">
+    <div data-revelar>
+      <span class="rotulo-escena">Lo que casi nadie sabe</span>
+      <h2 class="titulo-escena">No todos los positivos <span>valen lo mismo.</span></h2>
+      <p class="entradilla-escena">Un hombro con sospecha de rotura del manguito. Partes de una sospecha media, del 45%. Haces dos tests y <b>los dos salen positivos</b>. Mira qué pasa.</p>
+    </div>
+
+    <div class="duelo">
+        <article class="medidor-card nulo" data-revelar data-medidor="60">
+          <div class="medidor-cab"><h3>Neer</h3><span class="chip-pos">Positivo</span></div>
+          <svg class="medidor" viewBox="0 0 200 112" aria-hidden="true">
+            <path class="fondo-arco" d="M20 100 A80 80 0 0 1 180 100"/>
+            <path class="zona-baja" pathLength="100" stroke-dasharray="10 100" d="M20 100 A80 80 0 0 1 180 100"/>
+            <path class="zona-alta" pathLength="100" stroke-dasharray="0 85 15 0" d="M20 100 A80 80 0 0 1 180 100"/>
+            <path class="arco" pathLength="100" d="M20 100 A80 80 0 0 1 180 100"/>
+            <line class="aguja" x1="100" y1="100" x2="100" y2="38"/>
+            <circle class="eje" cx="100" cy="100" r="6"/>
+          </svg>
+          <div class="medidor-cifra"><span class="medidor-numero">45</span>%</div>
+          <div class="medidor-desde">partías del 45%</div>
+          <p class="medidor-lectura"><b>Apenas cambia la sospecha.</b>Sale positivo en muchos hombros sin rotura, así que por sí solo no decide nada.</p>
+        </article>
+        <div class="duelo-vs" data-revelar>vs</div>
+        <article class="medidor-card decide" data-revelar data-medidor="96">
+          <div class="medidor-cab"><h3>ER lag sign</h3><span class="chip-pos">Positivo</span></div>
+          <svg class="medidor" viewBox="0 0 200 112" aria-hidden="true">
+            <path class="fondo-arco" d="M20 100 A80 80 0 0 1 180 100"/>
+            <path class="zona-baja" pathLength="100" stroke-dasharray="10 100" d="M20 100 A80 80 0 0 1 180 100"/>
+            <path class="zona-alta" pathLength="100" stroke-dasharray="0 85 15 0" d="M20 100 A80 80 0 0 1 180 100"/>
+            <path class="arco" pathLength="100" d="M20 100 A80 80 0 0 1 180 100"/>
+            <line class="aguja" x1="100" y1="100" x2="100" y2="38"/>
+            <circle class="eje" cx="100" cy="100" r="6"/>
+          </svg>
+          <div class="medidor-cifra"><span class="medidor-numero">45</span>%</div>
+          <div class="medidor-desde">partías del 45%</div>
+          <p class="medidor-lectura"><b>Casi confirma la rotura.</b>Cuando este sale positivo, casi siempre hay rotura del manguito.</p>
+        </article>
+    </div>
+
+    <p class="remate-escena" data-revelar>Mismo hombro. Los dos positivos. <b>Uno apenas mueve la sospecha y el otro casi cierra el caso.</b> A simple vista parecen iguales; con los números delante, no.</p>
+  </section>
+
+  <!-- 4. Banderas rojas -->
+  <section class="escena escena-alerta">
+    <div data-revelar>
+      <span class="rotulo-escena">Y además</span>
+      <h2 class="titulo-escena">Te avisa de lo que <span>no puedes pasar por alto.</span></h2>
+      <p class="entradilla-escena">Antes de los tests, te enseña las señales de alarma de esa zona y qué hacer si aparece alguna. Sin que tengas que pedirlo.</p>
+    </div>
+    <div class="bandera-card" data-revelar style="--i:1">
+      <div class="bandera-cab">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg>
+        Banderas rojas · Rodilla
+      </div>
+      <ul>
+        <li><b>Rodilla caliente, roja y con fiebre</b><span>Posible infección de la articulación → derivar urgente.</span></li>
+        <li><b>No puede apoyar el pie tras un golpe</b><span>Hay que descartar una fractura → derivar.</span></li>
+        <li><b>Pantorrilla hinchada, caliente y dolorosa</b><span>Posible trombosis → derivar urgente.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 5. Por qué fiarte -->
+  <section class="escena">
+    <div data-revelar>
+      <span class="rotulo-escena">Por qué fiarte</span>
+      <h2 class="titulo-escena">Los números <span>no se los inventa nadie.</span></h2>
+    </div>
+    <div class="garantias-grid">
+      <article class="garantia" data-revelar style="--i:1">
+        <div class="garantia-icono"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h4"/></svg></div>
+        <h3>Salen de estudios reales</h3>
+        <p>Cada cifra viene de un estudio publicado en PubMed, y lo tienes al lado para abrirlo.</p>
+      </article>
+      <article class="garantia" data-revelar style="--i:2">
+        <div class="garantia-icono"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <h3>Se comprueban solos</h3>
+        <p>Si los números de un estudio no cuadran entre sí, se descartan en vez de enseñártelos.</p>
+      </article>
+      <article class="garantia" data-revelar style="--i:3">
+        <div class="garantia-icono"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg></div>
+        <h3>Te avisa si un test no aporta</h3>
+        <p>Si un resultado apenas cambia tu sospecha, te lo dice claro. Como el Neer de arriba.</p>
+      </article>
+      <article class="garantia" data-revelar style="--i:4">
+        <div class="garantia-icono"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.3M12 17v.5"/></svg></div>
+        <h3>Si no hay datos, lo dice</h3>
+        <p>Muchos tests no tienen cifras publicadas. Entonces no se inventa nada: te dice que no las hay.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- 6. Vuelta al correo -->
+  <section class="escena escena-final">
+    <div class="final-card" data-revelar>
+      <span class="insignia"><i></i>Gratis para fisioterapeutas</span>
+      <h2 class="titulo-escena">Tu próxima exploración, <span>en segundos y con la evidencia delante.</span></h2>
+      <p>Déjanos tu correo y te llega el acceso en un minuto.</p>
+      <form class="form-acceso linea-form" data-origen="final" novalidate>
+        <div class="avisos"></div>
+        <div class="linea-fila">
+          <div class="campo">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"></rect><path d="m2 7 10 6 10-6"></path></svg>
+            <input type="email" name="email" autocomplete="email" required placeholder="Tu correo electrónico" aria-label="Tu correo electrónico">
+          </div>
+          <span class="aro"><span class="aro-luz" aria-hidden="true"></span><button class="enviar" type="submit">Quiero mi acceso gratuito &nbsp;→</button></span>
+        </div>
+      </form>
+      <p class="letra-pequena">Al solicitarlo, aceptas unirte a nuestra lista de correo y la <a href="/privacidad" target="_blank" rel="noopener">política de privacidad</a>.</p>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      Herramienta de apoyo al razonamiento clínico. No emite diagnósticos ni sustituye el juicio
+      del profesional: la decisión y la responsabilidad clínica son siempre del fisioterapeuta.
+    </p>
+    <p>© <span id="anio">2026</span> FisioIA, marca operada por Sanavia Digital OÜ ·
+      <a href="/privacidad" target="_blank" rel="noopener">Privacidad</a> ·
+      <a href="/terminos" target="_blank" rel="noopener">Términos de uso</a> ·
+      <a href="/cookies" target="_blank" rel="noopener">Cookies</a> ·
+      <a href="#" onclick="window.fisioiaCookies && window.fisioiaCookies(); return false;">Configurar cookies</a></p>
+  </footer>
+</main>
+
+<!-- Cuando no hay ningún formulario a la vista, una invitación fija abajo con
+     el correo: nunca hace falta volver arriba para apuntarse. -->
+<div class="barra-fija" id="barra-fija" aria-hidden="true">
+  <form class="form-acceso barra-form" data-origen="barra" novalidate>
+    <div class="avisos"></div>
+    <div class="barra-fila">
+      <input type="email" name="email" autocomplete="email" required placeholder="Tu correo electrónico" aria-label="Tu correo electrónico" tabindex="-1">
+      <span class="aro"><span class="aro-luz" aria-hidden="true"></span><button class="enviar" type="submit" aria-label="Quiero mi acceso gratuito" tabindex="-1"><span class="largo">Quiero mi acceso gratuito &nbsp;→</span><span class="corto">Acceso gratis →</span></button></span>
+    </div>
+    <p class="barra-legal">Al enviarlo, aceptas unirte a nuestra lista de correo y la <a href="/privacidad" target="_blank" rel="noopener">política de privacidad</a>.</p>
+  </form>
+</div>
+
+<script>
+// La constelación del hero: un punto por test, unos trescientos, a la deriva.
+// Cada pocos segundos una sospecha enciende los suyos y se unen: es el titular
+// contado sin palabras, de todos los tests a los cuatro que tocan. Las
+// etiquetas solo se pintan donde no pisan el texto; en móvil, ninguna.
+(function () {
+  "use strict";
+
+  var lienzo = document.getElementById("constelacion");
+  if (!lienzo || !lienzo.getContext) return;
+  var ctx = lienzo.getContext("2d");
+  var hero = lienzo.parentNode;
+  var zonasTexto = [document.getElementById("marca"), document.getElementById("hero-centro")];
+  var quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // En móvil, una versión sencilla: puntos y red dibujados una sola vez, sin
+  // movimiento ni escenas. Redibujar el lienzo en cada fotograma obligaba a
+  // repintar todo lo que tiene encima y la demo del monitor iba a tirones.
+  var sencilla = window.matchMedia("(max-width: 860px), (pointer: coarse)").matches;
+
+  var GRUPOS = [
+    { sospecha: "Rotura del LCA", tests: ["Lachman", "Pivot shift", "Cajón anterior", "Lever sign"] },
+    { sospecha: "Lesión meniscal", nombre: "lesión meniscal", tests: [
+      ["Apley", 0.38, 0.84, "pos"], ["Thessaly", 0.91, 0.97, "neg"], ["Ege", 0.66, 0.86, "neg"] ] },
+    { sospecha: "Rotura del manguito rotador", nombre: "rotura del manguito", tests: [
+      ["Arco doloroso", 0.53, 0.76, "pos"], ["Jobe", 0.88, 0.62, "neg"], ["ER lag sign", 0.56, 0.98, "pos"] ] }
+  ];
+
+  var ENTRAR = 1100, QUEDARSE = 3000, SALIR = 900, PAUSA = 500;
+  var FUENTE = '11px ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+
+  var w = 0, h = 0, puntos = [], vetos = [], color = {};
+  var escena = null, turno = Math.floor(Math.random() * GRUPOS.length);
+  var raton = null, visible = true, anterior = 0, pedido = 0;
+
+  function rgb(nombre) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
+    var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(v);
+    return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)].join(",") : "128,140,160";
+  }
+  function leerColores() {
+    color = { punto: rgb("--tinta-tenue"), texto: rgb("--tinta-media"), verde: rgb("--verde") };
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --papel: #0b0e14; --lienzo: #0f131b; --superficie: #141926;
-      --tinta: #eef1f6; --tinta-suave: #c3cad8; --apagado: #8c96aa;
-      --linea: #262d3c; --linea-tenue: #1c2231;
-      --azul: #5b9bf0; --azul-hondo: #7db1f7; --azul-lavado: #16213a;
-      --verde: #4cc38a; --ambar: #e0a340; --rojo: #f2685c;
-      --sombra: 0 1px 2px rgba(0,0,0,.5), 0 12px 32px -18px rgba(0,0,0,.9);
+  function medir() {
+    var r = hero.getBoundingClientRect();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = r.width; h = r.height;
+    lienzo.width = Math.round(w * dpr); lienzo.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Zonas donde no puede caer una etiqueta: la marca y el contenido del
+    // centro, medido por sus piezas y no por la caja flexible que las estira.
+    vetos = zonasTexto.filter(Boolean).map(function (el) {
+      var piezas = el.id === "hero-centro" ? el.children : [el];
+      var c = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+      Array.prototype.forEach.call(piezas, function (n) {
+        var b = n.getBoundingClientRect();
+        if (!b.width) return;
+        c.x0 = Math.min(c.x0, b.left); c.y0 = Math.min(c.y0, b.top);
+        c.x1 = Math.max(c.x1, b.right); c.y1 = Math.max(c.y1, b.bottom);
+      });
+      return { x0: c.x0 - r.left - 28, y0: c.y0 - r.top - 22, x1: c.x1 - r.left + 28, y1: c.y1 - r.top + 22 };
+    });
+    escena = null;
+  }
+
+  function sembrar() {
+    var n = sencilla
+      ? Math.round(Math.min(80, Math.max(40, w * h / 6000)))
+      : Math.round(Math.min(300, Math.max(90, w * h / 3400)));
+    puntos = [];
+    for (var i = 0; i < n; i++) {
+      puntos.push({
+        x: Math.random() * w, y: Math.random() * h,
+        vx: (Math.random() - .5) * 9, vy: (Math.random() - .5) * 7,
+        r: .8 + Math.random() * 1.1, fase: Math.random() * 6.3, ritmo: .4 + Math.random() * 1.1
+      });
     }
   }
 
-  :root[data-theme="light"] {
-    --papel: #ffffff; --lienzo: #f5f7fb; --superficie: #ffffff;
-    --tinta: #0a0a0a; --tinta-suave: #333b4a; --apagado: #5b6478;
-    --linea: #dfe3ec; --linea-tenue: #edf0f6;
-    --azul: #004aad; --azul-hondo: #003278; --azul-lavado: #eaf0fa;
-    --verde: #1a7f4b; --ambar: #b5730a; --rojo: #b3261e;
+  function vetado(x0, y0, x1, y1) {
+    for (var i = 0; i < vetos.length; i++) {
+      var v = vetos[i];
+      if (x1 > v.x0 && x0 < v.x1 && y1 > v.y0 && y0 < v.y1) return true;
+    }
+    return x0 < 8 || y0 < 8 || x1 > w - 8 || y1 > h - 40;
   }
 
-  :root[data-theme="dark"] {
-    --papel: #0b0e14; --lienzo: #0f131b; --superficie: #141926;
-    --tinta: #eef1f6; --tinta-suave: #c3cad8; --apagado: #8c96aa;
-    --linea: #262d3c; --linea-tenue: #1c2231;
-    --azul: #5b9bf0; --azul-hondo: #7db1f7; --azul-lavado: #16213a;
-    --verde: #4cc38a; --ambar: #e0a340; --rojo: #f2685c;
-    --sombra: 0 1px 2px rgba(0,0,0,.5), 0 12px 32px -18px rgba(0,0,0,.9);
+  // Elige una semilla fuera del texto y sus vecinos más cercanos, también fuera.
+  function nuevaEscena(t) {
+    var grupo = GRUPOS[turno++ % GRUPOS.length];
+    var conEtiquetas = w >= 900;
+    var libres = puntos.filter(function (p) { return !vetado(p.x - 30, p.y - 30, p.x + 30, p.y + 30); });
+    if (libres.length < grupo.tests.length) { escena = { t0: t, grupo: grupo, ids: [], etiquetas: false }; return; }
+    var semilla = libres[Math.floor(Math.random() * libres.length)];
+    var cerca = libres.filter(function (p) { return p !== semilla; }).sort(function (a, b) {
+      return (a.x - semilla.x) * (a.x - semilla.x) + (a.y - semilla.y) * (a.y - semilla.y) -
+             ((b.x - semilla.x) * (b.x - semilla.x) + (b.y - semilla.y) * (b.y - semilla.y));
+    });
+    // Ni pegados (las etiquetas se montarían) ni desperdigados por media pantalla.
+    var ids = [semilla];
+    for (var i = 0; i < cerca.length && ids.length < grupo.tests.length; i++) {
+      var p = cerca[i], lejos = true;
+      for (var j = 0; j < ids.length; j++) {
+        if (Math.abs(p.y - ids[j].y) < 26 && Math.abs(p.x - ids[j].x) < 150) { lejos = false; break; }
+      }
+      if (lejos) ids.push(p);
+    }
+    escena = { t0: t, grupo: grupo, ids: ids, etiquetas: conEtiquetas };
   }
 
-  * { box-sizing: border-box; }
+  function suave(x) { x = Math.max(0, Math.min(1, x)); return 1 - Math.pow(1 - x, 3); }
 
-  body {
-    margin: 0;
-    background: var(--lienzo);
-    color: var(--tinta);
-    font-family: var(--ui);
-    font-size: 16px;
-    line-height: 1.55;
-    -webkit-font-smoothing: antialiased;
+  function pintar(t, dt) {
+    ctx.clearRect(0, 0, w, h);
+    var s = dt / 1000;
+
+    for (var i = 0; i < puntos.length; i++) {
+      var p = puntos[i];
+      if (s) {
+        p.x += p.vx * s; p.y += p.vy * s;
+        if (p.x < -10) p.x = w + 10; else if (p.x > w + 10) p.x = -10;
+        if (p.y < -10) p.y = h + 10; else if (p.y > h + 10) p.y = -10;
+      }
+      var a = .34 + .22 * Math.sin(t / 1000 * p.ritmo + p.fase);
+      if (raton) {
+        var d = Math.hypot(p.x - raton.x, p.y - raton.y);
+        if (d < 150) a += (1 - d / 150) * .55;
+      }
+      ctx.fillStyle = "rgba(" + color.punto + "," + a.toFixed(3) + ")";
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.2832); ctx.fill();
+    }
+
+    // Una red muy tenue entre vecinos: el campo parece un tejido y no polvo.
+    ctx.lineWidth = .6;
+    for (var u = 0; u < puntos.length; u++) {
+      for (var v = u + 1; v < puntos.length; v++) {
+        var ex = puntos[u].x - puntos[v].x, ey = puntos[u].y - puntos[v].y;
+        if (ex > 80 || ex < -80 || ey > 80 || ey < -80) continue;
+        var dd = Math.sqrt(ex * ex + ey * ey);
+        if (dd < 80) {
+          ctx.strokeStyle = "rgba(" + color.punto + "," + ((1 - dd / 80) * .16).toFixed(3) + ")";
+          ctx.beginPath(); ctx.moveTo(puntos[u].x, puntos[u].y); ctx.lineTo(puntos[v].x, puntos[v].y); ctx.stroke();
+        }
+      }
+    }
+
+    // El ratón tira hilos a los puntos que tiene cerca: la sensación de estar
+    // tocando el campo, no mirándolo.
+    if (raton) {
+      ctx.lineWidth = 1;
+      for (var k = 0; k < puntos.length; k++) {
+        var q = puntos[k], dq = Math.hypot(q.x - raton.x, q.y - raton.y);
+        if (dq < 120) {
+          ctx.strokeStyle = "rgba(" + color.verde + "," + ((1 - dq / 120) * .28).toFixed(3) + ")";
+          ctx.beginPath(); ctx.moveTo(raton.x, raton.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+        }
+      }
+    }
+
+    if (sencilla && !quieto) return;
+    if (!escena || t - escena.t0 > ENTRAR + QUEDARSE + SALIR + PAUSA) nuevaEscena(t);
+    var e = t - escena.t0, ids = escena.ids;
+    if (!ids.length) return;
+    var entrada = suave(e / ENTRAR);
+    var salida = e > ENTRAR + QUEDARSE ? 1 - suave((e - ENTRAR - QUEDARSE) / SALIR) : 1;
+    var alfa = Math.min(entrada, salida);
+    if (alfa <= 0) return;
+    var semilla = ids[0];
+
+    // Los hilos crecen desde la semilla hacia cada test, uno detrás de otro.
+    ctx.lineWidth = 1;
+    for (var m = 1; m < ids.length; m++) {
+      var avance = suave((e - m * 140) / (ENTRAR * .8));
+      if (avance <= 0) continue;
+      var dx = ids[m].x - semilla.x, dy = ids[m].y - semilla.y;
+      var g = ctx.createLinearGradient(semilla.x, semilla.y, ids[m].x, ids[m].y);
+      g.addColorStop(0, "rgba(" + color.verde + "," + (.55 * salida).toFixed(3) + ")");
+      g.addColorStop(1, "rgba(" + color.verde + "," + (.18 * salida).toFixed(3) + ")");
+      ctx.strokeStyle = g;
+      ctx.beginPath(); ctx.moveTo(semilla.x, semilla.y);
+      ctx.lineTo(semilla.x + dx * avance, semilla.y + dy * avance); ctx.stroke();
+    }
+
+    ctx.font = FUENTE; ctx.textBaseline = "middle";
+    for (var n = 0; n < ids.length; n++) {
+      var pt = ids[n];
+      var llega = n === 0 ? entrada : suave((e - n * 140 - ENTRAR * .55) / 500);
+      var an = Math.min(llega, salida);
+      if (an <= 0) continue;
+
+      ctx.fillStyle = "rgba(" + color.verde + "," + (.16 * an).toFixed(3) + ")";
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, (n === 0 ? 11 : 7) * (.6 + .4 * an), 0, 6.2832); ctx.fill();
+      ctx.fillStyle = "rgba(" + color.verde + "," + an.toFixed(3) + ")";
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, n === 0 ? 3.2 : 2.4, 0, 6.2832); ctx.fill();
+
+      if (!escena.etiquetas) continue;
+      var texto = n === 0 ? escena.grupo.sospecha.toUpperCase() : escena.grupo.tests[n - 1];
+      var ancho = ctx.measureText(texto).width;
+      var derecha = pt.x + 12 + ancho < w - 12;
+      var tx = derecha ? pt.x + 12 : pt.x - 12 - ancho;
+      if (vetado(tx - 4, pt.y - 9, tx + ancho + 4, pt.y + 9)) continue;
+      ctx.fillStyle = n === 0
+        ? "rgba(" + color.verde + "," + (.95 * an).toFixed(3) + ")"
+        : "rgba(" + color.texto + "," + (.85 * an).toFixed(3) + ")";
+      ctx.fillText(texto, tx, pt.y);
+    }
   }
 
-  h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.021em; text-wrap: balance; }
-  button { font: inherit; color: inherit; }
-  :focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; border-radius: 4px; }
-
-  .rotulo {
-    font-size: .688rem; font-weight: 600; letter-spacing: .13em;
-    text-transform: uppercase; color: var(--apagado);
+  function bucle(t) {
+    pedido = 0;
+    var dt = anterior ? Math.min(t - anterior, 50) : 0;
+    anterior = t;
+    pintar(t, dt);
+    if (visible && !document.hidden) pedido = requestAnimationFrame(bucle);
+  }
+  function arrancar() {
+    if (quieto || sencilla || pedido || !visible || document.hidden) return;
+    anterior = 0; pedido = requestAnimationFrame(bucle);
   }
 
-  .barra {
-    display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    padding: 18px 24px; background: var(--papel); border-bottom: 1px solid var(--linea);
+  leerColores();
+  medir();
+  sembrar();
+
+  // Sin movimiento: o una escena ya formada, quieta, o (en móvil) solo el campo.
+  function pintarQuieto() {
+    if (quieto) { nuevaEscena(0); pintar(ENTRAR + 800, 0); }
+    else if (sencilla) pintar(0, 0);
   }
-  .marca { display: flex; align-items: baseline; gap: 10px; }
-  .marca b { font-size: 1.0625rem; font-weight: 700; letter-spacing: -.03em; color: var(--azul); }
-  .marca b span { color: var(--tinta); }
-  .marca em {
-    font-style: normal; font-size: .8125rem; color: var(--apagado);
-    border-left: 1px solid var(--linea); padding-left: 10px;
+  if (quieto || sencilla) pintarQuieto();
+  else arrancar();
+
+  // En el móvil el alto cambia al aparecer y esconderse la barra del navegador
+  // mientras se hace scroll; volver a sembrar ahí haría saltar los puntos.
+  var espera, anchoSembrado = w;
+  window.addEventListener("resize", function () {
+    clearTimeout(espera);
+    espera = setTimeout(function () {
+      medir();
+      if (w !== anchoSembrado) { sembrar(); anchoSembrado = w; }
+      pintarQuieto();
+    }, 150);
+  });
+  // Las animaciones de entrada mueven el texto durante el primer segundo y
+  // medio; se vuelve a medir cuando ya está en su sitio.
+  setTimeout(function () { medir(); pintarQuieto(); }, 2000);
+
+
+  hero.addEventListener("pointermove", function (ev) {
+    if (ev.pointerType !== "mouse") return;
+    var r = hero.getBoundingClientRect();
+    raton = { x: ev.clientX - r.left, y: ev.clientY - r.top };
+  });
+  hero.addEventListener("pointerleave", function () { raton = null; });
+
+  document.addEventListener("visibilitychange", arrancar);
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (es) { visible = es[0].isIntersecting; arrancar(); }).observe(hero);
   }
-  .estado-modelo { font-size: .75rem; color: var(--apagado); font-family: var(--mono); }
+})();
+</script>
 
-  .marco { max-width: 820px; margin: 0 auto; padding: 0 24px 96px; }
+<script>
+// La demo de la pantalla: la herramienta contada como a un niño. Se escribe
+// una sospecha, salen tres tests, un cursor marca cada uno como positivo o
+// negativo y aparece la conclusión: un porcentaje y una frase.
+//
+// El porcentaje no está escrito a mano: sale de las mismas cuentas que
+// dominio/probabilidad.js (sospecha media del 45%, razones de verosimilitud a
+// partir de Sn y Sp, confirma desde el 85% y descarta por debajo del 10%).
+(function () {
+  "use strict";
 
-  /* ---------- consulta ---------- */
+  var app = document.getElementById("app");
+  if (!app) return;
+  var texto = document.getElementById("demo-texto");
+  var lista = document.getElementById("tests");
+  var veredicto = document.getElementById("veredicto");
+  var cifra = document.getElementById("cifra");
+  var frase = document.getElementById("frase");
+  var puntero = document.getElementById("puntero");
+  var tarjeta = document.getElementById("captura");
 
-  .consulta { padding: 56px 0 8px; }
-  .consulta h1 { font-size: clamp(1.75rem, 5vw, 2.375rem); line-height: 1.1; margin: 14px 0 10px; }
-  .consulta p.pie { color: var(--tinta-suave); margin: 0 0 26px; max-width: 54ch; }
+  var PRE = 0.45, CONFIRMA = 0.85, DESCARTA = 0.10;
 
-  .buscador { display: flex; gap: 10px; flex-wrap: wrap; }
-  .buscador input {
-    flex: 1 1 320px; background: var(--superficie); color: var(--tinta);
-    border: 1px solid var(--linea); border-radius: 8px; padding: 14px 16px; font: inherit;
-    transition: border-color .15s, box-shadow .15s;
+  // El subrayado de «en segundos» se dibuja con un guion tan largo como el
+  // trazo en pantalla; si se queda corto, el dibujo acaba a medias.
+  var trazo = document.querySelector(".trazo");
+  function medirTrazo() {
+    if (trazo) trazo.style.setProperty("--largo", Math.ceil(trazo.getBoundingClientRect().width * 1.15 + 10) + "px");
   }
-  .buscador input:focus { outline: none; border-color: var(--azul); box-shadow: 0 0 0 3px var(--azul-lavado); }
-  ::placeholder { color: var(--apagado); opacity: .85; }
+  medirTrazo();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(medirTrazo);
+  window.addEventListener("resize", medirTrazo);
 
-  .btn {
-    border: 1px solid var(--linea); background: var(--superficie); border-radius: 8px;
-    padding: 13px 20px; font-weight: 500; cursor: pointer; transition: all .14s;
+  // [test, sensibilidad, especificidad, resultado]
+  // Las tres con resultados mezclados a propósito: con todo positivo o todo
+  // negativo la conclusión es obvia y la herramienta parece de sobra. Lo que
+  // tiene que verse es que, cuando los tests no coinciden, sigue sabiendo qué
+  // concluir. La del menisco es la más reveladora: un Apley positivo y aun así
+  // la sospecha queda descartada.
+  //
+  // Las cifras son las que devuelve la herramienta en producción para cada
+  // test, no de memoria. La radiculopatía cervical se quitó: con sus cifras
+  // reales ninguna combinación mezclada de tres tests llega a una conclusión.
+  var ESCENAS = [
+    { sospecha: "Rotura del LCA", nombre: "rotura del LCA", tests: [
+      ["Lachman", 0.85, 0.94, "pos"], ["Pivot shift", 0.24, 0.98, "neg"], ["Cajón anterior", 0.92, 0.91, "pos"] ] },
+    { sospecha: "Radiculopatía cervical", nombre: "radiculopatía cervical", tests: [
+      ["Spurling", 0.50, 0.86, "pos"], ["ULTT A", 0.97, 0.22, "neg"], ["Rotación\u00a0<\u00a060°", 0.89, 0.49, "neg"] ] },
+    { sospecha: "Lesión meniscal", nombre: "lesión meniscal", tests: [
+      ["McMurray", 0.70, 0.71, "neg"], ["Thessaly", 0.89, 0.97, "pos"], ["Dolor en interlínea", 0.63, 0.77, "pos"] ] }
+  ];
+
+  function final(escena) {
+    var odds = PRE / (1 - PRE);
+    escena.tests.forEach(function (t) {
+      odds *= t[3] === "pos" ? t[1] / (1 - t[2]) : (1 - t[1]) / t[2];
+    });
+    return odds / (1 + odds);
   }
-  .btn:hover:not(:disabled) { border-color: var(--azul); color: var(--azul); }
-  .btn:disabled { opacity: .5; cursor: default; }
-  .btn-principal { background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600; }
-  @media (prefers-color-scheme: dark) { .btn-principal { color: #06101f; } }
-  :root[data-theme="light"] .btn-principal { color: #fff; }
-  :root[data-theme="dark"] .btn-principal { color: #06101f; }
-  .btn-principal:hover:not(:disabled) { background: var(--azul-hondo); border-color: var(--azul-hondo); }
+  function espera(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
-  .ejemplos { margin-top: 12px; font-size: .8125rem; color: var(--apagado); }
-  .ejemplos button {
-    background: none; border: 0; padding: 0 2px; color: var(--azul);
-    cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
-  }
-
-  /* ---------- bloques ---------- */
-
-  .seccion { margin-top: 34px; }
-  .seccion > .rotulo { display: block; margin-bottom: 10px; }
-
-  .tarjeta {
-    background: var(--superficie); border: 1px solid var(--linea);
-    border-radius: var(--radio); padding: 20px 22px;
-  }
-
-  .aviso {
-    background: var(--superficie); border: 1px solid var(--linea);
-    border-left: 3px solid var(--azul); border-radius: 8px; padding: 18px 20px;
-    font-size: .9375rem;
-  }
-  .aviso.malo { border-left-color: var(--rojo); }
-
-  /* ---------- ambigüedad ---------- */
-
-  .opciones { display: grid; gap: 10px; }
-  .opcion {
-    text-align: left; width: 100%; background: var(--superficie);
-    border: 1px solid var(--linea); border-radius: 8px; padding: 14px 16px;
-    cursor: pointer; transition: all .14s;
-  }
-  .opcion:hover { border-color: var(--azul); transform: translateY(-1px); box-shadow: var(--sombra); }
-  .opcion b { display: block; margin-bottom: 3px; }
-  .opcion span { font-size: .875rem; color: var(--apagado); }
-
-  /* ---------- banderas ---------- */
-
-  .banderas summary {
-    cursor: pointer; font-weight: 600; font-size: .9375rem;
-    display: flex; align-items: center; gap: 9px; list-style: none;
-  }
-  .banderas summary::-webkit-details-marker { display: none; }
-  .banderas summary::before {
-    content: "▸"; color: var(--apagado); transition: transform .15s; display: inline-block;
-  }
-  .banderas[open] summary::before { transform: rotate(90deg); }
-  .banderas { border-left-color: var(--rojo); }
-  .bandera { padding: 14px 0 0; border-top: 1px solid var(--linea-tenue); margin-top: 14px; }
-  .bandera:first-of-type { border-top: 0; }
-  .bandera h4 { margin: 0 0 6px; font-size: .9375rem; display: flex; gap: 9px; align-items: baseline; }
-  .prioridad {
-    font-size: .625rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-    padding: 2px 7px; border-radius: 3px; white-space: nowrap;
-  }
-  .prioridad.urgente { background: var(--rojo); color: #fff; }
-  .prioridad.prioritaria { border: 1px solid var(--rojo); color: var(--rojo); }
-  .prioridad.precaucion { border: 1px solid var(--apagado); color: var(--apagado); }
-  .bandera ul { margin: 0 0 6px; padding-left: 18px; font-size: .875rem; color: var(--tinta-suave); }
-  .bandera p { margin: 0; font-size: .875rem; font-weight: 500; }
-  .advertencia { margin: 14px 0 0; font-size: .8125rem; color: var(--apagado); }
-
-  /* ---------- sospecha pre-test ---------- */
-
-  .pretest { border-left: 3px solid var(--azul); }
-  .pretest h3 { font-size: 1.0625rem; margin-bottom: 4px; }
-  .pretest p { margin: 0 0 14px; font-size: .875rem; color: var(--apagado); max-width: 56ch; }
-  .niveles { display: flex; gap: 8px; flex-wrap: wrap; }
-  .nivel {
-    flex: 1 1 140px; background: var(--superficie); border: 1px solid var(--linea);
-    border-radius: 8px; padding: 12px 14px; cursor: pointer; text-align: left; transition: all .14s;
-  }
-  .nivel:hover { border-color: var(--azul); }
-  .nivel[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; }
-  @media (prefers-color-scheme: dark) { .nivel[aria-pressed="true"] { color: #06101f; } }
-  :root[data-theme="light"] .nivel[aria-pressed="true"] { color: #fff; }
-  :root[data-theme="dark"] .nivel[aria-pressed="true"] { color: #06101f; }
-  .nivel b { display: block; font-size: .9375rem; }
-  .nivel span { font-size: .75rem; opacity: .8; font-variant-numeric: tabular-nums; }
-
-  /* ---------- agrupación ---------- */
-
-  .cluster { border-top: 2px solid var(--oro); }
-  .cluster .rotulo { color: var(--oro); }
-  .cluster h3 { font-size: 1.125rem; margin: 8px 0 6px; }
-  .cluster .criterio { font-size: .875rem; color: var(--tinta-suave); margin: 0 0 12px; }
-  .cluster ol { margin: 0; padding-left: 20px; font-size: .9375rem; }
-
-  /* ---------- tests ---------- */
-
-  .tests { display: grid; gap: 12px; }
-
-  .test { background: var(--superficie); border: 1px solid var(--linea); border-radius: var(--radio); overflow: hidden; }
-  .test-cab {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 14px; padding: 16px 20px 12px;
-  }
-  .test-cab h3 { font-size: 1rem; }
-  .test-cab .objetivo { font-size: .8125rem; color: var(--apagado); margin-top: 2px; }
-  .orden { font-family: var(--mono); font-size: .75rem; color: var(--azul); margin-right: 9px; }
-
-  .semaforo { display: flex; align-items: center; gap: 7px; font-size: .75rem; white-space: nowrap; color: var(--apagado); }
-  .punto { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--linea); }
-  .punto.espera { animation: latir 1.2s ease-in-out infinite; }
-  @keyframes latir { 50% { opacity: .35; } }
-
-  /* ---------- leyenda ---------- */
-
-  .leyenda {
-    background: var(--superficie); border: 1px solid var(--linea);
-    border-left: 3px solid var(--azul); border-radius: 8px; padding: 16px 20px;
-    margin-bottom: 14px; font-size: .9375rem;
-  }
-  .leyenda summary {
-    cursor: pointer; font-weight: 600; list-style: none;
-    display: flex; align-items: center; gap: 9px;
-  }
-  .leyenda summary::-webkit-details-marker { display: none; }
-  .leyenda summary::before { content: "▸"; color: var(--apagado); display: inline-block; transition: transform .15s; }
-  .leyenda[open] summary::before { transform: rotate(90deg); }
-  .leyenda dl { margin: 14px 0 0; display: grid; gap: 11px; }
-  .leyenda dt { font-weight: 600; font-family: var(--mono); font-size: .875rem; color: var(--azul); }
-  .leyenda dd { margin: 2px 0 0; color: var(--tinta-suave); }
-  .leyenda p {
-    margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--linea-tenue);
-    font-size: .875rem; color: var(--apagado);
+  function pintarTests(escena) {
+    lista.innerHTML = "";
+    return escena.tests.map(function (t, i) {
+      var el = document.createElement("div");
+      el.className = "test";
+      el.style.animationDelay = (i * .14) + "s";
+      el.innerHTML = '<span></span><span class="botones"><span class="mas">Positivo</span><span class="menos">Negativo</span></span>';
+      el.firstChild.textContent = t[0];
+      lista.appendChild(el);
+      return el;
+    });
   }
 
-  .cifras { font-family: var(--mono); font-size: .8125rem; font-variant-numeric: tabular-nums; }
-
-  /* Marcar el resultado es la función principal: va en la tarjeta, a la vista,
-     sin desplegar nada y sin depender de ningún paso previo. */
-  .test-acciones {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    padding: 0 20px 16px;
+  // Posición de un elemento dentro de .app en coordenadas de maquetación,
+  // no de pantalla: el monitor va girado en 3D y getBoundingClientRect
+  // devolvería la proyección.
+  function posicion(el) {
+    var x = 0, y = 0;
+    while (el && el !== app) { x += el.offsetLeft; y += el.offsetTop; el = el.offsetParent; }
+    return { x: x, y: y };
   }
-  .test-acciones .rotulo { margin-right: 2px; }
-  .btn-res {
-    border: 1px solid var(--linea); background: var(--superficie); border-radius: 8px;
-    padding: 8px 18px; font-size: .9375rem; font-weight: 500; cursor: pointer; transition: all .13s;
-  }
-  .btn-res:hover { border-color: var(--azul); color: var(--azul); }
-  .btn-res[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600; }
-  @media (prefers-color-scheme: dark) { .btn-res[aria-pressed="true"] { color: #06101f; } }
-  :root[data-theme="light"] .btn-res[aria-pressed="true"] { color: #fff; }
-  :root[data-theme="dark"] .btn-res[aria-pressed="true"] { color: #06101f; }
-
-  .btn-ver {
-    margin-left: auto; background: none; border: 0; padding: 8px 0;
-    font-size: .8125rem; color: var(--apagado); cursor: pointer;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .btn-ver:hover { color: var(--azul); }
-  .btn-ver::after { content: "▸"; transition: transform .15s; }
-  .btn-ver[aria-expanded="true"]::after { transform: rotate(90deg); }
-
-  .hueco { padding: 0 20px; }
-  .hueco:not(:empty) { padding-bottom: 16px; }
-
-  .test-cuerpo { padding: 16px 20px 18px; border-top: 1px solid var(--linea-tenue); }
-  .paso { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 9px 0; font-size: .875rem; }
-  .paso:not(:last-child) { border-bottom: 1px solid var(--linea-tenue); }
-  .paso dt { color: var(--apagado); font-size: .8125rem; }
-  .paso dd { margin: 0; }
-
-  .evidencia { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--linea-tenue); font-size: .875rem; }
-  .evidencia .motivos { margin: 6px 0 0; padding-left: 18px; color: var(--apagado); font-size: .8125rem; }
-  .evidencia a { color: var(--azul); }
-  .indirecta {
-    display: inline-block; font-size: .6875rem; font-weight: 600; letter-spacing: .06em;
-    text-transform: uppercase; border: 1px solid var(--apagado); color: var(--apagado);
-    padding: 1px 6px; border-radius: 3px; margin-left: 8px;
+  function llevarPuntero(el) {
+    var p = posicion(el);
+    puntero.style.transform = "translate(" + (p.x + el.offsetWidth / 2 - 3) + "px," + (p.y + el.offsetHeight / 2 - 2) + "px)";
   }
 
-  .marcar { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
-  .marcar .btn { padding: 9px 18px; font-size: .9375rem; }
-  .marcar .btn[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #fff; font-weight: 600; }
-  @media (prefers-color-scheme: dark) { .marcar .btn[aria-pressed="true"] { color: #06101f; } }
-  :root[data-theme="light"] .marcar .btn[aria-pressed="true"] { color: #fff; }
-  :root[data-theme="dark"] .marcar .btn[aria-pressed="true"] { color: #06101f; }
-
-  .lectura { margin-top: 14px; padding: 14px 16px; background: var(--azul-lavado); border-radius: 8px; }
-  .lectura b { display: block; margin-bottom: 6px; }
-  .lectura .calculo {
-    font-family: var(--mono); font-size: .75rem; color: var(--tinta-suave);
-    margin-top: 8px; font-variant-numeric: tabular-nums;
+  function mostrarVeredicto(escena, p) {
+    app.classList.add("concluida");
+    var confirma = p >= CONFIRMA, descarta = p <= DESCARTA;
+    veredicto.className = "veredicto ve " + (confirma ? "confirma" : descarta ? "descarta" : "");
+    frase.textContent = confirma ? "Muy probable: " + escena.nombre
+      : descarta ? "Descartada: " + escena.nombre
+      : "Sin conclusión todavía";
+    var t0 = performance.now(), fin = Math.round(p * 100);
+    (function paso(t) {
+      var k = Math.min(1, (t - t0) / 900);
+      cifra.textContent = Math.round(45 + (fin - 45) * (1 - Math.pow(1 - k, 3))) + "%";
+      if (k < 1) requestAnimationFrame(paso);
+    })(t0);
   }
 
-  .nota-cadena { font-size: .8125rem; color: var(--apagado); margin: 12px 0 0; max-width: 62ch; }
-
-  .cargando { display: flex; align-items: center; gap: 10px; color: var(--apagado); font-size: .9375rem; }
-  .girando {
-    width: 14px; height: 14px; border: 2px solid var(--linea); border-top-color: var(--azul);
-    border-radius: 50%; animation: girar .7s linear infinite;
-  }
-  @keyframes girar { to { transform: rotate(360deg); } }
-
-  .pie-legal {
-    margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--linea);
-    font-size: .8125rem; color: var(--apagado); max-width: 66ch;
+  function marcar(el, t) {
+    var boton = el.querySelector(t[3] === "pos" ? ".mas" : ".menos");
+    llevarPuntero(boton);
+    return espera(650).then(function () {
+      puntero.classList.remove("clic"); void puntero.offsetWidth; puntero.classList.add("clic");
+      boton.classList.add("si");
+      el.classList.add(t[3]);
+      return espera(380);
+    });
   }
 
-  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
-</style>
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    var e0 = ESCENAS[0];
+    texto.textContent = e0.sospecha;
+    pintarTests(e0).forEach(function (el, i) {
+      var t = e0.tests[i];
+      el.querySelector(t[3] === "pos" ? ".mas" : ".menos").classList.add("si");
+      el.classList.add(t[3]);
+    });
+    mostrarVeredicto(e0, final(e0));
+    return;
+  }
 
-<div class="barra">
-  <div class="marca">
-    <b>Fisio<span>IA</span></b>
-    <em>Asistente de tests</em>
-  </div>
-  <span class="estado-modelo" id="estado"></span>
-</div>
+  function escribir(f, n) {
+    if (n > f.length) return Promise.resolve();
+    texto.textContent = f.slice(0, n);
+    return espera(45 + Math.random() * 50).then(function () { return escribir(f, n + 1); });
+  }
 
-<div class="marco">
-  <section class="consulta">
-    <span class="rotulo">Razonamiento clínico</span>
-    <h1>¿Qué sospechas?</h1>
-    <p class="pie">Escríbelo en lenguaje clínico y te devuelvo con qué verificarlo, cómo se ejecuta cada test y qué te permite concluir según su precisión diagnóstica.</p>
+  // Cuando el monitor queda fuera de la pantalla, la demo espera en lugar de
+  // seguir cambiando cosas que nadie ve.
+  var aLaVista = true;
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (e) { aLaVista = e[0].isIntersecting; }).observe(app);
+  }
 
-    <form class="buscador" id="form">
-      <input id="sospecha" type="text" autocomplete="off" placeholder="Ej.: tendinopatía rotuliana, radiculopatía cervical, rotura del LCA">
-      <button class="btn btn-principal" id="enviar" type="submit">Buscar tests</button>
-    </form>
-    <p class="ejemplos">
-      Prueba con
-      <button type="button" data-ej="rotura del manguito rotador">rotura del manguito rotador</button>,
-      <button type="button" data-ej="rotura del ligamento cruzado anterior">rotura del LCA</button> o
-      <button type="button" data-ej="hombro doloroso">hombro doloroso</button>.
-    </p>
-  </section>
+  var turno = 0;
+  function escena() {
+    if (!aLaVista) return espera(800).then(escena);
+    var e = ESCENAS[turno++ % ESCENAS.length];
 
-  <div id="salida"></div>
+    // Se limpia oculta y sin transiciones, para que no se vea la escena
+    // anterior deshaciéndose encima de la nueva.
+    app.classList.add("reinicio");
+    app.classList.remove("concluida");
+    texto.textContent = ""; lista.innerHTML = "";
+    veredicto.className = "veredicto";
+    puntero.setAttribute("class", "puntero");
+    puntero.style.transform = "translate(80%, 120%)";
+    void app.offsetWidth;
+    app.classList.remove("reinicio");
+    app.classList.remove("fuera");
 
-  <p class="pie-legal">
-    Herramienta de apoyo al razonamiento clínico. No emite diagnósticos ni sustituye el juicio del
-    profesional: la decisión y la responsabilidad clínica son siempre del fisioterapeuta.
-  </p>
-</div>
+    var filas;
+    var cadena = espera(450)
+      .then(function () { return escribir(e.sospecha, 1); })
+      .then(function () { return espera(350); })
+      .then(function () {
+        filas = pintarTests(e);
+        puntero.style.transform = "translate(" + (app.offsetWidth * .6) + "px," + (app.offsetHeight - 30) + "px)";
+        return espera(700);
+      })
+      .then(function () { puntero.classList.add("ve"); });
+
+    e.tests.forEach(function (t, i) {
+      cadena = cadena.then(function () { return marcar(filas[i], t); });
+    });
+
+    return cadena
+      .then(function () { puntero.classList.remove("ve"); return espera(250); })
+      .then(function () { mostrarVeredicto(e, final(e)); return espera(3600); })
+      .then(function () { app.classList.add("fuera"); return espera(500); })
+      .then(escena);
+  }
+  espera(1400).then(escena);
+
+  if (tarjeta) {
+    tarjeta.addEventListener("pointermove", function (ev) {
+      var r = tarjeta.getBoundingClientRect();
+      tarjeta.style.setProperty("--mx", (ev.clientX - r.left) + "px");
+      tarjeta.style.setProperty("--my", (ev.clientY - r.top) + "px");
+    });
+    tarjeta.addEventListener("pointerleave", function () {
+      tarjeta.style.removeProperty("--mx");
+      tarjeta.style.removeProperty("--my");
+    });
+  }
+})();
+</script>
 
 <script>
 (function () {
   "use strict";
 
-  var estado = {
-    entidad: "", terminos: [], region: "",
-    tests: [], agrupaciones: [], banderas: [], advertencia: "",
-    nivel: null,
-    evidencias: {},
-    resultados: {}
-  };
+  document.getElementById("anio").textContent = new Date().getFullYear();
 
-  var salida = document.getElementById("salida");
-  var form = document.getElementById("form");
-  var campo = document.getElementById("sospecha");
-  var enviar = document.getElementById("enviar");
+  var avisos = document.getElementById("avisos");
+  var oferta = document.getElementById("oferta");
+  var captura = document.getElementById("captura");
+  var barra = document.getElementById("barra-fija");
+  var formularios = Array.prototype.slice.call(document.querySelectorAll(".form-acceso"));
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
@@ -375,391 +1998,236 @@
     });
   }
 
-  function pedir(ruta, cuerpo) {
-    return fetch(ruta, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cuerpo)
-    }).then(function (r) {
-      return r.json().then(function (d) {
-        if (!r.ok) throw new Error(d.error || "El servidor ha devuelto un error.");
-        return d;
-      });
+  function avisar(form, texto, malo) {
+    var caja = form.querySelector(".avisos, #avisos");
+    if (caja) caja.innerHTML = '<p class="aviso' + (malo ? " malo" : "") + '">' + esc(texto) + "</p>";
+  }
+
+  // Quien llega rebotado desde la aplicación merece saber por qué está aquí en
+  // lugar de encontrarse el formulario sin más explicación.
+  var motivos = {
+    "sin-acceso": "Para entrar necesitas el enlace que te enviamos por correo. Pídelo aquí debajo y te llega en un minuto.",
+    "caducado": "Tu acceso ya no es válido. Vuelve a pedirlo con tu correo y te enviamos uno nuevo.",
+    "enlace-invalido": "Ese enlace de acceso no es válido. Comprueba que lo has copiado entero, o pide uno nuevo aquí."
+  };
+  var motivo = new URLSearchParams(location.search).get("motivo");
+  if (motivo && motivos[motivo]) avisos.innerHTML = '<p class="aviso malo">' + esc(motivos[motivo]) + "</p>";
+
+  // Tras un alta, todos los formularios dicen que ya está hecho: a nadie se le
+  // vuelve a pedir lo que acaba de dar. El de arriba cuenta el detalle; los
+  // demás, una línea.
+  var apuntado = false;
+  var restaurar = [];   // cómo devolver cada formulario a su estado, si hay que corregir
+  function hecho(correo, origen) {
+    apuntado = true;
+    formularios.forEach(function (f) {
+      if (f.getAttribute("data-origen") === "arriba") return;
+      var p = document.createElement("p");
+      p.className = "form-hecho";
+      p.innerHTML = "Hecho: tu acceso va de camino a <b>" + esc(correo) + "</b>.";
+      f.hidden = true;
+      f.parentNode.insertBefore(p, f.nextSibling);
     });
-  }
+    if (barra) { barra.classList.remove("ve"); barra.setAttribute("aria-hidden", "true"); }
 
-  fetch("api/estado").then(function (r) { return r.json(); }).then(function (d) {
-    document.getElementById("estado").textContent =
-      d.modelo + " · " + d.enCache + " en caché" + (d.credencial ? "" : " · sin clave");
-  }).catch(function () {});
-
-  /* ============ consulta ============ */
-
-  Array.prototype.forEach.call(document.querySelectorAll("[data-ej]"), function (b) {
-    b.addEventListener("click", function () {
-      campo.value = b.getAttribute("data-ej");
-      form.dispatchEvent(new Event("submit", { cancelable: true }));
-    });
-  });
-
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-    consultar(campo.value.trim());
-  });
-
-  function consultar(sospecha) {
-    if (sospecha.length < 3) return;
-    enviar.disabled = true;
-    salida.innerHTML = '<div class="seccion"><div class="cargando"><span class="girando"></span>Buscando la batería de tests…</div></div>';
-
-    pedir("api/bateria", { sospecha: sospecha })
-      .then(function (d) {
-        if (d.estado === "no_reconocida") return pintarAviso(d.mensaje, true);
-        if (d.estado === "ambigua") return pintarAmbigua(d);
-
-        estado.entidad = d.entidad;
-        estado.terminos = d.terminosBusqueda || [];
-        estado.region = d.region;
-        estado.tests = d.tests;
-        estado.agrupaciones = d.agrupaciones || [];
-        estado.banderas = d.banderas || [];
-        estado.advertencia = d.advertenciaBanderas || "";
-        estado.nivel = null;
-        estado.evidencias = {};
-        estado.resultados = {};
-
-        pintar();
-        buscarEvidencia();
-      })
-      .catch(function (err) { pintarAviso(err.message, true); })
-      .finally(function () { enviar.disabled = false; });
-  }
-
-  function pintarAviso(texto, malo) {
-    salida.innerHTML = '<div class="seccion"><div class="aviso' + (malo ? " malo" : "") + '">' + esc(texto) + "</div></div>";
-  }
-
-  function pintarAmbigua(d) {
-    salida.innerHTML =
-      '<div class="seccion">' +
-        '<span class="rotulo">Concreta la sospecha</span>' +
-        '<div class="aviso" style="margin-bottom:14px">' + esc(d.mensaje) + '</div>' +
-        '<div class="opciones">' +
-          d.alternativas.map(function (a) {
-            return '<button class="opcion" data-alt="' + esc(a.entidad) + '">' +
-              "<b>" + esc(a.entidad) + "</b><span>" + esc(a.matiz) + "</span></button>";
-          }).join("") +
-        "</div>" +
-      "</div>";
-
-    Array.prototype.forEach.call(salida.querySelectorAll("[data-alt]"), function (b) {
-      b.addEventListener("click", function () {
-        campo.value = b.getAttribute("data-alt");
-        consultar(b.getAttribute("data-alt"));
-      });
-    });
-  }
-
-  /* ============ pintado principal ============ */
-
-  function pintar() {
-    salida.innerHTML =
-      bloqueBanderas() +
-      bloquePreTest() +
-      bloqueAgrupaciones() +
-      bloqueTests();
-
-    Array.prototype.forEach.call(salida.querySelectorAll("[data-nivel]"), function (b) {
-      b.addEventListener("click", function () {
-        estado.nivel = b.getAttribute("data-nivel");
-        pintar();
-      });
-    });
-
-    var ley = document.getElementById("leyenda");
-    if (ley) {
-      ley.addEventListener("toggle", function () {
-        try { localStorage.setItem("fisioia.leyenda", ley.open ? "abierta" : "vista"); } catch (e) {}
-      });
-    }
-
-    Array.prototype.forEach.call(salida.querySelectorAll("[data-ver]"), function (b) {
-      b.addEventListener("click", function () {
-        var cuerpo = b.closest(".test").querySelector(".test-cuerpo");
-        cuerpo.hidden = !cuerpo.hidden;
-        b.setAttribute("aria-expanded", String(!cuerpo.hidden));
-      });
-    });
-
-    Array.prototype.forEach.call(salida.querySelectorAll("[data-marcar]"), function (b) {
-      b.addEventListener("click", function (ev) {
-        ev.stopPropagation();
-        var nombre = b.getAttribute("data-marcar");
-        var valor = b.getAttribute("data-valor");
-        estado.resultados[nombre] = estado.resultados[nombre] === valor ? null : valor;
-        interpretarTest(nombre);
-      });
-    });
-
-    Object.keys(estado.resultados).forEach(function (nombre) {
-      if (estado.resultados[nombre]) interpretarTest(nombre);
-    });
-  }
-
-  function bloqueBanderas() {
-    if (!estado.banderas.length) return "";
-    return '<details class="seccion banderas aviso">' +
-      "<summary>Banderas rojas a descartar en " + esc(estado.region) + " · " + estado.banderas.length + "</summary>" +
-      estado.banderas.map(function (b) {
-        return '<div class="bandera">' +
-          "<h4>" + esc(b.titulo) + '<span class="prioridad ' + esc(b.prioridad) + '">' + esc(b.prioridad) + "</span></h4>" +
-          "<ul>" + b.senales.map(function (s) { return "<li>" + esc(s) + "</li>"; }).join("") + "</ul>" +
-          "<p>" + esc(b.accion) + "</p>" +
-        "</div>";
-      }).join("") +
-      '<p class="advertencia">' + esc(estado.advertencia) + "</p>" +
-    "</details>";
-  }
-
-  function bloquePreTest() {
-    var niveles = [
-      { id: "baja", nombre: "Baja", detalle: "en torno al 15%" },
-      { id: "media", nombre: "Media", detalle: "en torno al 45%" },
-      { id: "alta", nombre: "Alta", detalle: "en torno al 75%" }
-    ];
-
-    return '<div class="seccion"><div class="tarjeta pretest">' +
-      "<h3>Antes de explorar: ¿cómo de fuerte es tu sospecha de " + esc(estado.entidad) + "?</h3>" +
-      "<p>La conclusión de cada test depende de con cuánta sospecha llegas a él. Se pregunta una sola vez y se aplica a toda la batería.</p>" +
-      '<div class="niveles">' +
-        niveles.map(function (n) {
-          return '<button class="nivel" data-nivel="' + n.id + '" aria-pressed="' + (estado.nivel === n.id) + '">' +
-            "<b>" + n.nombre + "</b><span>" + n.detalle + "</span></button>";
-        }).join("") +
-      "</div></div></div>";
-  }
-
-  function bloqueAgrupaciones() {
-    if (!estado.agrupaciones.length) return "";
-
-    return estado.agrupaciones.map(function (a) {
-      var ev = estado.evidencias[a.nombre];
-      var verificada = ev && ev.hayCifras;
-
-      return '<div class="seccion"><div class="tarjeta cluster">' +
-        '<span class="rotulo">' + (verificada ? "Agrupación validada" : "Agrupación propuesta") + "</span>" +
-        "<h3>" + esc(a.nombre) + "</h3>" +
-        '<p class="criterio">' + esc(a.criterio) + "</p>" +
-        "<ol>" + a.tests.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ol>" +
-        (verificada
-          ? '<div class="evidencia">Precisión de la agrupación completa: <span class="cifras">Sn ' +
-            num(ev.sn, true) + " · Sp " + num(ev.sp, true) + "</span>. " + citaHtml(ev) + "</div>"
-          : '<div class="evidencia">' + (ev
-              ? "No se ha localizado precisión diagnóstica publicada de esta agrupación como conjunto, así que interpreta cada test por separado."
-              : '<span class="cargando"><span class="girando"></span>Comprobando si está validada…</span>') + "</div>") +
-      "</div></div>";
-    }).join("");
-  }
-
-  // La leyenda se abre sola la primera vez y luego se recuerda plegada. Quien no
-  // sabe qué es una sensibilidad tampoco sabe que tiene que preguntarlo, así que
-  // la primera vez no puede estar escondida.
-  function leyenda() {
-    var vista = false;
-    try { vista = localStorage.getItem("fisioia.leyenda") === "vista"; } catch (e) {}
-
-    return '<details class="leyenda" id="leyenda"' + (vista ? "" : " open") + ">" +
-      "<summary>Qué significan Sn y Sp</summary>" +
-      "<dl>" +
-        "<div><dt>Sn · Sensibilidad</dt><dd>De cada 100 personas que <b>sí</b> tienen la lesión, " +
-          "a cuántas las detecta el test. Un test muy sensible que sale <b>negativo</b> ayuda a <b>descartar</b>.</dd></div>" +
-        "<div><dt>Sp · Especificidad</dt><dd>De cada 100 personas que <b>no</b> la tienen, " +
-          "a cuántas el test da negativo. Un test muy específico que sale <b>positivo</b> ayuda a <b>confirmar</b>.</dd></div>" +
-        "<div><dt>Sin cifras</dt><dd>Hemos buscado en la literatura y nadie ha publicado estos datos " +
-          "para ese test en esta patología. <b>No significa que el test no sirva</b>: muchas patologías se " +
-          "diagnostican por clínica y sus estudios no incluyen personas sanas, así que no puede calcularse " +
-          "la especificidad. Puedes usar el test; lo que no podemos decirte es cuánto cambia tu sospecha.</dd></div>" +
-      "</dl>" +
-      "<p>Ambas van de 0 a 1. Pero lo que significa un resultado depende también de con cuánta " +
-      "sospecha llegabas al test: por eso te preguntamos antes de explorar.</p>" +
-    "</details>";
-  }
-
-  function bloqueTests() {
-    return '<div class="seccion">' +
-      '<span class="rotulo">Batería · ' + estado.tests.length + " tests, de cribado a confirmación</span>" +
-      leyenda() +
-      '<div class="tests">' + estado.tests.map(tarjetaTest).join("") + "</div>" +
-      '<p class="nota-cadena">Cada test se interpreta contra tu sospecha inicial, de forma independiente. Los resultados de varios tests sueltos no se encadenan: hacerlo daría una certeza que la evidencia no respalda, porque tests que exploran la misma estructura no aportan información independiente.</p>' +
-    "</div>";
-  }
-
-  function tarjetaTest(t, i) {
-    var ev = estado.evidencias[t.nombre];
-    var marcado = estado.resultados[t.nombre];
-    var id = esc(t.nombre);
-
-    return '<div class="test">' +
-      '<div class="test-cab">' +
-        "<div>" +
-          '<h3><span class="orden">' + String(i + 1).padStart(2, "0") + "</span>" + esc(t.nombre) + "</h3>" +
-          '<div class="objetivo">' + esc(t.objetivo) + "</div>" +
-        "</div>" +
-        tiraSemaforo(ev) +
+    // La confirmación grande: un check que se dibuja y estalla en verde. Lo
+    // que había en la tarjeta se esconde, no se borra, para poder volver.
+    var exito = document.createElement("div");
+    exito.className = "exito";
+    exito.setAttribute("role", "status");
+    exito.innerHTML =
+      '<div class="exito-check" aria-hidden="true">' +
+        '<span class="exito-onda"></span><span class="exito-onda"></span>' +
+        '<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>' +
+        '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44"/><path d="M30 52 44 66 71 37"/></svg>' +
       "</div>" +
-      '<div class="test-acciones">' +
-        '<span class="rotulo">Resultado</span>' +
-        '<button class="btn-res" data-marcar="' + id + '" data-valor="positivo" aria-pressed="' + (marcado === "positivo") + '">Positivo</button>' +
-        '<button class="btn-res" data-marcar="' + id + '" data-valor="negativo" aria-pressed="' + (marcado === "negativo") + '">Negativo</button>' +
-        '<button class="btn-ver" data-ver="' + id + '" aria-expanded="false">Cómo se ejecuta</button>' +
-      "</div>" +
-      '<div class="hueco" data-hueco="' + id + '"></div>' +
-      '<div class="test-cuerpo" hidden>' +
-        "<dl>" +
-          paso("Paciente", t.posicionPaciente) +
-          paso("Terapeuta", t.posicionTerapeuta) +
-          paso("Maniobra", t.maniobra) +
-          paso("Positivo si", t.positivoSi) +
-        "</dl>" +
-        bloqueEvidencia(t.nombre, ev) +
-      "</div>" +
-    "</div>";
+      '<p class="exito-rotulo">Ya está en camino</p>' +
+      '<h2 class="exito-titulo">Revisa tu bandeja de entrada</h2>' +
+      '<p class="exito-texto">Hemos enviado tu enlace de acceso a <b>' + esc(correo) + "</b>. " +
+      "Ábrelo y entrarás directamente.</p>" +
+      '<p class="exito-nota">Si no aparece en un par de minutos, mira en spam o en la pestaña de promociones.</p>' +
+      '<button class="exito-corregir" type="button">¿No es tu correo? Escríbelo de nuevo</button>';
+    oferta.classList.add("enviado");
+    oferta.appendChild(exito);
+    exito.querySelector(".exito-corregir").addEventListener("click", corregir);
   }
 
-  function paso(etiqueta, texto) {
-    return '<div class="paso"><dt>' + etiqueta + "</dt><dd>" + esc(texto) + "</dd></div>";
+  // Quien se equivocó al escribir vuelve al formulario con lo que puso, para
+  // corregirlo, y todo lo demás vuelve a pedir el correo como antes.
+  function corregir() {
+    apuntado = false;
+    Array.prototype.forEach.call(document.querySelectorAll(".form-hecho, .exito"), function (el) { el.remove(); });
+    formularios.forEach(function (f) { f.hidden = false; });
+    oferta.classList.remove("enviado");
+    restaurar.forEach(function (r) { r(); });
+    captura.scrollIntoView({ behavior: "smooth", block: "center" });
+    var campoArriba = document.getElementById("correo");
+    setTimeout(function () { campoArriba.focus(); campoArriba.select(); }, 450);
+    pedirBarra();
   }
 
-  function tiraSemaforo(ev) {
-    if (!ev) return '<div class="semaforo"><span class="punto espera"></span>buscando</div>';
-    if (!ev.hayCifras) return '<div class="semaforo">sin cifras</div>';
-    return '<div class="semaforo"><span class="cifras">' + textoCifras(ev) + "</span></div>";
-  }
+  // Todos los formularios mandan lo mismo al mismo sitio; solo cambia de dónde
+  // vienen, para saber cuál convierte.
+  formularios.forEach(function (form) {
+    var entrada = form.querySelector('input[type="email"]');
+    var boton = form.querySelector('button[type="submit"]');
+    var textoBoton = boton.innerHTML;
+    restaurar.push(function () { boton.disabled = false; boton.innerHTML = textoBoton; });
 
-  // La literatura publica a menudo solo una de las dos cifras. Se muestra la que
-  // hay y se dice cuál falta, en vez de fingir que no se sabe nada del test.
-  function textoCifras(ev) {
-    if (ev.sn != null && ev.sp != null) return "Sn " + num(ev.sn, true) + " · Sp " + num(ev.sp, true);
-    if (ev.sn != null) return "Sn " + num(ev.sn, true) + " · Sp no publicada";
-    return "Sp " + num(ev.sp, true) + " · Sn no publicada";
-  }
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
 
-  /** Coma decimal. Las proporciones siempre con dos decimales: 0,80 y no 0,8. */
-  function num(x, proporcion) {
-    var opciones = proporcion
-      ? { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-      : { maximumFractionDigits: 2 };
-    return Number(x).toLocaleString("es-ES", opciones);
-  }
-
-  function citaHtml(ev) {
-    if (!ev.cita) return "";
-    return 'Fuente: <a href="' + esc(ev.cita.url) + '" target="_blank" rel="noopener">' +
-      esc(ev.cita.titulo) + "</a> · " + esc(ev.cita.revista) + " " + esc(ev.cita.anio) + ".";
-  }
-
-  function bloqueEvidencia(nombre, ev) {
-    if (!ev) {
-      return '<div class="evidencia"><span class="cargando"><span class="girando"></span>Buscando precisión diagnóstica en PubMed…</span></div>';
-    }
-
-    if (!ev.hayCifras) {
-      return '<div class="evidencia"><b>Sin cifras de precisión utilizables.</b> ' + esc(ev.motivo || ev.error || "") +
-        " No se ofrece conclusión probabilística para este test." +
-        ((ev.consultados && ev.consultados.length)
-          ? '<ul class="motivos">' + ev.consultados.slice(0, 3).map(function (c) {
-              return '<li><a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.titulo) + "</a></li>";
-            }).join("") + "</ul>"
-          : "") +
-      "</div>";
-    }
-
-    return '<div class="evidencia">' +
-      '<span class="cifras">' + textoCifras(ev) + "</span>" +
-      (ev.indirecta ? '<span class="indirecta">evidencia indirecta</span>' : "") +
-      (ev.parcial ? '<span class="indirecta">cifra parcial</span>' : "") +
-      '<ul class="motivos">' + ev.calidad.motivos.map(function (m) { return "<li>" + esc(m) + "</li>"; }).join("") + "</ul>" +
-      "<div style=\"margin-top:8px\">" + citaHtml(ev) + "</div>" +
-    "</div>";
-  }
-
-  /* ============ evidencia y conclusión ============ */
-
-  function buscarEvidencia() {
-    var elementos = estado.agrupaciones.map(function (a) { return { nombre: a.nombre, busqueda: a.nombre, tipo: "agrupacion" }; })
-      .concat(estado.tests.map(function (t) { return { nombre: t.nombre, busqueda: t.nombreBusqueda || t.nombre, tipo: "test" }; }));
-
-    pedir("api/evidencia", {
-      entidad: estado.entidad,
-      terminosBusqueda: estado.terminos,
-      elementos: elementos
-    }).then(function (d) {
-      (d.evidencias || []).forEach(function (e) { estado.evidencias[e.nombre] = e; });
-      pintar();
-    }).catch(function (err) {
-      estado.tests.forEach(function (t) {
-        estado.evidencias[t.nombre] = { hayCifras: false, error: err.message };
-      });
-      pintar();
-    });
-  }
-
-  function interpretarTest(nombre) {
-    var hueco = salida.querySelector('[data-hueco="' + nombre.replace(/"/g, '\\"') + '"]');
-    var ev = estado.evidencias[nombre];
-    var resultado = estado.resultados[nombre];
-
-    Array.prototype.forEach.call(salida.querySelectorAll('[data-marcar="' + nombre.replace(/"/g, '\\"') + '"]'), function (b) {
-      b.setAttribute("aria-pressed", String(b.getAttribute("data-valor") === resultado));
-    });
-
-    if (!hueco) return;
-    if (!resultado) { hueco.innerHTML = ""; return; }
-
-    // Marcar siempre vale. Lo que cambia es cuánto podemos decirte del resultado.
-    if (!estado.nivel) {
-      hueco.innerHTML = '<div class="lectura"><b>Resultado anotado.</b> ' +
-        "Dinos arriba con cuánta sospecha llegabas y verás qué significa este resultado, " +
-        "y de paso el de todos los tests que ya hayas marcado.</div>";
-      return;
-    }
-
-    if (!ev || !ev.hayCifras) {
-      hueco.innerHTML = '<div class="lectura"><b>Resultado anotado.</b> ' +
-        "Nadie ha publicado la precisión de este test para esta patología, así que no puede " +
-        "decirse cuánto cambia tu sospecha.</div>";
-      return;
-    }
-
-    if (ev.interpretable === false) {
-      hueco.innerHTML = '<div class="lectura"><b>Resultado anotado.</b> ' +
-        "Solo consta " + (ev.sn != null ? "la sensibilidad" : "la especificidad") +
-        " de este test. Con una sola de las dos cifras no puede calcularse la probabilidad " +
-        "tras el test, así que tómalo como orientación.</div>";
-      return;
-    }
-
-    hueco.innerHTML = '<div class="lectura"><span class="cargando"><span class="girando"></span>Calculando…</span></div>';
-
-    pedir("api/interpretar", {
-      nivelPreTest: estado.nivel, sn: ev.sn, sp: ev.sp, resultado: resultado
-    }).then(function (d) {
-      if (!d.interpretable) {
-        hueco.innerHTML = '<div class="lectura"><b>No interpretable</b>' + esc((d.problemas || []).join(" ")) + "</div>";
+      var correo = entrada.value.trim();
+      if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(correo)) {
+        avisar(form, "Revisa la dirección de correo: parece que le falta algo.", true);
+        entrada.focus();
         return;
       }
-      var x = d.detalle;
-      hueco.innerHTML = '<div class="lectura">' +
-        "<b>" + esc(d.lectura) + "</b>" +
-        '<div class="calculo">' +
-          esc(x.preTestTexto) + "  →  RV " + esc(x.cual) + " " + num(x.razonDeVerosimilitud) +
-          "  →  post-test " + esc(x.postTestTexto) +
-        "</div>" +
-        '<div class="calculo">' + esc(x.magnitud.texto) + "</div>" +
-      "</div>";
-    }).catch(function (err) {
-      hueco.innerHTML = '<div class="lectura"><b>No se ha podido calcular</b>' + esc(err.message) + "</div>";
+
+      boton.disabled = true;
+      boton.innerHTML = '<span class="girando"></span>' + (form.classList.contains("barra-form") ? "" : " &nbsp;Enviando tu acceso…");
+      var caja = form.querySelector(".avisos, #avisos");
+      if (caja) caja.innerHTML = "";
+
+      var meta = window.fisioiaDatosMeta ? window.fisioiaDatosMeta() : {};
+      fetch("/api/acceso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ correo: correo, origen: form.getAttribute("data-origen"), meta: meta })
+      }).then(function (r) {
+        return r.json().then(function (d) {
+          if (!r.ok) throw new Error(d.error || "No hemos podido completar el registro.");
+          return d;
+        });
+      }).then(function () {
+        document.getElementById("correo").value = correo;
+        hecho(correo);
+        // Cliente potencial para Meta, cuando el alta está confirmada. Lo manda
+        // siempre el servidor; el píxel, además, si se aceptaron las cookies,
+        // con el mismo identificador para que cuente una sola vez.
+        if (window.fisioiaMedir) window.fisioiaMedir("Lead", {}, { eventID: meta.id });
+        // Quien se apunta desde abajo ve la confirmación donde está; solo el
+        // de arriba (y la barra, que no tiene sitio) llevan a la tarjeta grande.
+        var origen = form.getAttribute("data-origen");
+        if (origen === "arriba" || origen === "barra") captura.scrollIntoView({ behavior: "smooth", block: "center" });
+      }).catch(function (err) {
+        avisar(form, err.message, true);
+        boton.disabled = false;
+        boton.innerHTML = textoBoton;
+      });
+    });
+  });
+
+  // La barra de abajo aparece cuando no hay ningún formulario a la vista y
+  // se retira en cuanto asoma uno: nunca dos invitaciones a la vez.
+  // Se calcula al hacer scroll en vez de con IntersectionObserver: así no
+  // depende de umbrales ni de cuándo decide avisar el navegador.
+  var otros = formularios.filter(function (f) { return !f.classList.contains("barra-form"); });
+  var pedidoBarra = 0;
+  function revisarBarra() {
+    pedidoBarra = 0;
+    if (!barra) return;
+    var alto = window.innerHeight;
+    var algunoALaVista = otros.some(function (f) {
+      if (!f.isConnected || !f.offsetParent) return false;
+      var r = f.getBoundingClientRect();
+      return r.bottom > 40 && r.top < alto - 40;
+    });
+    var mostrar = !apuntado && !algunoALaVista;
+    barra.classList.toggle("ve", mostrar);
+    barra.setAttribute("aria-hidden", mostrar ? "false" : "true");
+    Array.prototype.forEach.call(barra.querySelectorAll("input, button"), function (el) {
+      el.tabIndex = mostrar ? 0 : -1;
     });
   }
+  function pedirBarra() { if (!pedidoBarra) pedidoBarra = requestAnimationFrame(revisarBarra); }
+  window.addEventListener("scroll", pedirBarra, { passive: true });
+  window.addEventListener("resize", pedirBarra);
+
+  // ---- La historia: escondida hasta que se pide ----
+
+  var ver = document.getElementById("ver-como");
+  var historia = document.getElementById("historia");
+  var pasos = document.getElementById("pasos");
+  var quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Cada escena entra al llegar a ella, no al abrir: si se lanzan todas de
+  // golpe, el usuario se las pierde.
+  var observador = "IntersectionObserver" in window ? new IntersectionObserver(function (entradas) {
+    entradas.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      e.target.classList.add("visible");
+      observador.unobserve(e.target);
+      if (e.target.hasAttribute("data-medidor")) medir(e.target);
+    });
+  }, { threshold: .18, rootMargin: "0px 0px -8% 0px" }) : null;
+
+  // El medidor: la aguja y el arco van del 45% al valor del test, y el número
+  // cuenta a la vez.
+  function medir(tarjeta) {
+    var hasta = Number(tarjeta.getAttribute("data-medidor"));
+    var numero = tarjeta.querySelector(".medidor-numero");
+    setTimeout(function () {
+      tarjeta.style.setProperty("--p", hasta);
+      if (quieto) { numero.textContent = hasta; return; }
+      var t0 = performance.now();
+      (function paso(t) {
+        var k = Math.min(1, (t - t0) / 1800), f = 1 - Math.pow(1 - k, 4);
+        numero.textContent = Math.round(45 + (hasta - 45) * f);
+        if (k < 1) requestAnimationFrame(paso);
+      })(t0);
+    }, quieto ? 0 : 500);
+  }
+
+  // La línea de los pasos se llena según se baja, y cada parada se enciende
+  // cuando la línea llega a ella.
+  function avanzar() {
+    if (!pasos || historia.hidden) return;
+    var r = pasos.getBoundingClientRect(), vh = window.innerHeight;
+    var avance = Math.max(0, Math.min(1, (vh * .62 - r.top) / r.height));
+    pasos.style.setProperty("--avance", avance.toFixed(3));
+    Array.prototype.forEach.call(pasos.children, function (li) {
+      var num = li.querySelector(".paso-num").getBoundingClientRect();
+      li.classList.toggle("activo", num.top + num.height / 2 < vh * .62);
+    });
+  }
+  // Una vez por fotograma como mucho: medir en cada evento de scroll obligaba
+  // al móvil a recalcular la página decenas de veces por segundo.
+  var pedidoAvance = 0;
+  function pedirAvance() {
+    if (!pedidoAvance) pedidoAvance = requestAnimationFrame(function () { pedidoAvance = 0; avanzar(); });
+  }
+  window.addEventListener("scroll", pedirAvance, { passive: true });
+  window.addEventListener("resize", pedirAvance);
+
+  function abrir() {
+    if (!historia.hidden) {
+      historia.scrollIntoView({ behavior: quieto ? "auto" : "smooth", block: "start" });
+      return;
+    }
+    ver.setAttribute("aria-expanded", "true");
+    document.body.classList.add("abriendo");
+    historia.hidden = false;
+    historia.classList.add("abierta");
+
+    Array.prototype.forEach.call(historia.querySelectorAll("[data-revelar]"), function (el) {
+      if (observador) observador.observe(el);
+      else { el.classList.add("visible"); if (el.hasAttribute("data-medidor")) medir(el); }
+    });
+
+    // Primero cae el haz desde el botón; cuando llega abajo, la página se
+    // desliza hasta la historia.
+    setTimeout(function () {
+      historia.scrollIntoView({ behavior: quieto ? "auto" : "smooth", block: "start" });
+      avanzar();
+    }, quieto ? 0 : 520);
+  }
+  ver.addEventListener("click", abrir);
+
+  // Un enlace compartido a #como-funciona abre la historia directamente.
+  if (location.hash === "#como-funciona") abrir();
 })();
 </script>
+
+</body>
+</html>

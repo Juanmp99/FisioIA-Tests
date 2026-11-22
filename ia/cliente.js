@@ -15,21 +15,47 @@ try {
 
 export const hayCredencial = () => cliente !== null;
 
-/** Llamada con salida estructurada. Devuelve el objeto ya analizado más el uso. */
-export async function pedirJson({ sistema, mensaje, esquema, esfuerzo = "medium", maxTokens = 8000 }) {
+/**
+ * Llamada con salida estructurada. Devuelve el objeto ya analizado más el uso.
+ *
+ * `senal` permite cortarla por plazo. Sin eso, una extracción larga se lleva por
+ * delante la petición entera: quien acaba respondiendo es la pasarela, con una
+ * página de error en HTML, y se pierde hasta la posibilidad de decir por qué.
+ * Abortando a tiempo, la función todavía puede contestar ella.
+ */
+export async function pedirJson({ sistema, mensaje, esquema, esfuerzo = "medium", maxTokens = 8000, modelo = MODELO, senal }) {
   if (!cliente) {
     const e = new Error("El servidor no tiene configurada la clave de API. Define ANTHROPIC_API_KEY y reinícialo.");
     e.status = 503;
     throw e;
   }
 
-  const respuesta = await cliente.messages.create({
-    model: MODELO,
-    max_tokens: maxTokens,
-    system: sistema,
-    output_config: { effort: esfuerzo, format: { type: "json_schema", schema: esquema } },
-    messages: [{ role: "user", content: mensaje }],
-  });
+  let respuesta;
+  try {
+    respuesta = await cliente.messages.create(
+      {
+        model: modelo,
+        max_tokens: maxTokens,
+        system: sistema,
+        // `effort` solo si se pide. Haiku 4.5 no lo admite y responde con un 400,
+        // y las frases de la espera iban a Haiku con él puesto: fallaron todas,
+        // en silencio porque son adorno, y durante semanas no se generó ni una.
+        output_config: {
+          ...(esfuerzo ? { effort: esfuerzo } : {}),
+          format: { type: "json_schema", schema: esquema },
+        },
+        messages: [{ role: "user", content: mensaje }],
+      },
+      senal ? { signal: senal } : undefined,
+    );
+  } catch (e) {
+    if (senal?.aborted || e?.name === "AbortError" || e?.name === "APIUserAbortError") {
+      const corte = new Error("La extracción se ha cortado por plazo.");
+      corte.porPlazo = true;
+      throw corte;
+    }
+    throw e;
+  }
 
   if (respuesta.stop_reason === "refusal") {
     const e = new Error("El modelo ha declinado responder a esta consulta.");
